@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Treppides • KYC Files</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <style>
+      .wrap{ 
+        max-width:1100px; 
+        margin:40px auto; 
+        padding:0 18px; 
+      }
+      .about-section {
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="brand">
+        <img class="logo" src="globelogo.png" alt="Treppides" />
+        <div>
+          <h1>KYC Files</h1>
+        </div>
+      </div>
+      <div class="header-actions">
+        <a class="nav-btn" href="/">Home</a>
+        <button id="themeToggle" class="btn secondary" aria-label="Toggle theme">🌙 Dark</button>
+      </div>
+    </header>
+    <div class="wrap">
+      <div class="outer-table">
+        <div class="about-section">The KYC Management System is an internal tool designed to streamline the storage, tracking, and approval of client identification files across departments.<br><br>It provides an efficient way to request, locate, and manage KYC files while maintaining proper accountability and audit history for compliance purposes.<br><br>Developed and maintained by the Internal Tech Team of K. Treppides & Co Ltd.</div>
+      </div>
+
+    <script>
+      const body = document.body;
+      const toggle = document.getElementById("themeToggle");
+
+      // Apply saved theme
+      if (localStorage.getItem("theme") === "light") {
+        body.classList.add("light");
+      }
+
+      function updateToggleLabel() {
+        if (body.classList.contains("light")) {
+          toggle.textContent = "☀️ Light";
+          toggle.setAttribute('aria-label', 'Switch to dark theme');
+        } else {
+          toggle.textContent = "🌙 Dark";
+          toggle.setAttribute('aria-label', 'Switch to light theme');
+        }
+      }
+
+      updateToggleLabel();
+
+      toggle.addEventListener("click", () => {
+        body.classList.toggle("light");
+        localStorage.setItem("theme", body.classList.contains("light") ? "light" : "dark");
+        updateToggleLabel();
+      });
+    </script>
+
+      <script>
+        (function(){
+          const nav=document.querySelector('.nav-tabs');
+          const links=[...nav.querySelectorAll('a')];
+          const underline=nav.querySelector('.tab-underline');
+
+          function setActive(){
+            const path=location.pathname.replace(/\/+$/,'')||'/';
+            const active=links.find(a=>a.dataset.path===path)||links[0];
+            links.forEach(a=>a.classList.toggle('active',a===active));
+            moveUnderline(active);
+          }
+          function moveUnderline(el){
+            const {left,width}=el.getBoundingClientRect();
+            const {left:navLeft}=nav.getBoundingClientRect();
+            underline.style.left=(left-navLeft)+'px';
+            underline.style.width=width+'px';
+          }
+          links.forEach(a=>a.addEventListener('mouseenter',()=>moveUnderline(a)));
+          nav.addEventListener('mouseleave',setActive);
+          window.addEventListener('resize',setActive);
+          setActive();
+
+          /* ------- Theme toggle (persisted) ------- */
+          const toggle = document.getElementById("themeToggle");
+          const body = document.body;
+
+          // If user has saved a preference, use it; otherwise respect system preference
+          const saved = localStorage.getItem("theme"); // "dark" | "light" | null
+          if (saved) {
+            if (saved === "light") body.classList.add("light");
+          } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+            body.classList.add("light");
+          }
+
+        })();
+      </script>
+  </body>
+</html>

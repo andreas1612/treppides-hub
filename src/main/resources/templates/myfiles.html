@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <link rel="stylesheet" th:href="@{/css/app.css}">
+  <title>KYC • My Files</title>
+  <style>
+    .wrap{
+      max-width:960px;
+      margin:24px auto;
+      padding:0 16px
+    }
+    .ok{
+      color:#61b361;
+      font-weight:600
+    }
+    .err{
+      color:#e66
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <img class="logo" src="globelogo.png" alt="Treppides" />
+      <div>
+        <h1>KYC Files</h1>
+      </div>
+    </div>
+    <div class="header-actions">
+      <a class="nav-btn" href="/">Home</a>
+      <button id="themeToggle" class="btn secondary" aria-label="Toggle theme">🌙 Dark</button>
+    </div>
+  </header>
+
+
+<div class="wrap">
+  <div class="outer-table" id="startCard" style="display:none">
+    <h3 style="margin:0 0 8px">Email me a sign-in link</h3>
+    <div class="row">
+      <input id="email" type="email" placeholder="you@treppides.com" style="min-width:280px;">
+      <button class="btn" id="send">Send link</button>
+    </div>
+    <div id="msg" class="muted" style="margin-top:8px"></div>
+  </div>
+
+<script>
+  const body = document.body;
+  const toggle = document.getElementById("themeToggle");
+
+  // Apply saved theme
+  if (localStorage.getItem("theme") === "light") {
+    body.classList.add("light");
+  }
+
+  function updateToggleLabel() {
+    if (body.classList.contains("light")) {
+      toggle.textContent = "☀️ Light";
+      toggle.setAttribute('aria-label', 'Switch to dark theme');
+    } else {
+      toggle.textContent = "🌙 Dark";
+      toggle.setAttribute('aria-label', 'Switch to light theme');
+    }
+  }
+
+  updateToggleLabel();
+
+  toggle.addEventListener("click", () => {
+    body.classList.toggle("light");
+    localStorage.setItem("theme", body.classList.contains("light") ? "light" : "dark");
+    updateToggleLabel();
+  });
+</script>
+
+<script>
+(function(){
+  const params = new URLSearchParams(location.search);
+  const token = params.get('t');
+  const startCard = document.getElementById('startCard');
+  const filesCard = document.getElementById('filesCard');
+
+  if (token) {
+    // token present → show files
+    filesCard.style.display = '';
+    const tbody = document.getElementById('tbody');
+    const empty = document.getElementById('empty');
+    async function load(){
+      tbody.innerHTML = '<tr><td colspan="5" class="muted">Loading…</td></tr>';
+      try{
+        const r = await fetch(`/api/history/my-open?t=${encodeURIComponent(token)}`);
+        if(!r.ok) throw new Error(await r.text());
+        const data = await r.json();
+        tbody.innerHTML = '';
+        if(!data.length){ empty.style.display=''; return; }
+        empty.style.display='none';
+        for(const row of data){
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${row.reference ?? ''}</td>
+            <td>${row.client ?? ''}</td>
+            <td>${row.location ?? ''}</td>
+            <td>${row.startAt ? new Date(row.startAt).toLocaleString() : ''}</td>
+            <td>${row.personInChargeEmail ?? ''}</td>
+          `;
+          tbody.appendChild(tr);
+        }
+      }catch(e){
+        tbody.innerHTML = `<tr><td colspan="5" class="err">${e.message || 'Load failed'}</td></tr>`;
+      }
+    }
+    document.getElementById('reload').addEventListener('click', load);
+    load();
+    return;
+  }
+
+  // no token → show "send me a link"
+  startCard.style.display = '';
+  const email = document.getElementById('email');
+  const send  = document.getElementById('send');
+  const msg   = document.getElementById('msg');
+  send.addEventListener('click', async ()=>{
+    msg.className='muted';
+    msg.textContent='Sending…';
+    try{
+     const res = await fetch('/myfiles/start', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ email: email.value.trim() })
+      });
+      if(!res.ok) throw new Error(await res.text());
+      msg.className='ok';
+      msg.textContent='Check your inbox for the link.';
+    }catch(e){
+      msg.className='err';
+      msg.textContent=e.message || 'Failed to send link';
+    }
+  });
+  
+})();
+</script>
+</body>
+</html>

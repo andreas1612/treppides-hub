@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Treppides • KYC Files</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" th:href="@{/css/app.css}">
+  <style>
+    .wrap{ 
+      max-width:1100px; 
+      margin:40px auto; 
+      padding:0 18px; 
+    }
+    /* Modal */
+    dialog::backdrop{ 
+      background:rgba(0,0,0,.35); 
+    }
+    dialog{ 
+      border:0; 
+      border-radius:16px; 
+      padding:0; 
+      box-shadow:0 20px 60px rgba(0,0,0,.2);
+      width:min(720px,92vw); 
+      background:var(--panel); 
+      overflow:hidden; 
+      color:var(--text); 
+    }
+    .modal-head{ 
+      display:flex; 
+      justify-content:space-between; 
+      align-items:center; 
+      padding:16px 18px; 
+      border-bottom:1px solid var(--line);
+      background:var(--panel); 
+    }
+    .modal-title{ 
+      font-weight:800; 
+    }
+    .modal-body{ 
+      padding:18px; 
+    }
+    .grid{ 
+      display:grid; 
+      grid-template-columns:repeat(12,1fr); 
+      gap:14px; 
+    }
+    .col-12{ 
+      grid-column:1/-1; 
+    }
+    .col-6{ 
+      grid-column:span 6; 
+    }
+    .col-4{ 
+      grid-column:span 4; 
+    }
+    .col-3{ 
+      grid-column:span 3; 
+    }
+    label{ 
+      display:block; 
+      margin-bottom:6px; 
+      font-size:13px; 
+    }
+    input, select, textarea{ 
+      width:100%; 
+      padding:12px; 
+      border-radius:10px; 
+      border:1px solid var(--line); 
+      background:var(--bg); 
+      color:var(--text); 
+      font-size:14px; 
+    }
+    textarea{ 
+      min-height:86px; 
+      resize:vertical; 
+    }
+    input:focus, select:focus, textarea:focus{ 
+      border-color:var(--brand); 
+      box-shadow:0 0 0 3px #adc43033; 
+      outline:none; 
+    }
+    .modal-actions{ 
+      display:flex; 
+      gap:10px; 
+      justify-content:flex-end; 
+      padding:16px 18px; 
+      border-top:1px solid var(--line); 
+      background:var(--panel); 
+    }
+    .btn.outline{ 
+      background:transparent; 
+      color:var(--text); 
+      border:1px solid var(--line); 
+      box-shadow:none; 
+    }
+    .err{ 
+      color:#a00; 
+    }
+    .ok{ 
+      color:#3a7; 
+      font-weight:600; 
+    }
+    #countPill{ 
+      display:none; 
+    }
+
+    .badge-green {
+      color: #61b361;
+    }
+    .badge-orange {
+      color: #e6883c;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <img class="logo" src="globelogo.png" alt="Treppides" />
+      <div>
+        <h1>KYC Files</h1>
+        <div class="pill" id="countPill">0 files</div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <a class="nav-btn" href="/">Home</a>
+      <button id="themeToggle" class="btn secondary" aria-label="Toggle theme">🌙 Dark</button>
+      <button id="openAdd" class="btn" style="display:none;">＋ Add File</button>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div class="outer-table">
+      <div class="actions">
+        <div class="search">
+          <input id="q" type="search" placeholder="Search reference, Client, Person In Charge, Floor…" />
+          <button class="btn secondary" id="refreshBtn" title="Reload from server">Reload</button>
+        </div>
+        <span class="muted" id="statusText">Loaded 0</span>
+      </div>
+
+      <table aria-label="Files">
+        <thead>
+          <tr>
+            <th data-k="reference">Reference <span class="arrow">↕</span></th>
+            <th data-k="client">Client <span class="arrow">↕</span></th>
+            <th data-k="homeFloor">Floor <span class="arrow">↕</span></th>
+            <th data-k="isActive">Active <span class="arrow">↕</span></th>
+            <th data-k="personInChargeEmail">Person In Charge <span class="arrow">↕</span></th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+
+      <div class="footer">
+        <span class="muted">Click a header to sort • search updates instantly</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add File Modal -->
+  <dialog id="addModal" aria-labelledby="addTitle">
+    <div class="modal-head">
+      <div class="modal-title" id="addTitle">Add File</div>
+      <button class="btn outline" id="closeAdd" aria-label="Close">Close</button>
+    </div>
+    <div class="modal-body">
+      <div id="errBox" class="err" style="display:none;margin-bottom:8px;"></div>
+      <div class="grid">
+        <div class="col-4">
+          <label for="reference">Reference</label>
+          <input id="m_reference" type="number" min="0" placeholder="1001" required />
+        </div>
+        <div class="col-4">
+          <label for="client">Client</label>
+          <input id="m_client" type="text" placeholder="Client" required />
+        </div>
+        <div class="col-3">
+          <label for="homeFloor">Floor</label>
+          <input id="m_homeFloor" type="number" min="-1" max="4" placeholder="1" required />
+        </div>
+
+        <div class="col-6">
+          <label for="personInChargeEmail">Person In Charge (email)</label>
+          <input id="m_personInChargeEmail" type="email" placeholder="person@treppides.com" required />
+          <div class="muted" style="font-size:12px;margin-top:4px">
+            Must exist in <strong>EMPLOYEES(EMAIL)</strong>.
+          </div>
+        </div>
+
+        <div class="col-3">
+          <label for="isActive">Active?</label>
+          <select id="m_isActive">
+            <option value="true" selected>Active</option>
+            <option value="false">Inactive</option>
+          </select>
+        </div>
+
+        <div class="col-3">
+          <label for="m_st">Status</label>
+          <select id="m_st" title="Saved exactly as: Available / In use">
+            <option value="Available" selected>Available</option>
+            <option value="In use">In use</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn outline" id="cancelAdd">Cancel</button>
+      <button class="btn" id="saveAdd">Create</button>
+    </div>
+  </dialog>
+
+  <!-- View Modal -->
+  <dialog id="viewModal" aria-labelledby="viewTitle">
+    <div class="modal-head">
+      <div class="modal-title" id="viewTitle">File Details</div>
+      <button class="btn outline" id="closeView">Close</button>
+    </div>
+    <div class="modal-body">
+      <div id="viewList" >Loading…</div>
+    </div>
+  </dialog>
+
+  <!-- Request Modal -->
+  <dialog id="reqModal" aria-labelledby="reqTitle">
+    <div class="modal-head">
+      <div class="modal-title" id="reqTitle">Request File</div>
+      <button class="btn outline" id="closeReq">Close</button>
+    </div>
+    <div class="modal-body">
+      <div class="grid">
+        <div class="col-6">
+          <label>Your Email</label>
+          <input id="req_email" type="email" placeholder="you@treppides.com" required>
+        </div>
+        <div class="col-12">
+          <label>Note (optional)</label>
+          <textarea id="req_note" placeholder="Reason or where you'll store it"></textarea>
+        </div>
+      </div>
+      <div id="reqErr" class="err" style="display:none;margin-top:8px;"></div>
+      <div id="reqOk"  class="ok"  style="display:none;margin-top:8px;"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn outline" id="cancelReq">Cancel</button>
+      <button class="btn" id="sendReq">Send Request</button>
+    </div>
+  </dialog>
+
+  <script>
+    /* theme toggle (persisted) */
+    (function(){
+      const toggle = document.getElementById("themeToggle");
+      const body = document.body;
+      const saved = localStorage.getItem("theme");
+      if (saved) {
+        if (saved === "light") body.classList.add("light");
+      } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+        body.classList.add("light");
+      }
+      function updateToggleLabel(){
+        if (body.classList.contains("light")) {
+          toggle.textContent = "☀️ Light";
+          toggle.setAttribute('aria-label','Switch to dark theme');
+        } else {
+          toggle.textContent = "🌙 Dark";
+          toggle.setAttribute('aria-label','Switch to light theme');
+        }
+      }
+      updateToggleLabel();
+      toggle.addEventListener("click", () => {
+        body.classList.toggle("light");
+        localStorage.setItem("theme", body.classList.contains("light") ? "light" : "dark");
+        updateToggleLabel();
+      });
+    })();
+
+    /* config */
+    const API = location.origin + "/api/files";
+    const REQUESTS_API = location.origin + "/api/requests";
+    const FILE_API = (ref) => `${location.origin}/api/files/${ref}`; // single-file GET
+
+    /* data + rendering */
+    const $ = id => document.getElementById(id);
+    const q=$("q"), tbody=$("tbody"), countPill=$("countPill"), statusText=$("statusText");
+    let all=[], view=[], sortKey="reference", sortDir="asc";
+
+    const debounce=(fn,ms=200)=>{let t;return(...a)=>{clearTimeout(t); t=setTimeout(()=>fn(...a),ms);};};
+
+    function render(rows){
+      tbody.innerHTML="";
+      rows.forEach(r=>{
+        const tr=document.createElement("tr");
+        tr.innerHTML=`
+          <td>${r.reference ?? ""}</td>
+          <td>${r.client ?? ""}</td>
+          <td>${r.homeFloor ?? ""}</td>
+          <td>${(r.isActive==1 || r.isActive===true) ? "Active" : "Inactive"}</td>
+          <td>${r.personInChargeEmail ?? ""}</td>
+          <td class="actions">
+            <button class="btn secondary small" data-act="view" data-ref="${r.reference}">View</button>
+            <button class="btn small" data-act="request" data-ref="${r.reference}">Request</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+      tbody.querySelectorAll('button[data-act]').forEach(btn=>btn.addEventListener('click', onRowAction));
+
+      countPill.textContent = `${rows.length} file${rows.length===1?"":"s"}`;
+      statusText.textContent = `Loaded ${all.length} • Showing ${rows.length}`;
+    }
+
+    function apply(){
+      const term = q.value.trim().toLowerCase();
+      const filtered = !term ? all : all.filter(r=>{
+        const s = `${r.reference??""} ${r.client??""} ${r.homeFloor??""} ${r.isActive??""} ${r.personInChargeEmail??""}`.toLowerCase();
+        return s.includes(term);
+      });
+      filtered.sort((a,b)=>{
+        const A=a[sortKey], B=b[sortKey];
+        if (A==null && B!=null) return sortDir==="asc"?1:-1;
+        if (A!=null && B==null) return sortDir==="asc"?-1:1;
+        if (A==null && B==null) return 0;
+        if (typeof A==="number" && typeof B==="number") return sortDir==="asc"?A-B:B-A;
+        return sortDir==="asc" ? String(A).localeCompare(String(B)) : String(B).localeCompare(String(A));
+      });
+      view = filtered;
+      render(view);
+    }
+    const debouncedApply = debounce(apply,200);
+
+    async function load(){
+      const res = await fetch(API);
+      statusText.textContent = `Loading…`;
+      if(!res.ok){ statusText.textContent = `HTTP ${res.status}`; return; }
+      all = await res.json();
+      apply();
+    }
+
+    document.querySelectorAll("th[data-k]").forEach(th=>{
+      th.addEventListener("click",()=>{
+        const k=th.getAttribute("data-k");
+        if(sortKey===k){sortDir = sortDir==="asc" ? "desc" : "asc";}
+        else{sortKey=k; sortDir="asc";}
+        apply();
+      });
+    });
+
+    q.addEventListener("input",debouncedApply);
+    $("refreshBtn").addEventListener("click",load);
+
+    /* Add File modal */
+    const modal=$("addModal");
+    const openBtn=$("openAdd"), closeBtn=$("closeAdd"), cancelBtn=$("cancelAdd"), saveBtn=$("saveAdd");
+    const errBox=$("errBox");
+    const field = id => document.getElementById(id).value.trim();
+
+    function openModal(){
+      errBox.style.display="none";
+      ["m_reference","m_client","m_homeFloor","m_personInChargeEmail"].forEach(id=>$(id).value="");
+      $("m_isActive").value="true";
+      $("m_st").value="Available";
+      if(typeof modal.showModal==="function") modal.showModal(); else modal.setAttribute("open","");
+      $("m_reference").focus();
+    }
+    function closeModal(){ if(modal.close) modal.close(); else modal.removeAttribute("open"); }
+
+    function payloadFromModal(){
+      const toBool = v => v===""?null:(v==="true");
+      return {
+        reference: Number($("m_reference").value),
+        isActive: toBool($("m_isActive").value),
+        client: field("m_client"),
+        st: $("m_st").value || "Available",   // exactly "Available" | "in use"
+        homeFloor: Number($("m_homeFloor").value),
+        personInChargeEmail: field("m_personInChargeEmail")
+      };
+    }
+    function validate(p){
+      const e=[];
+      if(!Number.isFinite(p.reference)) e.push("Reference required");
+      if(p.reference < 0) e.push("Reference cannot be negative");
+      if(!p.client) e.push("Client required");
+      if(!p.personInChargeEmail) e.push("Person in charge email required");
+      if(!Number.isFinite(p.homeFloor)) e.push("Home floor must be a number");
+      if(p.homeFloor < -1 || p.homeFloor > 4) e.push("Home floor must be between -1 and 4");
+      if(!["Available","In use"].includes((p.st||"").toLowerCase()));
+      return e;
+    }
+
+    async function saveFile(){
+      const p = payloadFromModal();
+      const errs = validate(p);
+      if(errs.length){
+        errBox.textContent = errs[0];
+        errBox.style.display = "block";
+        return;
+      }
+      saveBtn.disabled = true;
+      try{
+        const res = await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(p)});
+        if(!res.ok) throw new Error(await res.text() || ("HTTP "+res.status));
+        closeModal();
+        await load();
+      }catch(e){
+        errBox.textContent = e.message || "Failed to create file";
+        errBox.style.display = "block";
+      }finally{
+        saveBtn.disabled = false;
+      }
+    }
+
+    document.getElementById("openAdd").addEventListener("click",openModal);
+    document.getElementById("closeAdd").addEventListener("click",closeModal);
+    document.getElementById("cancelAdd").addEventListener("click",closeModal);
+    document.getElementById("saveAdd").addEventListener("click",saveFile);
+    modal.addEventListener("cancel",e=>{e.preventDefault(); closeModal();}); // ESC
+
+    /* View + Request modals */
+    const viewModal = document.getElementById('viewModal');
+    const viewList  = document.getElementById('viewList');
+    const closeView = document.getElementById('closeView');
+
+    const reqModal = document.getElementById('reqModal');
+    const closeReq = document.getElementById('closeReq');
+    const cancelReq = document.getElementById('cancelReq');
+    const sendReq = document.getElementById('sendReq');
+    const reqEmail = document.getElementById('req_email');
+    const reqNote  = document.getElementById('req_note');
+    const reqErr   = document.getElementById('reqErr');
+    const reqOk    = document.getElementById('reqOk');
+    let activeRefForRequest = null;
+
+    function openDialog(d){ if(d.showModal) d.showModal(); else d.setAttribute('open',''); }
+    function closeDialog(d){ if(d.close) d.close(); else d.removeAttribute('open'); }
+
+    function currentStatus(obj){
+      // normalize status from various backends
+      const raw = (obj?.status ?? obj?.st ?? '').toString().trim().toUpperCase();
+      const inUse = raw === 'OUT' || raw === 'IN USE';
+
+      // Status label shown to the user
+      const status = inUse ? 'In use' : 'Available';
+
+      // Holder logic:
+      // - if In use: prefer explicit holderEmail/currentHolderEmail from API; (if backend doesn’t provide it, you'll see 'Unknown (in use)')
+      // - if Available: PIC is effectively the holder to request from
+      let holder = null;
+      if (inUse) {
+        holder = obj?.holderEmail || obj?.currentHolderEmail || (obj?.holder?.email) || null;
+      } else {
+        holder = obj?.personInChargeEmail || null;
+      }
+
+      // Floor / location (best-effort with your existing fields)
+      const floor = obj?.homeFloor ?? obj?.floor ?? obj?.location ?? obj?.fl ?? '';
+
+      const active = (obj?.isActive == 1 || obj?.isActive === true) ? 'Active' : 'Inactive';
+      return { holder, floor, status, active, inUse };
+    }
+
+    async function onRowAction(e){
+      const btn = e.currentTarget;
+      const ref = btn.dataset.ref;
+      const act = btn.dataset.act;
+
+      if (act === 'view') {
+        viewList.textContent = 'Loading…';
+        openDialog(viewModal);
+        try {
+          const res = await fetch(FILE_API(ref));
+          if(!res.ok) throw new Error(await res.text());
+          const file = await res.json();
+
+          const { holder, floor, status, active } = currentStatus(file);
+
+          const holderLabel = holder
+          ? holder
+          : (status === 'In use'
+              ? '<em>Unknown (in use)</em>'
+              : '<em>PIC not set</em>');
+
+          viewList.innerHTML = `
+          <div style="padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:var(--panel)">
+            <div style="font-weight:800; margin-bottom:6px;">Current status</div>
+            <div><strong>Status:</strong> 
+              <span class="${status==='Available' ? 'badge-green' : 'badge-orange'}">
+                ${status}
+              </span>
+            </div>
+            <div><strong>Holder:</strong> ${holderLabel}</div>
+            <div><strong>Floor:</strong> ${floor  || '<em>unknown</em>'}</div>
+          </div>
+        `;
+
+        } catch(err){
+          viewList.textContent = err.message || 'Failed to load file details';
+        }
+      }
+
+      if (act === 'request') {
+        activeRefForRequest = Number(ref);
+        reqErr.style.display='none'; reqOk.style.display='none';
+        reqEmail.value = ''; reqNote.value = '';
+        openDialog(reqModal);
+        reqEmail.focus();
+      }
+    }
+
+    closeView.addEventListener('click', ()=>closeDialog(viewModal));
+    reqModal.addEventListener('cancel', e=>{e.preventDefault(); closeDialog(reqModal);});
+    closeReq.addEventListener('click', ()=>closeDialog(reqModal));
+    cancelReq.addEventListener('click', ()=>closeDialog(reqModal));
+
+    sendReq.addEventListener('click', async ()=>{
+      reqErr.style.display='none'; reqOk.style.display='none';
+      const email = reqEmail.value.trim();
+      const note = reqNote.value.trim();
+      if(!email){ reqErr.textContent='Your email is required'; reqErr.style.display='block'; return; }
+
+      try{
+        const res = await fetch(REQUESTS_API, {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ reference: Number(activeRefForRequest), requesterEmail: email, note })
+        });
+        if(!res.ok) throw new Error(await res.text());
+        reqOk.textContent = 'Request sent. The approver will be notified.';
+        reqOk.style.display='block';
+        setTimeout(()=>{ closeDialog(reqModal); }, 800);
+      }catch(err){
+        try{
+          const msg = JSON.parse(err.message).message || JSON.parse(err.message).error || err.message;
+          reqErr.textContent = msg;
+        }catch{
+          reqErr.textContent = err.message || 'Failed to send request';
+        }
+        reqErr.style.display='block';
+      }
+    });
+
+    // initial load
+    load().catch(e=>statusText.textContent=e.message);
+  </script>
+</body>
+</html>

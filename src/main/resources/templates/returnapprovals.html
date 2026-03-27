@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Treppides • KYC Files</title>
+  <link rel="stylesheet" th:href="@{/css/app.css}">
+  <style>
+    main{
+      max-width:1100px;
+      margin:24px auto;
+      padding:0 16px
+    }
+    .card{
+      background:var(--panel);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      border:1px solid var(--line);
+      padding:24px
+    }
+    .card-row{
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+      gap: 16px;
+      align-items:start;
+    }
+    .card-row .card { min-width: 0; } /* allow cards to shrink within the grid */
+
+
+    .row{
+      display:flex;
+      gap:18px;
+      flex-wrap:wrap;
+      padding:14px 0
+    }
+    .muted{
+      color:var(--muted)
+    }
+    .hidden{
+      display:none !important
+    }
+    table{
+      width:100%;
+      border-collapse:collapse;
+      margin-top:6px;
+      border:1px solid var(--line);
+      border-radius:12px;
+      overflow:hidden
+    }
+    th,td{
+      padding:12px 14px;
+      border-bottom:1px solid var(--line);
+      text-align:left
+    }
+    th{
+      font-size:12px;
+      text-transform:uppercase;
+      letter-spacing:.3px;
+      color: var(--text);
+      background: color-mix(in oklab, var(--panel) 92%, #000); /* subtle contrast for dark */
+    }
+
+    .empty{
+      opacity:.8;
+      border:1px dashed var(--line);
+      padding:24px;
+      border-radius:14px;
+      text-align:center
+    }
+    .wrap{
+      max-width:960px;
+      margin:24px auto;
+      padding:0 16px
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div class="brand">
+      <img class="logo" src="globelogo.png" alt="Treppides" />
+      <div>
+        <h1>KYC Files</h1>
+      </div>
+    </div>
+    <div class="header-actions">
+      <a class="nav-btn" href="/">Home</a>
+      <button id="themeToggle" class="btn secondary" aria-label="Toggle theme">🌙 Dark</button>
+      <button id="openAdd" class="btn" style="display:none;">＋ Add File</button>
+    </div>
+  </header>
+
+  <main class="card-row">
+  <!-- APPROVALS -->
+  <div style="margin-left: 16px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-left: 16px;">
+      <h2 style="margin:0">Verrify Returns</h2>
+      <button class="btn secondary" id="refreshApprovals">Reload</button>
+    </div>
+    <div id="approvalsEmpty" class="empty hidden" style="margin-top:12px; display:flex;align-items:center;">No pending returns.</div>
+    <div id="approvalsList" style="margin-top:8px"></div>
+  </div>
+  </main>
+
+  <script>
+      const body = document.body;
+      const toggle = document.getElementById("themeToggle");
+
+      // Apply saved theme
+      if (localStorage.getItem("theme") === "light") {
+        body.classList.add("light");
+      }
+
+      function updateToggleLabel() {
+        if (body.classList.contains("light")) {
+          toggle.textContent = "☀️ Light";
+          toggle.setAttribute('aria-label', 'Switch to dark theme');
+        } else {
+          toggle.textContent = "🌙 Dark";
+          toggle.setAttribute('aria-label', 'Switch to light theme');
+        }
+      }
+
+      updateToggleLabel();
+
+      toggle.addEventListener("click", () => {
+        body.classList.toggle("light");
+        localStorage.setItem("theme", body.classList.contains("light") ? "light" : "dark");
+        updateToggleLabel();
+      });
+    </script>
+</body>
+    

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Treppides • KYC Files</title>
+<link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <img class="logo" src="globelogo.png" alt="Treppides" />
+      <h1>KYC Management System</h1>
+    </div>
+
+    <div class="header-actions">
+      <button id="themeToggle" class="btn ghost" aria-label="Toggle theme">🌙 Dark</button>
+    </div>
+  </header>
+  <nav class="nav-tabs">
+    <a href="/" data-path="/">Home</a>
+    <a href="/allfiles" data-path="/allfiles">KYC Records</a>
+    <a href="/myfiles" data-path="/myfiles">Files in my Custody</a>
+    <a href="/about" data-path="/about">About</a>
+    <span class="tab-underline"></span>
+  </nav>
+
+  <main>
+    <div class="card">
+      <h2>Welcome!</h2>
+      <p>This is the KYC dashboard. From here, you can view the whereabouts and request KYC files.</p>
+    </div>
+  </main>
+
+  <script>
+    (function(){
+      const nav=document.querySelector('.nav-tabs');
+      const links=[...nav.querySelectorAll('a')];
+      const underline=nav.querySelector('.tab-underline');
+
+      function setActive(){
+        const path=location.pathname.replace(/\/+$/,'')||'/';
+        const active=links.find(a=>a.dataset.path===path)||links[0];
+        links.forEach(a=>a.classList.toggle('active',a===active));
+        moveUnderline(active);
+      }
+      function moveUnderline(el){
+        const {left,width}=el.getBoundingClientRect();
+        const {left:navLeft}=nav.getBoundingClientRect();
+        underline.style.left=(left-navLeft)+'px';
+        underline.style.width=width+'px';
+      }
+      links.forEach(a=>a.addEventListener('mouseenter',()=>moveUnderline(a)));
+      nav.addEventListener('mouseleave',setActive);
+      window.addEventListener('resize',setActive);
+      setActive();
+
+      /* ------- Theme toggle (persisted) ------- */
+      const toggle = document.getElementById("themeToggle");
+      const body = document.body;
+
+      // If user has saved a preference, use it; otherwise respect system preference
+      const saved = localStorage.getItem("theme"); // "dark" | "light" | null
+      if (saved) {
+        if (saved === "light") body.classList.add("light");
+      } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+        body.classList.add("light");
+      }
+
+      function updateToggleLabel(){
+        if (body.classList.contains("light")) {
+          toggle.textContent = "☀️ Light";
+          toggle.setAttribute('aria-label','Switch to dark theme');
+        } else {
+          toggle.textContent = "🌙 Dark";
+          toggle.setAttribute('aria-label','Switch to light theme');
+        }
+      }
+      updateToggleLabel();
+
+      toggle.addEventListener("click", () => {
+        body.classList.toggle("light");
+        localStorage.setItem("theme", body.classList.contains("light") ? "light" : "dark");
+        updateToggleLabel();
+      });
+    })();
+  </script>
+</body>
+</html>

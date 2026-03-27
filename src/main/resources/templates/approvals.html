@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Treppides • KYC Files</title>
+  <link rel="stylesheet" th:href="@{/css/app.css}">
+  <style>
+    main{
+      max-width:1100px;
+      margin:24px auto;
+      padding:0 16px
+    }
+    .card{
+      background:var(--panel);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      border:1px solid var(--line);
+      padding:24px
+    }
+    .card-row{
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+      gap: 16px;
+      align-items:start;
+    }
+    .card-row .card { min-width: 0; } /* allow cards to shrink within the grid */
+
+
+    .row{
+      display:flex;
+      gap:18px;
+      flex-wrap:wrap;
+      padding:14px 0
+    }
+    .muted{
+      color:var(--muted)
+    }
+    .hidden{
+      display:none !important
+    }
+    table{
+      width:100%;
+      border-collapse:collapse;
+      margin-top:6px;
+      border:1px solid var(--line);
+      border-radius:12px;
+      overflow:hidden
+    }
+    th,td{
+      padding:12px 14px;
+      border-bottom:1px solid var(--line);
+      text-align:left
+    }
+    th{
+      font-size:12px;
+      text-transform:uppercase;
+      letter-spacing:.3px;
+      color: var(--text);
+      background: color-mix(in oklab, var(--panel) 92%, #000); /* subtle contrast for dark */
+    }
+
+    .empty{
+      opacity:.8;
+      border:1px dashed var(--line);
+      padding:24px;
+      border-radius:14px;
+      text-align:center
+    }
+    .wrap{
+      max-width:960px;
+      margin:24px auto;
+      padding:0 16px
+    }
+
+    .badge-pending{
+      display:inline-block;
+      padding:4px 10px;
+      border-radius:999px;
+      font-size:12px;
+      font-weight:700;
+      border:1px solid var(--line);
+      background: color-mix(in oklab, var(--brand) 18%, transparent);
+    }
+
+    /* Pending RETURN — reddish */
+    .badge-return{
+      display:inline-block;
+      padding:4px 10px;
+      border-radius:999px;
+      font-size:12px;
+      font-weight:700;
+      border:1px solid var(--line);
+      background:color-mix(in oklab, #a33 18%, transparent);
+    }
+
+    .badge-return,
+    .badge-pending{
+      min-height:28px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+    }
+
+
+  </style>
+</head>
+<body>
+<header>
+      <div class="brand">
+        <img class="logo" src="globelogo.png" alt="Treppides" />
+        <div>
+          <h1>KYC Files</h1>
+        </div>
+      </div>
+      <div class="header-actions">
+        <a class="nav-btn" href="/">Home</a>
+        <button id="themeToggle" class="btn secondary" aria-label="Toggle theme">🌙 Dark</button>
+      </div>
+    </header>
+
+
+<div class="wrap">
+  <div>
+    <!-- who block -->
+  <div style="text-align:center"></div>
+    <div class="muted">Email from link</div>
+    <input id="whoEmail" readonly style="max-width:420px">
+  </div>
+</div>
+  </div>
+
+<main class="card-row">
+  <!-- APPROVALS -->
+  <div style="margin-left: 16px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-left: 16px;">
+      <h2 style="margin:0">Approvals</h2>
+      <button class="btn secondary" id="refreshApprovals">Reload</button>
+    </div>
+    <div id="approvalsEmpty" class="empty hidden" style="margin-top:12px">No pending requests for you.</div>
+    <div id="approvalsList" style="margin-top:8px"></div>
+  </div>
+
+  <!-- MY FILES -->
+  <div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+      <h2 style="margin:0">My Files</h2>
+      <button class="btn secondary" id="refreshMine">Reload</button>
+    </div>
+    <div id="mineEmpty" class="empty hidden" style="margin-top:12px">You currently hold no files.</div>
+    <div style="overflow:auto;margin-top:8px">
+      <table id="mineTable" class="hidden" aria-label="My files">
+        <thead>
+          <tr>
+            <th>Reference</th>
+            <th>Client</th>
+            <th>Location</th>
+            <th>Since</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="mineTbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<!-- template for approval item -->
+<template id="approvalItem">
+  <div class="card" style="margin-top:12px">
+    <div class="row">
+      <div class="grow">
+        <div>
+          <b>File:</b> <span data-field="fileId"></span>
+          <span class="chip" data-field="status"></span>
+        </div>
+        <div class="muted">
+          <span>Requester: <span data-field="requester"></span></span> •
+          <span>Created: <span data-field="createdAt"></span></span>
+        </div>
+        <div style="margin-top:6px">
+          <span class="chip">Client: <span data-field="client"></span></span>
+        </div>
+      </div>
+    </div>
+    <div class="row grid">
+      <div>
+        <div class="muted" style="font-size:12px" data-role="location-label">
+          Location (where the file will be)
+        </div>
+        <input data-input="location" placeholder="Office / Cabinet / Desk 3…">
+      </div>
+      <div>
+        <div class="muted" style="font-size:12px" data-role="note-label">
+          Reason for decline (optional)
+        </div>
+        <input data-input="note" placeholder="Any comment for the requester">
+      </div>
+    </div>
+    <div class="row" style="justify-content:flex-end">
+      <button class="btn btn-decline" data-action="decline">Decline</button>
+      <button class="btn btn-approve" data-action="approve">Approve</button>
+    </div>
+  </div>
+</template>
+
+
+<script>
+  // ---------- helpers ----------
+  function qs(name){
+    const m = new URLSearchParams(location.search).get(name);
+    return m ? m.trim() : "";
+  }
+  function fmtDate(iso){ try{ return iso? new Date(iso).toLocaleString() : ''; }catch{ return iso||''; } }
+  async function api(url, opts={}){ const r = await fetch(url, opts); if(!r.ok) throw new Error(await r.text()); return r.json(); }
+
+  // accept either ?approverEmail= or ?email=
+  const EMAIL = (qs("approverEmail") || qs("email") || /*[[${approverEmail}]]*/ "").trim();
+
+  // ---------- INIT ----------
+  const whoInput = document.getElementById('whoEmail');
+  whoInput.value = EMAIL || '(missing in link)';
+
+  if(!EMAIL){
+    document.querySelector('main').innerHTML =
+      '<div class="card"><p>Please open the page from your email link. (email missing)</p></div>';
+  } else {
+    loadApprovals().catch(()=>{});
+    loadMyFiles().catch(()=>{});
+  }
+
+  document.getElementById('refreshApprovals').addEventListener('click', ()=>loadApprovals().catch(()=>{}));
+  document.getElementById('refreshMine').addEventListener('click', ()=>loadMyFiles().catch(()=>{}));
+
+  // ---------- APPROVALS ----------
+  // ---------- APPROVALS ----------
+  async function loadApprovals(){
+    const list = document.getElementById('approvalsList');
+    const empty = document.getElementById('approvalsEmpty');
+    list.innerHTML = '';
+    let items = [];
+    try{
+      items = await api(`/api/requests/pending?approverEmail=${encodeURIComponent(EMAIL)}`);
+    }catch(e){
+      list.innerHTML = `<div class="card"><p>Failed to load approvals.<br><small class="muted">${e.message}</small></p></div>`;
+      return;
+    }
+
+    if(!items || items.length===0){
+      empty.classList.remove('hidden');
+      return;
+    }
+    empty.classList.add('hidden');
+
+    const tpl = document.getElementById('approvalItem');
+    for(const it of items){
+      let client = '';
+      try{
+        const r = await fetch(`/api/files/${it.fileId}`);
+        if(r.ok){
+          const f = await r.json();
+          client = f.client || '';
+        }
+      }catch{}
+
+      const node = tpl.content.cloneNode(true);
+      node.querySelector('[data-field="fileId"]').textContent = it.fileId;
+      node.querySelector('[data-field="status"]').textContent = it.status || 'PENDING';
+      node.querySelector('[data-field="requester"]').textContent = it.requester || '';
+      node.querySelector('[data-field="createdAt"]').textContent = fmtDate(it.createdAt || '');
+      node.querySelector('[data-field="client"]').textContent = client;
+
+      const noteInput = node.querySelector('[data-input="note"]');
+      const locInput  = node.querySelector('[data-input="location"]');
+      const approveBtn = node.querySelector('[data-action="approve"]');
+      const declineBtn = node.querySelector('[data-action="decline"]');
+      const locLabel   = node.querySelector('[data-role="location-label"]');
+      const noteLabel  = node.querySelector('[data-role="note-label"]');
+
+      // detect if this is a RETURN request (by note prefix)
+      const isReturn = it.note && it.note.startsWith('[RETURN]');
+
+      if (isReturn) {
+        // PIC is confirming a return
+        locLabel.textContent  = "Where is the file stored now?";
+        noteLabel.textContent = "Note to holder (optional)";
+        approveBtn.textContent = "Confirm return";
+        declineBtn.textContent = "Reject return";
+      } else {
+        // normal “give me the file” request (labels as before)
+        locLabel.textContent  = "Location (where the file will be)";
+        noteLabel.textContent = "Reason for decline (optional)";
+        approveBtn.textContent = "Approve";
+        declineBtn.textContent = "Decline";
+      }
+
+      approveBtn.addEventListener('click', async ()=>{
+        try{
+          await api(`/api/requests/${it.id}/approve`, {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({
+              approverEmail: EMAIL,
+              note: noteInput.value || null,
+              location: locInput.value || 'Office'
+            })
+          });
+          await loadApprovals();
+          await loadMyFiles(); // refresh my files after approval (especially for returns)
+        }catch(err){
+          alert('approve failed: ' + err.message);
+        }
+      });
+
+      declineBtn.addEventListener('click', async ()=>{
+        try{
+          await api(`/api/requests/${it.id}/decline`, {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({
+              approverEmail: EMAIL,
+              note: noteInput.value || null
+            })
+          });
+          await loadApprovals();
+        }catch(err){
+          alert('decline failed: ' + err.message);
+        }
+      });
+
+      list.appendChild(node);
+    }
+  }
+
+
+  // ---------- MY FILES ----------
+  // ---------- MY FILES ----------
+async function loadMyFiles(){
+  const table = document.getElementById('mineTable');
+  const tbody = document.getElementById('mineTbody');
+  const empty = document.getElementById('mineEmpty');
+
+  tbody.innerHTML = '';
+  table.classList.add('hidden');
+  empty.classList.add('hidden');
+
+  try{
+    const [custodyRows, myReqs] = await Promise.all([
+      api(`/api/my-files?email=${encodeURIComponent(EMAIL)}`),
+      api(`/api/requests/mine?requesterEmail=${encodeURIComponent(EMAIL)}`)
+    ]);
+
+    const pendingReqs = (myReqs || []).filter(r => (r.status || "").toUpperCase() === "PENDING");
+
+    // Map pending requests by fileId (for quick lookup)
+    const pendingByFileId = new Map();
+    for (const r of pendingReqs){
+      pendingByFileId.set(r.fileId, r);
+    }
+
+    const seenRefs = new Set();
+
+    // 1) Render custody rows
+    for (const r of (custodyRows || [])){
+      seenRefs.add(r.reference);
+
+      const pr = pendingByFileId.get(r.reference);
+
+      // Detect "return request" (based on your auto note text)
+      const isReturnPending =
+        pr && (pr.note || "").toLowerCase().includes("return");
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${r.reference ?? ''}</td>
+        <td>${r.client ?? ''}</td>
+        <td>${r.location ?? ''}</td>
+        <td>${fmtDate(r.startAt)}</td>
+        <td>
+          ${
+            isReturnPending
+              ? `<span class="badge-return">Pending return</span>`
+              : `<button class="btn secondary" data-ref="${r.reference}">Return</button>`
+          }
+        </td>`;
+      tbody.appendChild(tr);
+    }
+
+    // 2) Render pending requests NOT already in custody (normal “Pending approval” requests)
+    for (const pr of pendingReqs){
+      const ref = pr.fileId;
+      if (seenRefs.has(ref)) continue; // already shown via custody row
+
+      let client = '';
+      try{
+        const f = await api(`/api/files/${ref}`);
+        client = f.client || '';
+      }catch{}
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${ref ?? ''}</td>
+        <td>${client}</td>
+        <td class="muted">—</td>
+        <td>${fmtDate(pr.createdAt)}</td>
+        <td><span class="badge-pending">Pending approval</span></td>`;
+      tbody.appendChild(tr);
+    }
+
+    if (!tbody.children.length){
+      empty.classList.remove('hidden');
+      return;
+    }
+
+    table.classList.remove('hidden');
+
+    // Wire Return buttons (only the ones that exist)
+    tbody.querySelectorAll('button[data-ref]').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const ref = Number(btn.getAttribute('data-ref'));
+        if(!confirm(`Return file ${ref}?`)) return;
+
+        btn.disabled = true;
+        try{
+          const res = await fetch('/api/custody/return', {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ reference: ref, holderEmail: EMAIL })
+          });
+          if(!res.ok) throw new Error(await res.text());
+
+          await loadMyFiles();
+          await loadApprovals();
+        }catch(e){
+          alert('Return failed: ' + (e.message||''));
+        }finally{
+          btn.disabled = false;
+        }
+      });
+    });
+
+  }catch(e){
+    tbody.innerHTML = `<tr><td colspan="5" class="muted">Failed to load: ${e.message}</td></tr>`;
+    table.classList.remove('hidden');
+  }
+}
+
+
+</script>
+
+<script>
+      const body = document.body;
+      const toggle = document.getElementById("themeToggle");
+
+      // Apply saved theme
+      if (localStorage.getItem("theme") === "light") {
+        body.classList.add("light");
+      }
+
+      function updateToggleLabel() {
+        if (body.classList.contains("light")) {
+          toggle.textContent = "☀️ Light";
+          toggle.setAttribute('aria-label', 'Switch to dark theme');
+        } else {
+          toggle.textContent = "🌙 Dark";
+          toggle.setAttribute('aria-label', 'Switch to light theme');
+        }
+      }
+
+      updateToggleLabel();
+
+      toggle.addEventListener("click", () => {
+        body.classList.toggle("light");
+        localStorage.setItem("theme", body.classList.contains("light") ? "light" : "dark");
+        updateToggleLabel();
+      });
+    </script>
+</body>
+</html>

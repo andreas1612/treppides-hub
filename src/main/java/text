@@ -1,0 +1,27 @@
+A) SMTP with OAuth2 (XOAUTH2)
+
+What IT must do
+
+Create an Azure AD app registration.
+
+Grant API permissions to Exchange (“SMTP.Send” if available) or enable SMTP OAuth for your mailbox.
+
+Share : Tenant ID, Client ID, Secret/Certificate; optionally a specific mailbox (can be your service account).
+
+Your app must
+
+Obtain an OAuth2 access token (client credentials or user-delegated flow).
+
+Configure JavaMail to use XOAUTH2 (no password), e.g. set the token as the “password”.
+
+(Implementation is fiddly; many teams skip this and use Graph instead.)
+
+B) Microsoft Graph sendMail (recommended for OAuth2)
+
+What IT must do
+
+Azure AD app registration with Application permission: Mail.Send.
+
+Admin consent granted.
+
+(If sending as a shared mailbox) grant that app Send As or Send On Behalf right
