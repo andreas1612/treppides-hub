@@ -7,8 +7,7 @@
 import CONFIG from "../config.js";
 import MOCK from "./mock.js";
 
-// TODO: set to false when BookStack is live
-const USE_MOCK = true;
+const USE_MOCK = false;
 
 /** Simulated network delay so skeleton loading states are visible during local dev. */
 function delay(ms) {

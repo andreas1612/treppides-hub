@@ -5,30 +5,24 @@
 // ============================================================
 
 export default {
-  // TODO: replace before deploy — swap to production BookStack base URL
-  BASE_URL: "http://localhost",
+  // BookStack is proxied by nginx: /docs/ → localhost:6875
+  BASE_URL: "http://192.168.0.221/docs",
 
-  // TODO: replace before deploy — insert real BookStack API Token ID
-  API_TOKEN_ID: "YOUR_TOKEN_ID",
+  // BookStack API token — generated in Settings > API Tokens
+  API_TOKEN_ID: "tMGusKQeZI3U7PBEuPxpxmCg7K26bDtw",
+  API_TOKEN_SECRET: "LKRcyhG2sPo4kwGSIQFsSohPb9iRBfEy",
 
-  // TODO: replace before deploy — insert real BookStack API Token Secret
-  API_TOKEN_SECRET: "YOUR_TOKEN_SECRET",
+  // BookStack book IDs — confirmed against live instance
+  ANNOUNCEMENTS_BOOK_ID: 58,  // Book: Announcements
+  POLICIES_BOOK_ID:       3,  // Book: Compliance
+  TRAINING_BOOK_ID:      59,  // Book: Training & Development
 
-  // TODO: replace before deploy — confirm the correct Announcements book ID in BookStack
-  ANNOUNCEMENTS_BOOK_ID: 1,
-
-  // TODO: replace before deploy — confirm the correct Policies book ID in BookStack
-  POLICIES_BOOK_ID: 2,
-
-  // TODO: replace before deploy — confirm the correct Training book ID in BookStack
-  TRAINING_BOOK_ID: 3,
-
-  // TODO: replace before deploy — swap to real subdomain URLs
-  DOCS_URL:     "http://localhost/docs",
-  PROJECTS_URL: "http://localhost/projects",
+  // Quick-link destinations
+  DOCS_URL:     "http://192.168.0.221/docs",
+  PROJECTS_URL: "http://192.168.0.221/projects",
 
   SEARCH_ENABLED: true,
 
-  // TODO: set to true when VPS and BookStack are live
-  ENV_LIVE: false,
+  // Production — disables "Coming Soon" modals and mock data
+  ENV_LIVE: true,
 };
