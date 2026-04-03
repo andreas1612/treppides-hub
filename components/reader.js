@@ -14,6 +14,7 @@
 // ============================================================
 
 import { fetchBook, fetchChapter, fetchPageContent, fetchAttachments, fetchAttachmentBlob } from "../api/bookstack.js";
+import CONFIG from "../config.js";
 
 // ── State ────────────────────────────────────────────────────
 let _state = "home"; // "home" | "book" | "page"
@@ -41,11 +42,12 @@ function sanitizeHtml(htmlString) {
     // Strip inline style attributes
     el.removeAttribute("style");
 
-    // Fix image sources
+    // Fix image sources — BookStack embeds absolute URLs; rewrite to path-only so
+    // the request goes through nginx (/docs/* → BookStack) regardless of server IP.
     if (el.tagName === "IMG" && el.hasAttribute("src")) {
       const src = el.getAttribute("src");
-      if (src.startsWith("http://192.168.0.221/docs/")) {
-        el.setAttribute("src", src.replace("http://192.168.0.221/docs", "/docs"));
+      if (src.startsWith(CONFIG.BASE_URL)) {
+        el.setAttribute("src", new URL(src).pathname);
       }
     }
 
@@ -57,16 +59,16 @@ function sanitizeHtml(htmlString) {
         el.style.cursor = "pointer";
         el.addEventListener("click", e => {
           e.preventDefault();
-          // Parse page ID from the URL if possible; fall back to opening BookStack
           // BookStack page URLs look like: /docs/books/{bookSlug}/page/{pageSlug}
-          // We cannot reliably get the page ID from the slug without an API call,
-          // so we dispatch a hub:openBookSlug event for extensibility and open in new tab as fallback
-          window.open(href.startsWith("http") ? href : `http://192.168.0.221${href}`, "_blank", "noopener");
+          // Cannot reliably resolve page ID from slug without an extra API call,
+          // so open in a new tab as fallback. Use window.location.origin to avoid
+          // hardcoding the server IP.
+          const abs = href.startsWith("http") ? href : window.location.origin + href;
+          window.open(abs, "_blank", "noopener");
         });
       } else if (href && href.startsWith("/docs/")) {
-        // Other internal docs links — open in new tab
-        const abs = `http://192.168.0.221${href}`;
-        el.setAttribute("href", abs);
+        // Other internal docs links — make absolute using current origin, open in new tab
+        el.setAttribute("href", window.location.origin + href);
         el.setAttribute("target", "_blank");
         el.setAttribute("rel", "noopener");
       }
