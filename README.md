@@ -2,7 +2,7 @@
 
 **Status: LIVE IN PRODUCTION**
 **Server: 192.168.0.221 (tech-srv)**
-**Last updated: 2026-04-03**
+**Last updated: 2026-04-03 (session 2)**
 
 Internal company portal for daily access to announcements, policies, training materials, and the knowledge base. Backed by a self-hosted BookStack instance. Includes a full in-app content reader — staff can browse and read all department books without leaving the Hub.
 
@@ -10,46 +10,49 @@ Internal company portal for daily access to announcements, policies, training ma
 
 ## Session Log — Pick Up From Here
 
-### Session 2026-04-03 — What was done
+### Session 2026-04-03 (2) — Hardcoded IP removal + credential hygiene
 
-**New components built (untracked — not yet committed to git):**
+**Committed:** `a87ede1` — everything below is live on `main`.
 
-| File | What it does |
-|---|---|
-| `components/knowledgebase.js` | Knowledge Base section — fetches all department books from BookStack shelf ID 57, renders as clickable cards. Clicking a card fires `hub:openBook` and opens the in-app reader. |
-| `components/reader.js` | Full in-app content reader — book/page navigation, breadcrumbs, expandable chapters, HTML sanitization, PDF preview (blob URL), non-PDF download list, browser history (`pushState`) |
-| `styles/reader.css` | All reader styles — overlay, breadcrumb bar, nav sidebar, prose typography, PDF embed, attachments section, mobile responsive |
+**Changes:**
+1. **`components/reader.js`** — imported `CONFIG` (was missing). Replaced all 3 hardcoded `192.168.0.221` occurrences in `sanitizeHtml()`:
+   - Image src rewriting now uses `CONFIG.BASE_URL` to match and `new URL(src).pathname` to rewrite to a relative path
+   - Internal link fallbacks now use `window.location.origin` instead of a hardcoded IP
+   - No hardcoded IPs remain anywhere in `components/` or `api/`
 
-**Changes made this session:**
+2. **`config.js`** — added a detailed credential security comment block explaining:
+   - Why plaintext is unavoidable with no build step
+   - Mitigations in place: read-only token, LAN-only, now gitignored
+   - Future migration plan: server-side proxy or SSO session cookies
 
-1. **PDF preview fix** — BookStack serves all attachments as `Content-Type: application/octet-stream`, which forces the browser to download instead of display. Fixed by fetching the attachment via API with auth token, wrapping as a `Blob` with `application/pdf`, and setting a blob object URL as the iframe `src`. New function: `fetchAttachmentBlob()` in `api/bookstack.js`.
+3. **`config.example.js`** — safe-to-commit template committed to the repo so developers know what values to fill in
 
-2. **Non-PDF auto-download fix** — attachment item cards for docx/xlsx/etc were wrapped in `<a download>` which triggered download on any click. Changed to `<div>` — card is now display-only. Only the explicit "Download" button (kept inside) triggers a save.
+4. **`.gitignore`** — created; `config.js` excluded so real credentials are never committed again
 
-3. **BookStack guest access** — enabled in BookStack admin (Settings → App Settings → Allow public access). Guest user granted read access so unauthenticated iframe requests don't redirect to login.
+5. **`git rm --cached config.js`** — untracked from git; file stays on disk and the live site is unaffected
 
-4. **"Failed to load book" UX** — intermittent API timeout on cold page load showed a dead red error. Now shows a "Try again" button that re-calls `openBook()`.
+> **Token rotation note:** The old API token was in git history before this session (commits before `a87ede1`). If this repo is ever shared outside the team or made public, regenerate the BookStack API token: BookStack admin → Settings → API Tokens → delete and recreate.
 
-**Still to verify after this session:**
-- [ ] Hard-refresh (`Ctrl+Shift+R`) the hub and confirm PDFs render inline (not downloading)
-- [ ] Confirm non-PDF cards (docx, xlsx) no longer auto-download on click — only "Download" button works
-- [ ] Open a page with a PDF attachment and confirm the spinner shows, then PDF renders in the iframe
-- [ ] Navigate to `/book/13/page/14` directly and confirm the reader loads (not blank)
-- [ ] Navigate to `/book/13` directly and confirm the book view loads
-- [ ] Commit the three untracked files once verified working
+**Nothing pending — repo is clean, all changes committed and pushed.**
 
-**To commit the new files:**
-```bash
-cd ~/treppides-hub
-git add components/knowledgebase.js components/reader.js styles/reader.css
-git add api/bookstack.js components/announcements.js components/policies.js
-git add components/quicklinks.js components/sidebar.js components/topbar.js
-git add components/training.js config.js api/mock.js
-git add index.html main.js styles/base.css styles/cards.css styles/layout.css styles/theme.css
-git add utils/dom.js utils/format.js favicon.svg
-git commit -m "Add in-app reader, knowledge base section, and PDF blob preview"
-git push origin main
-```
+---
+
+### Session 2026-04-03 (1) — Reader + Knowledge Base
+
+**Committed:** `365d485`
+
+**Built:**
+- `components/knowledgebase.js` — department books grid from shelf 57; cards fire `hub:openBook`
+- `components/reader.js` — full in-app reader: breadcrumbs, two-column layout, collapsible chapters, pushState routing, PDF blob preview, non-PDF download list
+- `styles/reader.css` — all reader styles
+- `api/bookstack.js` — added `fetchShelfBooks`, `fetchBook`, `fetchChapter`, `fetchPageContent`, `fetchAttachments`, `fetchAttachmentBlob`
+- `main.js` + `index.html` — wired in reader and KB section
+
+**Fixed:**
+- PDF attachments were force-downloading (`Content-Type: application/octet-stream`) — fixed with `fetchAttachmentBlob()` blob URL approach
+- Non-PDF cards auto-downloaded on any click — changed wrapper to `<div>`; Download button is the only trigger
+- BookStack guest access enabled in admin
+- "Failed to load book" dead-end → "Try again" button
 
 ---
 
@@ -185,7 +188,9 @@ Refresh on any of these URLs works correctly.
 treppides-hub/
 ├── index.html                  Shell — loads CSS, reader overlay div, and main.js
 ├── main.js                     Entry point — boots sidebar, topbar, reader, then all sections
-├── config.js                   All config, tokens, book IDs, feature flags
+├── config.js                   All config, tokens, book IDs, feature flags  ← gitignored, not in repo
+├── config.example.js           Safe-to-commit template — copy to config.js and fill in values
+├── .gitignore                  Excludes config.js from version control
 ├── favicon.svg                 Treppides globe favicon
 │
 ├── components/
@@ -262,22 +267,22 @@ git push origin main
 | 1 | Low | Open | `excerptFromHtml()` in `utils/format.js` calls `document.createElement` — browser-only, breaks in Node/SSR |
 | 2 | Low | Open | Nav active state hardcoded on Home link — no routing, single-page portal so acceptable |
 | 3 | Info | Open | `--brand-green` and `--brand-green-dk` CSS vars defined but not consumed (reserved) |
-| 4 | Low | Open | Hardcoded IP `192.168.0.221` in `reader.js` `sanitizeHtml()` (line ~47) for image src rewriting — will break if server IP changes |
-| 5 | Medium | Open | API credentials (`API_TOKEN_ID`, `API_TOKEN_SECRET`) are plaintext in `config.js` which is in version control. Low risk for LAN-only internal tool but worth noting before any public repo exposure |
+| 4 | Low | **Fixed** | Hardcoded IP in `reader.js` `sanitizeHtml()` — replaced with `CONFIG.BASE_URL` and `window.location.origin` |
+| 5 | Medium | **Mitigated** | API credentials in `config.js`: file is now gitignored and untracked. Token still plaintext on disk (no build step = no env vars). Future plan: server-side proxy. If repo goes public, rotate the token. |
 | 6 | Low | Open | Reader nav sidebar hidden on mobile (`display:none`) — no mobile alternative for page navigation within a book |
 
 ---
 
 ## Next Features — Priority Order
 
-1. **Commit current working state** — knowledgebase.js, reader.js, reader.css + all modified files
-2. **Treppides logo** — replace SVG globe placeholder in sidebar with actual logo asset
-3. **OpenProject deployment** — provision and deploy at `192.168.0.221/projects` (Docker)
-4. **User identity in topbar** — show logged-in user name (requires BookStack session or SSO)
-5. **Mobile reader nav** — drawer or bottom sheet for page navigation on mobile
-6. **Active nav routing** — update sidebar active class when navigating between sections
-7. **LDAP/SSO auth** — integrate with company directory; Phase 2 post-launch
-8. **SSL / HTTPS** — Let's Encrypt via Nginx once a domain is confirmed
+1. **Treppides logo** — replace SVG globe placeholder in sidebar with actual logo asset; update `favicon.svg`
+2. **OpenProject deployment** — provision and deploy at `192.168.0.221/projects` (Docker); update `PROJECTS_URL` in `config.js`
+3. **User identity in topbar** — show logged-in user name (requires BookStack session or SSO)
+4. **Mobile reader nav** — sidebar hidden on mobile; add drawer or bottom sheet for page navigation
+5. **Active nav routing** — update sidebar active class when navigating between sections
+6. **LDAP/SSO auth** — integrate with company directory; Phase 2 post-launch
+7. **SSL / HTTPS** — Let's Encrypt via Nginx once a domain is confirmed
+8. **Credential migration** — move API token to a server-side proxy so it never reaches the browser (see issue #5)
 
 ---
 

@@ -1,8 +1,8 @@
 # PROJECT_BRIEF — Treppides Hub
 > Paste this file at the start of a new chat and say "continue the Treppides Hub project"
 
-**Status: LIVE IN PRODUCTION — Reader + KB built, pending commit**
-**Last session: 2026-04-03 — see Session Log below**
+**Status: LIVE IN PRODUCTION — All changes committed, repo clean**
+**Last session: 2026-04-03 (session 2) — see Session Log below**
 
 ---
 
@@ -16,7 +16,15 @@
 
 ## Session Log
 
-### 2026-04-03 — Reader + Knowledge Base
+### 2026-04-03 (session 2) — Hardcoded IP removal + credential hygiene — commit `a87ede1`
+
+- `components/reader.js`: removed all 3 hardcoded IPs in `sanitizeHtml()`; now uses `CONFIG.BASE_URL` + `window.location.origin`; added missing `import CONFIG`
+- `config.js`: added full credential security comment (mitigations + future plan); now gitignored
+- `config.example.js`: committed template with placeholder values
+- `.gitignore`: created; excludes `config.js`
+- `git rm --cached config.js`: untracked without deleting on disk
+
+### 2026-04-03 (session 1) — Reader + Knowledge Base — commit `365d485`
 
 **Built:**
 - `components/knowledgebase.js` — department books grid from shelf 57; cards fire `hub:openBook`
@@ -26,15 +34,10 @@
 - `main.js` + `index.html` — wired in reader and KB section
 
 **Fixed:**
-- PDF attachments were downloading (BookStack sends `Content-Type: application/octet-stream`). Fixed with `fetchAttachmentBlob()` — fetches bytes with auth token, re-wraps as `application/pdf` blob for iframe display
-- Non-PDF cards (docx, xlsx) auto-downloaded on any click — changed wrapper from `<a download>` to `<div>`; Download button is the only trigger
-- BookStack guest access enabled so unauthenticated browser requests (images, general content) don't hit login wall
-- "Failed to load book" dead-end → replaced with "Try again" button
-
-**State at end of session:**
-- All new files on disk and working in browser
-- **Not yet committed to git** — needs `git add` + `git commit` + `git push` at start of next session
-- Verify: hard-refresh hub, test PDF preview inline, test non-PDF Download button only, test refresh on `/book/13/page/14`
+- PDF attachments force-downloading — `fetchAttachmentBlob()` re-wraps bytes as `application/pdf` blob for iframe
+- Non-PDF cards auto-downloaded on click — changed wrapper to `<div>`; Download button only
+- BookStack guest access enabled in admin
+- "Failed to load book" dead-end → "Try again" button
 
 ---
 
@@ -242,17 +245,19 @@ All sourced from `config.js` unless noted.
 8. ~~**Non-PDF download fix**~~ — attachment cards no longer auto-download; explicit Download button only (2026-04-03)
 9. ~~**BookStack guest access**~~ — enabled in admin settings for unauthenticated iframe/browser access (2026-04-03)
 10. ~~**Nginx SPA routing**~~ — `try_files $uri $uri/ /index.html` already in place; refresh on `/book/:id/page/:id` works (2026-04-03)
+11. ~~**Hardcoded IP removal**~~ — `reader.js` now uses `CONFIG.BASE_URL` + `window.location.origin`; zero hardcoded IPs in source (2026-04-03)
+12. ~~**Credential hygiene**~~ — `config.js` gitignored and untracked; `config.example.js` committed; security plan documented in `config.js` (2026-04-03)
 
 ## Next Features — Priority Order
 
-1. **Commit current working state** — `git add` all modified + untracked files, then `git push`
-2. **Treppides logo** — replace SVG globe in sidebar with real logo asset; also update `favicon.svg`
-3. **OpenProject** — deploy at `192.168.0.221/projects` via Docker; update `PROJECTS_URL` in config.js
-4. **User identity in topbar** — show logged-in user name (BookStack session or SSO token)
-5. **Mobile reader nav** — sidebar is hidden on mobile; add a drawer or bottom sheet for page navigation
-6. **Active nav routing** — update sidebar active class on scroll or section change
-7. **LDAP/SSO auth** — integrate with company directory; Phase 2 post-launch
-8. **SSL / HTTPS** — Let's Encrypt via Nginx once domain is confirmed
+1. **Treppides logo** — replace SVG globe in sidebar with real logo asset; also update `favicon.svg`
+2. **OpenProject** — deploy at `192.168.0.221/projects` via Docker; update `PROJECTS_URL` in `config.js`
+3. **User identity in topbar** — show logged-in user name (BookStack session or SSO token)
+4. **Mobile reader nav** — sidebar hidden on mobile; add drawer or bottom sheet for page navigation
+5. **Active nav routing** — update sidebar active class on scroll or section change
+6. **LDAP/SSO auth** — integrate with company directory; Phase 2 post-launch
+7. **SSL / HTTPS** — Let's Encrypt via Nginx once domain is confirmed
+8. **Credential migration** — server-side proxy so API token never reaches the browser
 
 ---
 
