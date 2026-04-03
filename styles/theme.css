@@ -7,8 +7,8 @@
    ============================================================ */
 
 :root {
-  /* Sidebar */
-  --sidebar-bg:      #0a0a0a;
+  /* Sidebar — matches BookStack's dark navy */
+  --sidebar-bg:      #1a1f2e;
   --sidebar-text:    #a0aec0;
   --sidebar-active:  #ffffff;
   --sidebar-width:   220px;

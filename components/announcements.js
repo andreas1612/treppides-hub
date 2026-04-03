@@ -65,7 +65,7 @@ async function load() {
 
   try {
     // Nginx must proxy /api/* to BookStack when deployed
-    const pages = await fetchPages(CONFIG.ANNOUNCEMENTS_BOOK_ID, 3);
+    const pages = await fetchPages(CONFIG.ANNOUNCEMENTS_BOOK_ID, 5);
 
     if (!pages.length) {
       cardsEl.innerHTML = renderEmpty("No announcements yet.");
@@ -99,7 +99,7 @@ export default async function init(_config) {
       <div class="section-header">
         <div>
           <h2 class="section-title">Latest Announcements</h2>
-          <p class="section-subtitle">Pulled live from the knowledge base</p>
+          <p class="section-subtitle">5 most recent — pulled live from BookStack</p>
         </div>
         <button class="btn-refresh" id="${REFRESH_ID}" aria-label="Refresh announcements">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"

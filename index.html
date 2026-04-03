@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="styles/base.css" />
   <link rel="stylesheet" href="styles/layout.css" />
   <link rel="stylesheet" href="styles/cards.css" />
+  <link rel="stylesheet" href="styles/reader.css" />
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
 </head>
 
@@ -37,12 +38,19 @@
            Populated by: components/topbar.js -->
       <header class="topbar" id="topbar"></header>
 
+      <!-- Reader overlay — populated by components/reader.js -->
+      <div id="hub-content-area" class="reader-overlay"></div>
+
       <!-- Page body -->
       <div class="page-content">
 
         <!-- Latest Announcements section
              Populated by: components/announcements.js -->
         <div id="section-announcements"></div>
+
+        <!-- Knowledge Base — department books
+             Populated by: components/knowledgebase.js -->
+        <div id="section-knowledgebase"></div>
 
         <!-- Policies & Procedures section
              Populated by: components/policies.js -->

@@ -1,8 +1,8 @@
 # PROJECT_BRIEF — Treppides Hub
 > Paste this file at the start of a new chat and say "continue the Treppides Hub project"
 
-**Status: FRONTEND COMPLETE — DEMO READY**
-**Blocked on: VPS provisioning by IT**
+**Status: LIVE IN PRODUCTION — Reader + KB built, pending commit**
+**Last session: 2026-04-03 — see Session Log below**
 
 ---
 
@@ -11,6 +11,30 @@
 **Name:** Treppides Company Hub
 **Owner:** Andreas Pieri
 **Purpose:** Self-hosted internal company portal that replaces SharePoint. Staff land here daily. Pulls live announcements, policies, and training materials from a BookStack wiki via REST API. Links out to a project management tool (OpenProject/Taiga). Runs on a dedicated VPS behind Nginx; currently in local development (localhost). Proposal doc: `Hub_Proposal_v3.docx` in project root.
+
+---
+
+## Session Log
+
+### 2026-04-03 — Reader + Knowledge Base
+
+**Built:**
+- `components/knowledgebase.js` — department books grid from shelf 57; cards fire `hub:openBook`
+- `components/reader.js` — full in-app reader: breadcrumbs, two-column layout, collapsible chapters, pushState routing (`/book/:id`, `/book/:id/page/:id`), PDF blob preview, non-PDF download list
+- `styles/reader.css` — all reader styles
+- `api/bookstack.js` — added `fetchShelfBooks`, `fetchBook`, `fetchChapter`, `fetchPageContent`, `fetchAttachments`, `fetchAttachmentBlob`
+- `main.js` + `index.html` — wired in reader and KB section
+
+**Fixed:**
+- PDF attachments were downloading (BookStack sends `Content-Type: application/octet-stream`). Fixed with `fetchAttachmentBlob()` — fetches bytes with auth token, re-wraps as `application/pdf` blob for iframe display
+- Non-PDF cards (docx, xlsx) auto-downloaded on any click — changed wrapper from `<a download>` to `<div>`; Download button is the only trigger
+- BookStack guest access enabled so unauthenticated browser requests (images, general content) don't hit login wall
+- "Failed to load book" dead-end → replaced with "Try again" button
+
+**State at end of session:**
+- All new files on disk and working in browser
+- **Not yet committed to git** — needs `git add` + `git commit` + `git push` at start of next session
+- Verify: hard-refresh hub, test PDF preview inline, test non-PDF Download button only, test refresh on `/book/13/page/14`
 
 ---
 
@@ -68,20 +92,24 @@ hub/
 
 | File | Status | Notes |
 |---|---|---|
-| `index.html` | **Working** | Complete shell, no issues |
-| `main.js` | **Working** | Boot sequence correct, isolation via allSettled |
-| `config.js` | **Working** | All placeholders present, all marked TODO |
-| `styles/theme.css` | **Working** | Variables only; `--brand-green` / `--brand-green-dk` defined but unused |
+| `index.html` | **Working** | Includes reader overlay div `#hub-content-area` and `#section-knowledgebase` |
+| `main.js` | **Working** | Boots reader before KB so `hub:openBook` listener is ready |
+| `config.js` | **Working** | Fully live — real IP, real tokens, real book IDs, `ENV_LIVE=true` |
+| `styles/theme.css` | **Working** | Live Treppides brand values |
 | `styles/base.css` | **Working** | Complete |
-| `styles/layout.css` | **Working** | Complete; `.logo-globe` CSS class is dead (SVG uses inline attrs) |
+| `styles/layout.css` | **Working** | Complete |
 | `styles/cards.css` | **Working** | Complete |
-| `components/sidebar.js` | **Working** | SVG globe logo placeholder; Coming Soon modal active while `ENV_LIVE` is false |
-| `components/topbar.js` | **Working** | Renders; exports `setStatus(text, isError)` |
-| `components/announcements.js` | **Working** | Full fetch/skeleton/error/empty/refresh cycle; calls setStatus() |
-| `components/policies.js` | **Working** | Same pattern as announcements; calls setStatus() |
-| `components/training.js` | **Working** | Same pattern as announcements; calls setStatus() |
-| `components/quicklinks.js` | **Working** | Coming Soon modal active while `ENV_LIVE` is false |
-| `api/bookstack.js` | **Working** | fetchPages() and searchPages() both complete |
+| `styles/reader.css` | **Working** | Reader overlay, breadcrumb, nav, prose, PDF embed, attachments |
+| `components/sidebar.js` | **Working** | SVG globe placeholder; `ENV_LIVE=true` so real links active |
+| `components/topbar.js` | **Working** | Renders; exports `setStatus(text, isError)`; search enabled |
+| `components/announcements.js` | **Working** | Full fetch/skeleton/error/empty/refresh cycle |
+| `components/knowledgebase.js` | **Working** | Fetches shelf 57 books, card grid, dispatches `hub:openBook` |
+| `components/policies.js` | **Working** | Same pattern as announcements |
+| `components/training.js` | **Working** | Same pattern as announcements |
+| `components/quicklinks.js` | **Working** | `ENV_LIVE=true` so real links active |
+| `components/reader.js` | **Working** | Full in-app reader; blob PDF preview; pushState routing; "Try again" on error |
+| `api/bookstack.js` | **Working** | 8 functions: fetchPages, fetchShelfBooks, fetchBook, fetchChapter, fetchPageContent, fetchAttachments, fetchAttachmentBlob, searchPages |
+| `api/mock.js` | **Working** | Mock data (USE_MOCK=false in production) |
 | `utils/dom.js` | **Working** | All four helpers complete |
 | `utils/format.js` | **Working** | excerptFromHtml calls document.createElement — browser-only |
 
@@ -206,18 +234,25 @@ All sourced from `config.js` unless noted.
 
 1. ~~**Retheme**~~ — `theme.css` updated to confirmed Treppides brand colours (2026-03-24)
 2. ~~**Favicon**~~ — `favicon.svg` added; `<link rel="icon">` in `index.html` (2026-03-24)
-3. ~~**Search**~~ — `searchPages()` implemented; search input + dropdown in topbar; `SEARCH_ENABLED = true` (2026-03-24)
+3. ~~**Search**~~ — `searchPages()` implemented; search input + dropdown in topbar (2026-03-24)
+4. ~~**Go live**~~ — real BookStack at 192.168.0.221, `ENV_LIVE=true`, `USE_MOCK=false` (2026-03-31)
+5. ~~**Knowledge Base section**~~ — `knowledgebase.js` fetches shelf 57, card grid, hub:openBook events (2026-04-03)
+6. ~~**In-app Reader**~~ — `reader.js` + `reader.css`; book/page nav, breadcrumbs, chapters, pushState routing (2026-04-03)
+7. ~~**PDF preview**~~ — `fetchAttachmentBlob()` fetches with auth token, creates blob URL, renders inline iframe (2026-04-03)
+8. ~~**Non-PDF download fix**~~ — attachment cards no longer auto-download; explicit Download button only (2026-04-03)
+9. ~~**BookStack guest access**~~ — enabled in admin settings for unauthenticated iframe/browser access (2026-04-03)
+10. ~~**Nginx SPA routing**~~ — `try_files $uri $uri/ /index.html` already in place; refresh on `/book/:id/page/:id` works (2026-04-03)
 
 ## Next Features — Priority Order
 
-1. **User identity in topbar** — show logged-in user name (requires BookStack auth session or SSO token)
-2. **Active nav routing** — update active class when linking between sections (or scroll-spy)
-3. **Nginx config** — write `nginx.conf` for subdomain routing + `/api/*` proxy to BookStack
-4. **Docker Compose** — define services: BookStack, MariaDB, Nginx, hub static files
-5. **Favicon + brand assets** — final Treppides logo PNG/SVG; replace SVG globe placeholder
-6. **LDAP/SSO auth** — integrate with company directory; configure BookStack LDAP settings
-10. **Test environment** — mirror production at `test-docs.company.com` / `test-projects.company.com`
-11. **`searchPages()` full implementation** — after BookStack confirmed working in environment
+1. **Commit current working state** — `git add` all modified + untracked files, then `git push`
+2. **Treppides logo** — replace SVG globe in sidebar with real logo asset; also update `favicon.svg`
+3. **OpenProject** — deploy at `192.168.0.221/projects` via Docker; update `PROJECTS_URL` in config.js
+4. **User identity in topbar** — show logged-in user name (BookStack session or SSO token)
+5. **Mobile reader nav** — sidebar is hidden on mobile; add a drawer or bottom sheet for page navigation
+6. **Active nav routing** — update sidebar active class on scroll or section change
+7. **LDAP/SSO auth** — integrate with company directory; Phase 2 post-launch
+8. **SSL / HTTPS** — Let's Encrypt via Nginx once domain is confirmed
 
 ---
 

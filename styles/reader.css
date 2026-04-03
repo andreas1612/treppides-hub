@@ -1,0 +1,485 @@
+/* ============================================================
+   styles/reader.css — Treppides Hub in-app content reader
+   ============================================================ */
+
+/* ── Spinner keyframe ──────────────────────────────────────── */
+@keyframes hub-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Reader overlay ────────────────────────────────────────── */
+/* Sits as a flex child inside .main (which is flex-direction:column),
+   so it naturally appears below the sticky topbar, never covering it. */
+.reader-overlay {
+  display: none;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--card-bg, #fff);
+}
+
+.reader-overlay.active {
+  display: flex;
+}
+
+/* ── Breadcrumb bar ────────────────────────────────────────── */
+.reader-breadcrumb {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0;
+  padding: 12px 32px;
+  background: #fff;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+  font-size: 13px;
+  color: var(--text-secondary, #718096);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.reader-breadcrumb .bc-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 13px;
+  color: var(--text-secondary, #718096);
+  cursor: pointer;
+  transition: color var(--transition, 0.2s ease);
+}
+
+.reader-breadcrumb .bc-link:hover {
+  color: var(--accent, #c8d400);
+}
+
+.reader-breadcrumb .bc-current {
+  color: var(--text-primary, #1a202c);
+  font-weight: 500;
+}
+
+.reader-breadcrumb .bc-sep {
+  color: var(--border, #e2e8f0);
+  padding: 0 4px;
+  user-select: none;
+}
+
+/* ── Two-column layout ─────────────────────────────────────── */
+.reader-layout {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* ── Nav sidebar ───────────────────────────────────────────── */
+.reader-nav {
+  width: 260px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  border-right: 1px solid var(--border, #e2e8f0);
+  padding: 16px 0;
+  background: var(--page-bg, #f7f8fa);
+}
+
+.reader-nav-header {
+  padding: 0 16px 12px;
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary, #718096);
+  border-bottom: 1px solid var(--border, #e2e8f0);
+  margin-bottom: 8px;
+  word-break: break-word;
+}
+
+/* Top-level page items */
+.reader-nav-item {
+  padding: 8px 16px;
+  font-size: 13.5px;
+  color: var(--text-primary, #1a202c);
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  transition: background var(--transition, 0.2s ease),
+              border-color var(--transition, 0.2s ease);
+  word-break: break-word;
+  line-height: 1.4;
+}
+
+.reader-nav-item:hover {
+  background: rgba(200, 212, 0, 0.08);
+}
+
+.reader-nav-item.active {
+  border-left-color: var(--accent, #c8d400);
+  font-weight: 600;
+  background: rgba(200, 212, 0, 0.06);
+}
+
+/* Chapter heading */
+.reader-nav-chapter {
+  padding: 10px 16px 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-secondary, #718096);
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: color var(--transition, 0.2s ease);
+  margin-top: 4px;
+  word-break: break-word;
+  line-height: 1.4;
+}
+
+.reader-nav-chapter:hover {
+  color: var(--text-primary, #1a202c);
+}
+
+.reader-nav-chapter .chapter-arrow {
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+/* Page items under a chapter (indented) */
+.reader-nav-page {
+  padding: 7px 16px 7px 28px;
+  font-size: 13.5px;
+  color: var(--text-primary, #1a202c);
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  transition: background var(--transition, 0.2s ease),
+              border-color var(--transition, 0.2s ease);
+  word-break: break-word;
+  line-height: 1.4;
+}
+
+.reader-nav-page:hover {
+  background: rgba(200, 212, 0, 0.08);
+}
+
+.reader-nav-page.active {
+  border-left-color: var(--accent, #c8d400);
+  font-weight: 600;
+  background: rgba(200, 212, 0, 0.06);
+}
+
+/* ── Content panel ─────────────────────────────────────────── */
+.reader-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 40px 48px;
+  max-width: 860px;
+  box-sizing: border-box;
+}
+
+/* ── Welcome panel ─────────────────────────────────────────── */
+.reader-welcome {
+  text-align: center;
+  max-width: 540px;
+  margin: 60px auto 0;
+}
+
+.reader-welcome h1 {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--text-primary, #1a202c);
+  margin-bottom: 16px;
+}
+
+.reader-welcome p {
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--text-secondary, #718096);
+  margin-bottom: 14px;
+}
+
+.reader-welcome .welcome-meta {
+  font-size: 13px;
+  color: var(--text-secondary, #718096);
+  margin-top: 24px;
+}
+
+/* ── Spinner ───────────────────────────────────────────────── */
+.hub-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba(200, 212, 0, 0.15);
+  border-top-color: var(--accent, #c8d400);
+  border-radius: 50%;
+  animation: hub-spin 0.7s linear infinite;
+  margin: 60px auto;
+  display: block;
+}
+
+/* ── Prose typography inside .reader-content ─────────────────
+   Scoped to .prose-body to avoid collisions with other styles */
+.reader-content h1.page-heading {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--text-primary, #1a202c);
+  margin-bottom: 16px;
+  border-bottom: 2px solid var(--border, #e2e8f0);
+  padding-bottom: 12px;
+}
+
+.reader-content .prose-body h1 {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-primary, #1a202c);
+  margin-bottom: 16px;
+  margin-top: 0;
+}
+
+.reader-content .prose-body h2 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary, #1a202c);
+  margin: 28px 0 12px;
+}
+
+.reader-content .prose-body h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary, #1a202c);
+  margin: 20px 0 8px;
+}
+
+.reader-content .prose-body h4,
+.reader-content .prose-body h5,
+.reader-content .prose-body h6 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary, #1a202c);
+  margin: 16px 0 6px;
+}
+
+.reader-content .prose-body p {
+  line-height: 1.7;
+  margin-bottom: 14px;
+  color: var(--text-primary, #1a202c);
+}
+
+.reader-content .prose-body a {
+  color: var(--accent, #c8d400);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.reader-content .prose-body a:hover {
+  opacity: 0.8;
+}
+
+.reader-content .prose-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 20px;
+  font-size: 13.5px;
+}
+
+.reader-content .prose-body td,
+.reader-content .prose-body th {
+  padding: 10px 14px;
+  border: 1px solid var(--border, #e2e8f0);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.reader-content .prose-body th {
+  background: #f8fafc;
+  font-weight: 600;
+  color: var(--text-primary, #1a202c);
+  text-align: left;
+}
+
+.reader-content .prose-body code {
+  background: #f1f5f9;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, monospace;
+  color: #be185d;
+}
+
+.reader-content .prose-body pre {
+  background: #1a1f2e;
+  color: #e2e8f0;
+  padding: 20px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 16px 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.reader-content .prose-body pre code {
+  background: none;
+  padding: 0;
+  color: inherit;
+  border-radius: 0;
+}
+
+.reader-content .prose-body ul,
+.reader-content .prose-body ol {
+  padding-left: 24px;
+  margin-bottom: 14px;
+  line-height: 1.7;
+  color: var(--text-primary, #1a202c);
+}
+
+.reader-content .prose-body li {
+  margin-bottom: 4px;
+}
+
+.reader-content .prose-body img {
+  max-width: 100%;
+  border-radius: 6px;
+  margin: 8px 0;
+  height: auto;
+  display: block;
+}
+
+.reader-content .prose-body blockquote {
+  border-left: 3px solid var(--accent, #c8d400);
+  margin: 16px 0;
+  padding: 8px 16px;
+  background: rgba(200, 212, 0, 0.04);
+  color: var(--text-secondary, #718096);
+  font-style: italic;
+}
+
+.reader-content .prose-body hr {
+  border: none;
+  border-top: 1px solid var(--border, #e2e8f0);
+  margin: 24px 0;
+}
+
+/* ── Mobile ────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  .reader-nav {
+    display: none;
+  }
+
+  .reader-content {
+    padding: 24px 20px;
+    max-width: 100%;
+  }
+
+  .reader-breadcrumb {
+    padding: 10px 16px;
+  }
+}
+
+/* ── Attachments section ───────────────────────────────────── */
+.attachments-section {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 2px solid var(--border, #e2e8f0);
+}
+
+.attachments-heading {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary, #1a202c);
+  margin-bottom: 20px;
+}
+
+/* PDF embed */
+.attachment-pdf {
+  margin-bottom: 28px;
+}
+
+.attachment-pdf-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-primary, #1a202c);
+  margin-bottom: 10px;
+}
+
+.attachment-pdf-label svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: #e53e3e;
+}
+
+.attachment-download {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent, #c8d400);
+  border: 1px solid var(--accent, #c8d400);
+  border-radius: 4px;
+  padding: 3px 10px;
+  transition: background var(--transition, .2s ease);
+}
+
+.attachment-download:hover {
+  background: rgba(200, 212, 0, 0.1);
+}
+
+.pdf-embed {
+  width: 100%;
+  height: 700px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--radius, 8px);
+  display: block;
+}
+
+/* Other file download list */
+.attachment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.attachment-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--page-bg, #f7f8fa);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--radius, 8px);
+}
+
+.attachment-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: var(--accent, #c8d400);
+}
+
+.attachment-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.attachment-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-primary, #1a202c);
+  flex: 1;
+}
+
+.attachment-ext {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  color: var(--text-secondary, #718096);
+  background: var(--border, #e2e8f0);
+  border-radius: 3px;
+  padding: 2px 6px;
+}
+
+@media (max-width: 767px) {
+  .pdf-embed { height: 420px; }
+}

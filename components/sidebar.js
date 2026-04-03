@@ -145,7 +145,6 @@ export default async function init(config) {
   const useMock = !CONFIG.ENV_LIVE;
   if (useMock) ensureModal();
 
-  const kbHref   = useMock ? "#" : config.DOCS_URL;
   const projHref = useMock ? "#" : config.PROJECTS_URL;
   const extAttrs = useMock ? "" : 'target="_blank" rel="noopener"';
 
@@ -172,7 +171,7 @@ export default async function init(config) {
           ${ICONS.home} Home
         </a>
 
-        <a class="nav-item" id="sb-kb" href="${kbHref}" ${extAttrs}>
+        <a class="nav-item" id="sb-kb" href="#section-knowledgebase">
           ${ICONS.book} Knowledge Base
         </a>
 
@@ -194,14 +193,17 @@ export default async function init(config) {
         <span class="version">v0.1.0</span> &nbsp;·&nbsp; Internal use only
       </div>`;
 
+    // KB link: always stay in the hub — go home then scroll to the KB section
+    document.getElementById("sb-kb")?.addEventListener("click", e => {
+      e.preventDefault();
+      if (window.__hub_reader) window.__hub_reader.goHome();
+      setTimeout(() => {
+        document.getElementById("section-knowledgebase")
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 50);
+    });
+
     if (useMock) {
-      document.getElementById("sb-kb")?.addEventListener("click", e => {
-        e.preventDefault();
-        showModal(
-          "Knowledge Base",
-          "The knowledge base is currently being set up. It will be available at docs.treppides.com once the server environment is provisioned."
-        );
-      });
       document.getElementById("sb-proj")?.addEventListener("click", e => {
         e.preventDefault();
         showModal(
@@ -235,7 +237,7 @@ export default async function init(config) {
       <!-- Mobile nav drawer -->
       <div class="mobile-nav" id="mobile-nav">
         <a class="nav-item active" href="#">${ICONS.home} Home</a>
-        <a class="nav-item" id="mb-kb" href="${kbHref}" ${extAttrs}>
+        <a class="nav-item" id="mb-kb" href="#section-knowledgebase">
           ${ICONS.book} Knowledge Base
         </a>
         <a class="nav-item" id="mb-proj" href="${projHref}" ${extAttrs}>
@@ -251,14 +253,17 @@ export default async function init(config) {
       document.getElementById("mobile-nav")?.classList.toggle("open");
     });
 
+    document.getElementById("mb-kb")?.addEventListener("click", e => {
+      e.preventDefault();
+      document.getElementById("mobile-nav")?.classList.remove("open");
+      if (window.__hub_reader) window.__hub_reader.goHome();
+      setTimeout(() => {
+        document.getElementById("section-knowledgebase")
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 50);
+    });
+
     if (useMock) {
-      document.getElementById("mb-kb")?.addEventListener("click", e => {
-        e.preventDefault();
-        showModal(
-          "Knowledge Base",
-          "The knowledge base is currently being set up. It will be available at docs.treppides.com once the server environment is provisioned."
-        );
-      });
       document.getElementById("mb-proj")?.addEventListener("click", e => {
         e.preventDefault();
         showModal(

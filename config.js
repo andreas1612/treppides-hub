@@ -9,8 +9,11 @@ export default {
   BASE_URL: "http://192.168.0.221/docs",
 
   // BookStack API token — generated in Settings > API Tokens
-  API_TOKEN_ID: "tMGusKQeZI3U7PBEuPxpxmCg7K26bDtw",
-  API_TOKEN_SECRET: "LKRcyhG2sPo4kwGSIQFsSohPb9iRBfEy",
+  API_TOKEN_ID: "BKS134yZFbh0dSXZP324ZABmz9SIFH8U",
+  API_TOKEN_SECRET: "N3CUTHrV43nfOr22eFozfkkwPewqkonS",
+
+  // BookStack shelf ID containing all department books
+  DEPARTMENTS_SHELF_ID: 57,
 
   // BookStack book IDs — confirmed against live instance
   ANNOUNCEMENTS_BOOK_ID: 58,  // Book: Announcements

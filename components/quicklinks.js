@@ -103,9 +103,7 @@ export default async function init(config) {
   section.innerHTML = `
     <div class="widget-row">
 
-      <a class="widget-card" id="ql-kb"
-         href="${useMock ? "#" : config.DOCS_URL}"
-         ${useMock ? "" : 'target="_blank" rel="noopener"'}>
+      <a class="widget-card" id="ql-kb" href="#section-knowledgebase">
         <div class="widget-icon blue">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -155,14 +153,17 @@ export default async function init(config) {
 
     </div>`;
 
+  // KB widget always stays in the hub
+  document.getElementById("ql-kb")?.addEventListener("click", e => {
+    e.preventDefault();
+    if (window.__hub_reader) window.__hub_reader.goHome();
+    setTimeout(() => {
+      document.getElementById("section-knowledgebase")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  });
+
   if (useMock) {
-    document.getElementById("ql-kb")?.addEventListener("click", e => {
-      e.preventDefault();
-      showModal(
-        "Knowledge Base",
-        "The knowledge base is currently being set up. It will be available at docs.treppides.com once the server environment is provisioned."
-      );
-    });
     document.getElementById("ql-proj")?.addEventListener("click", e => {
       e.preventDefault();
       showModal(
