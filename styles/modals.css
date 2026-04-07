@@ -275,6 +275,107 @@
 .admin-toggle-btn svg   { width: 13px; height: 13px; flex-shrink: 0; }
 
 /* ============================================================
+   TABS (Publish / Manage)
+   ============================================================ */
+.hub-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 2px solid var(--border);
+  margin: 0 0 20px;
+}
+.hub-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  padding: 8px 16px;
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color var(--transition), border-color var(--transition);
+}
+.hub-tab:hover  { color: var(--text-primary); }
+.hub-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* ============================================================
+   FILE INPUT
+   ============================================================ */
+.hub-optional {
+  font-weight: 400;
+  color: var(--text-secondary);
+  font-size: .8rem;
+}
+.hub-file-input { display: none; }
+.hub-file-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: var(--page-bg);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  font-size: .85rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color var(--transition), color var(--transition);
+}
+.hub-file-label:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+/* ============================================================
+   MANAGE / DELETE PANEL
+   ============================================================ */
+#hub-manage-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 260px;
+  overflow-y: auto;
+  margin-bottom: 12px;
+}
+.hub-page-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--page-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.hub-page-item-title {
+  font-size: .87rem;
+  color: var(--text-primary);
+  font-weight: 500;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hub-btn-danger {
+  background: #e53e3e;
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  padding: 6px 12px;
+  font-size: .8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.hub-btn-danger:hover    { background: #c53030; }
+.hub-btn-danger:disabled { opacity: .6; cursor: not-allowed; }
+
+/* ============================================================
    MOBILE — full-width modals on small screens
    ============================================================ */
 @media (max-width: 640px) {

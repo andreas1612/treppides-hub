@@ -269,6 +269,52 @@ export async function createPage(bookId, title, htmlContent) {
 }
 
 /**
+ * Deletes a page by ID.
+ *
+ * Endpoint: DELETE {BASE_URL}/api/pages/{pageId}
+ *
+ * @param {number} pageId - The BookStack page ID to delete.
+ * @returns {Promise<void>}
+ */
+export async function deletePage(pageId) {
+  const response = await fetch(`${CONFIG.BASE_URL}/api/pages/${pageId}`, {
+    method: "DELETE",
+    headers: { Authorization: authHeader() },
+  });
+  if (!response.ok) {
+    throw new Error(`BookStack API error: HTTP ${response.status} ${response.statusText}`);
+  }
+}
+
+/**
+ * Uploads a file as an attachment linked to a specific page.
+ *
+ * Endpoint: POST {BASE_URL}/api/attachments (multipart/form-data)
+ *
+ * @param {number} pageId - The BookStack page ID to attach the file to.
+ * @param {string} name   - Display name for the attachment.
+ * @param {File}   file   - The File object to upload.
+ * @returns {Promise<Object>} The created attachment object.
+ */
+export async function uploadAttachment(pageId, name, file) {
+  const form = new FormData();
+  form.append("uploaded_to", pageId);
+  form.append("name", name);
+  form.append("file", file);
+
+  const response = await fetch(`${CONFIG.BASE_URL}/api/attachments`, {
+    method: "POST",
+    headers: { Authorization: authHeader() },
+    // Do NOT set Content-Type — browser sets it with the correct boundary for FormData
+    body: form,
+  });
+  if (!response.ok) {
+    throw new Error(`Attachment upload error: HTTP ${response.status} ${response.statusText}`);
+  }
+  return response.json();
+}
+
+/**
  * Fetches an attachment file as a Blob using API token auth.
  * BookStack serves attachments as application/octet-stream regardless of file type,
  * so we fetch with auth and re-wrap as the correct MIME type for display.
