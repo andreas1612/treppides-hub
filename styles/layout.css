@@ -111,6 +111,15 @@
 
 .nav-item.active svg { opacity: 1; }
 
+/* nav-btn: <button> styled identically to .nav-item <a> links */
+.nav-btn {
+  width: 100%;
+  background: none;
+  border: none;
+  font-family: inherit;
+  text-align: left;
+}
+
 /* --- Sidebar Footer --- */
 .sidebar-footer {
   padding: 16px 20px;

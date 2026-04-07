@@ -238,6 +238,37 @@ export async function fetchAttachments(pageId) {
 }
 
 /**
+ * Creates a new page in a BookStack book.
+ *
+ * Endpoint: POST {BASE_URL}/api/pages
+ * Body: { book_id, name, html }
+ *
+ * @param {number} bookId       - The BookStack book ID to publish into.
+ * @param {string} title        - The page title.
+ * @param {string} htmlContent  - HTML body for the page.
+ * @returns {Promise<Object>} The newly created page object from BookStack.
+ */
+export async function createPage(bookId, title, htmlContent) {
+  const url = `${CONFIG.BASE_URL}/api/pages`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: authHeader(),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ book_id: bookId, name: title, html: htmlContent }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => response.statusText);
+    throw new Error(`BookStack API error: HTTP ${response.status} — ${text}`);
+  }
+
+  return response.json();
+}
+
+/**
  * Fetches an attachment file as a Blob using API token auth.
  * BookStack serves attachments as application/octet-stream regardless of file type,
  * so we fetch with auth and re-wrap as the correct MIME type for display.

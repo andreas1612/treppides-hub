@@ -29,4 +29,15 @@ export default {
 
   // Set to true when BookStack and all backend services are live.
   ENV_LIVE: true,
+
+  // Admin panel PIN — shared single PIN for all admins.
+  // Used by components/admin.js to gate in-page content publishing.
+  // ⚠ Keep this out of git — fill in config.js only, never config.example.js
+  ADMIN_PIN: "--ADMIN-PIN--",
+
+  // IT Support ticket email — FormSubmit forwards submissions here.
+  // First submission triggers a one-time confirmation email from FormSubmit;
+  // click the activation link once, then all tickets will be forwarded.
+  // ⚠ Fill in config.js only
+  SUPPORT_EMAIL: "--SUPPORT-EMAIL--",
 };

@@ -2,13 +2,46 @@
 
 **Status: LIVE IN PRODUCTION**
 **Server: 192.168.0.221 (tech-srv)**
-**Last updated: 2026-04-03 (session 2)**
+**Last updated: 2026-04-07 (session 3)**
 
 Internal company portal for daily access to announcements, policies, training materials, and the knowledge base. Backed by a self-hosted BookStack instance. Includes a full in-app content reader — staff can browse and read all department books without leaving the Hub.
 
 ---
 
 ## Session Log — Pick Up From Here
+
+### Session 2026-04-07 (3) — Admin panel + IT Support ticket modal
+
+**New files:** `components/admin.js`, `components/support.js`, `styles/modals.css`
+
+**Admin panel (`components/admin.js`):**
+- Subtle **Admin** button in the sidebar footer (person+ icon)
+- PIN dialog on first click — correct PIN cached in `sessionStorage` for the session
+- **Add Content** modal: Section dropdown, Title, plain-text Content → publishes a new BookStack page via `POST /api/pages`
+- No code or BookStack login needed for content authors
+
+**IT Support ticket modal (`components/support.js`):**
+- Replaces all `mailto:` IT Support links across sidebar (desktop + mobile) and quicklinks widget
+- Fields: Name, Email, Issue Category, Description
+- Submits via **FormSubmit** AJAX → email forwarded to `SUPPORT_EMAIL` in `config.js`
+- Inline spinner, success confirmation, and error fallback
+
+**Other changes:**
+- `api/bookstack.js` — added `createPage(bookId, title, htmlContent)` (9th function)
+- `styles/modals.css` — shared modal styles (backdrop, card, form fields, PIN input, spinner, status boxes, mobile slide-up sheet)
+- `styles/layout.css` — added `.nav-btn` (button styled identically to nav `<a>` links)
+- `index.html` — added `<link>` for `styles/modals.css`
+- `main.js` — imports and inits `admin` and `support` between reader and content sections
+- `config.example.js` — added `ADMIN_PIN` and `SUPPORT_EMAIL` placeholder keys
+
+**VM — add to `config.js` before using:**
+```js
+ADMIN_PIN:     "your-pin-here",
+SUPPORT_EMAIL: "techsupport@treppides.com",
+```
+FormSubmit first-use: first ticket triggers a one-time activation email to `SUPPORT_EMAIL` — click the link, then all future submissions are forwarded.
+
+---
 
 ### Session 2026-04-03 (2) — Hardcoded IP removal + credential hygiene
 
@@ -125,6 +158,8 @@ All settings live in one file: [`config.js`](config.js)
 | `ENV_LIVE` | `true` | Disables "Coming Soon" modals |
 | `USE_MOCK` | `false` | In `api/bookstack.js` — live BookStack API |
 | `SEARCH_ENABLED` | `true` | Search bar in topbar |
+| `ADMIN_PIN` | your PIN | Gates the in-page admin content publisher |
+| `SUPPORT_EMAIL` | techsupport@treppides.com | FormSubmit forwards IT tickets here |
 
 ---
 
@@ -163,6 +198,7 @@ To add content to the Announcements or Training feeds: log into BookStack, open 
 | `fetchAttachments(pageId)` | `GET /api/attachments?filter[uploaded_to]=N` | reader |
 | `fetchAttachmentBlob(id, mime)` | `GET /attachments/{id}` (file bytes) | reader PDF preview |
 | `searchPages(query)` | `GET /api/search?query=N` | topbar search |
+| `createPage(bookId, title, html)` | `POST /api/pages` | admin panel content publisher |
 
 **Note on `fetchAttachmentBlob`:** BookStack serves attachments as `application/octet-stream` regardless of file type. This function fetches the raw bytes with auth headers and re-wraps them as the correct MIME type (e.g. `application/pdf`) so the browser can display inline rather than force-download.
 
@@ -201,10 +237,12 @@ treppides-hub/
 │   ├── policies.js             Policies feed (BookStack book 3)
 │   ├── training.js             Training feed (BookStack book 59)
 │   ├── quicklinks.js           Quick access widgets (KB, Projects, IT Support)
-│   └── reader.js               In-app content reader (overlay, nav, PDF preview)
+│   ├── reader.js               In-app content reader (overlay, nav, PDF preview)
+│   ├── admin.js                PIN-protected in-page content publisher → BookStack API
+│   └── support.js              IT support ticket modal → FormSubmit → email
 │
 ├── api/
-│   ├── bookstack.js            All API calls — see table above
+│   ├── bookstack.js            All API calls (9 functions) — see table above
 │   └── mock.js                 Mock data for local dev (USE_MOCK=true in bookstack.js)
 │
 ├── utils/
@@ -216,7 +254,8 @@ treppides-hub/
     ├── base.css                Reset and defaults
     ├── layout.css              App shell and responsive layout
     ├── cards.css               Cards, skeletons, animations
-    └── reader.css              Reader overlay, nav sidebar, prose, PDF embed, attachments
+    ├── reader.css              Reader overlay, nav sidebar, prose, PDF embed, attachments
+    └── modals.css              Admin panel, support ticket, PIN dialog — shared modal styles
 ```
 
 ---
@@ -226,7 +265,8 @@ treppides-hub/
 ```
 1. initSidebar + initTopbar   (parallel — no async data)
 2. initReader                 (must run before KB section so hub:openBook listener is registered)
-3. Promise.allSettled([
+3. initAdmin + initSupport    (must be ready before content sections — quicklinks calls window.__hub_support)
+4. Promise.allSettled([
      initAnnouncements,
      initKnowledgeBase,
      initPolicies,
@@ -282,7 +322,9 @@ git push origin main
 5. **Active nav routing** — update sidebar active class when navigating between sections
 6. **LDAP/SSO auth** — integrate with company directory; Phase 2 post-launch
 7. **SSL / HTTPS** — Let's Encrypt via Nginx once a domain is confirmed
-8. **Credential migration** — move API token to a server-side proxy so it never reaches the browser (see issue #5)
+8. **Credential migration** — move API token to a server-side proxy so it never reaches the browser
+
+**Done this session:** Admin panel (in-page BookStack publishing) ✓  IT Support ticket modal via FormSubmit ✓
 
 ---
 

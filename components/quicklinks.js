@@ -135,8 +135,8 @@ export default async function init(config) {
         </div>
       </a>
 
-      <!-- TODO: replace before deploy — update href to actual IT support email address -->
-      <a class="widget-card" href="mailto:it@treppides.com">
+      <div class="widget-card" id="ql-support" role="button" tabindex="0"
+           style="cursor:pointer;">
         <div class="widget-icon amber">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -149,7 +149,7 @@ export default async function init(config) {
           <h4>IT Support</h4>
           <p>Raise a request or query</p>
         </div>
-      </a>
+      </div>
 
     </div>`;
 
@@ -171,5 +171,13 @@ export default async function init(config) {
         "The project management tool is currently being configured. It will be available at projects.treppides.com once the server environment is provisioned."
       );
     });
+  }
+
+  // IT Support widget — opens support ticket modal
+  const qlSupport = document.getElementById("ql-support");
+  if (qlSupport) {
+    const openSupport = () => window.__hub_support?.open();
+    qlSupport.addEventListener("click",   openSupport);
+    qlSupport.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") openSupport(); });
   }
 }

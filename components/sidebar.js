@@ -181,10 +181,9 @@ export default async function init(config) {
 
         <div class="nav-label" style="margin-top:12px;">Support</div>
 
-        <a class="nav-item" href="mailto:it@treppides.com">
+        <button class="nav-item nav-btn" id="sb-support">
           ${ICONS.phone} IT Support
-          <!-- TODO: replace before deploy — update href to actual IT support email address -->
-        </a>
+        </button>
       </nav>
 
       <!-- Sidebar footer -->
@@ -243,10 +242,9 @@ export default async function init(config) {
         <a class="nav-item" id="mb-proj" href="${projHref}" ${extAttrs}>
           ${ICONS.grid} Projects
         </a>
-        <a class="nav-item" href="mailto:it@treppides.com">
-          <!-- TODO: replace before deploy — update href to actual IT support email address -->
+        <button class="nav-item nav-btn" id="mb-support">
           ${ICONS.phone} IT Support
-        </a>
+        </button>
       </div>`;
 
     document.getElementById("burger-btn")?.addEventListener("click", () => {
@@ -272,5 +270,15 @@ export default async function init(config) {
         );
       });
     }
+
+    document.getElementById("mb-support")?.addEventListener("click", () => {
+      document.getElementById("mobile-nav")?.classList.remove("open");
+      window.__hub_support?.open();
+    });
   }
+
+  // Desktop IT Support button
+  document.getElementById("sb-support")?.addEventListener("click", () => {
+    window.__hub_support?.open();
+  });
 }

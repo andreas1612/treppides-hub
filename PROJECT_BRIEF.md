@@ -2,7 +2,7 @@
 > Paste this file at the start of a new chat and say "continue the Treppides Hub project"
 
 **Status: LIVE IN PRODUCTION — All changes committed, repo clean**
-**Last session: 2026-04-03 (session 2) — see Session Log below**
+**Last session: 2026-04-07 (session 3) — see Session Log below**
 
 ---
 
@@ -15,6 +15,31 @@
 ---
 
 ## Session Log
+
+### 2026-04-07 (session 3) — Admin panel + IT Support ticket modal
+
+**Built:**
+- `components/admin.js` — PIN-protected in-page content publisher. Sidebar shows a subtle Admin button; correct PIN (sessionStorage-cached) opens an "Add Content" modal with Section dropdown, Title, and plain-text Content fields. Publishes directly to BookStack via API — no code or BookStack login required.
+- `components/support.js` — IT Support ticket modal. Replaces all three `mailto:` links (sidebar desktop, sidebar mobile, quicklinks widget). Fields: Name, Email, Issue Category, Description. Submits via FormSubmit AJAX → email forwarded to `SUPPORT_EMAIL`. Inline success/error feedback.
+- `styles/modals.css` — shared modal styles (backdrop, card, form fields, buttons, spinner, status messages, PIN input, mobile slide-up sheet).
+- `api/bookstack.js`: added `createPage(bookId, title, htmlContent)` → `POST /api/pages`.
+- `styles/layout.css`: added `.nav-btn` rule so `<button>` can look identical to nav `<a>` links.
+- `config.example.js`: added `ADMIN_PIN` and `SUPPORT_EMAIL` placeholder keys.
+
+**Updated:**
+- `components/sidebar.js` — both IT Support links changed from `mailto:` to `<button class="nav-btn">` calling `window.__hub_support.open()`; Admin button injected into sidebar footer by admin.js.
+- `components/quicklinks.js` — IT Support widget changed from `<a href="mailto:">` to a `<div role="button">` calling `window.__hub_support.open()`.
+- `index.html` — added `<link>` for `styles/modals.css`.
+- `main.js` — imports `initAdmin` and `initSupport`; both called after reader init, before content sections.
+
+**VM — two keys to add to `config.js` before using:**
+```js
+ADMIN_PIN:     "your-pin-here",
+SUPPORT_EMAIL: "techsupport@treppides.com",
+```
+FormSubmit first-use: the first ticket submitted triggers a one-time activation email to `SUPPORT_EMAIL` — click the link once, then all submissions are forwarded automatically.
+
+---
 
 ### 2026-04-03 (session 2) — Hardcoded IP removal + credential hygiene — commit `a87ede1`
 
@@ -73,10 +98,14 @@ hub/
 │   ├── announcements.js        Latest Announcements feed — mounts into #section-announcements
 │   ├── policies.js             Policies & Procedures feed — mounts into #section-policies
 │   ├── training.js             Training & Development feed — mounts into #section-training
-│   └── quicklinks.js           Quick-access widget row (KB, Projects, IT Support) — mounts into #section-quicklinks
+│   ├── quicklinks.js           Quick-access widget row (KB, Projects, IT Support) — mounts into #section-quicklinks
+│   ├── reader.js               Full in-app reader (overlay, nav, PDF preview, pushState routing)
+│   ├── admin.js                PIN-protected in-page content publisher → BookStack API
+│   └── support.js              IT support ticket modal → FormSubmit → email
 │
 ├── api/
-│   └── bookstack.js            All BookStack API calls: fetchPages(), searchPages() stub
+│   ├── bookstack.js            All BookStack API calls (9 functions incl. createPage)
+│   └── mock.js                 Mock data for local dev
 │
 ├── utils/
 │   ├── dom.js                  escapeHtml(), renderSkeleton(), renderError(), renderEmpty()
@@ -86,7 +115,9 @@ hub/
     ├── theme.css               CSS custom properties ONLY — rebranding file, touch this to retheme
     ├── base.css                Reset, html/body, a defaults
     ├── layout.css              App shell, sidebar, topbar, main area, mobile responsive
-    └── cards.css               Cards, skeleton, state boxes, widget row, refresh button, animations
+    ├── cards.css               Cards, skeleton, state boxes, widget row, refresh button, animations
+    ├── reader.css              Reader overlay, breadcrumb, nav, prose, PDF embed, attachments
+    └── modals.css              Shared modal/overlay styles: admin panel, support ticket, PIN dialog
 ```
 
 ---
@@ -111,7 +142,9 @@ hub/
 | `components/training.js` | **Working** | Same pattern as announcements |
 | `components/quicklinks.js` | **Working** | `ENV_LIVE=true` so real links active |
 | `components/reader.js` | **Working** | Full in-app reader; blob PDF preview; pushState routing; "Try again" on error |
-| `api/bookstack.js` | **Working** | 8 functions: fetchPages, fetchShelfBooks, fetchBook, fetchChapter, fetchPageContent, fetchAttachments, fetchAttachmentBlob, searchPages |
+| `components/admin.js` | **Working** | PIN-protected content publisher; session-cached auth; creates pages via BookStack API |
+| `components/support.js` | **Working** | IT support ticket modal; FormSubmit AJAX; inline success/error feedback |
+| `api/bookstack.js` | **Working** | 9 functions: fetchPages, fetchShelfBooks, fetchBook, fetchChapter, fetchPageContent, fetchAttachments, fetchAttachmentBlob, searchPages, createPage |
 | `api/mock.js` | **Working** | Mock data (USE_MOCK=false in production) |
 | `utils/dom.js` | **Working** | All four helpers complete |
 | `utils/format.js` | **Working** | excerptFromHtml calls document.createElement — browser-only |
@@ -247,6 +280,8 @@ All sourced from `config.js` unless noted.
 10. ~~**Nginx SPA routing**~~ — `try_files $uri $uri/ /index.html` already in place; refresh on `/book/:id/page/:id` works (2026-04-03)
 11. ~~**Hardcoded IP removal**~~ — `reader.js` now uses `CONFIG.BASE_URL` + `window.location.origin`; zero hardcoded IPs in source (2026-04-03)
 12. ~~**Credential hygiene**~~ — `config.js` gitignored and untracked; `config.example.js` committed; security plan documented in `config.js` (2026-04-03)
+13. ~~**Admin panel**~~ — PIN-protected in-page content publisher; `components/admin.js`; creates pages in BookStack via API without leaving the hub (2026-04-07)
+14. ~~**IT Support ticket modal**~~ — replaces all `mailto:` links; `components/support.js`; FormSubmit AJAX → forwarded to `SUPPORT_EMAIL` (2026-04-07)
 
 ## Next Features — Priority Order
 
