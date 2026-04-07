@@ -17,8 +17,6 @@ const TAG_LABEL  = "Policy";
 
 /** Renders one policy card. */
 function cardHtml(page) {
-  // TODO: replace before deploy — confirm correct fallback URL pattern for policies book
-  const url     = page.url  || `${CONFIG.BASE_URL}/books/policies/page/${page.id}`;
   const title   = page.name || "Untitled";
   const date    = formatDate(page.updated_at);
   const excerpt = excerptFromHtml(page.preview_html?.content || "", 150);
@@ -27,7 +25,11 @@ function cardHtml(page) {
     <article class="card">
       <span class="card-tag">${TAG_LABEL}</span>
       <h3 class="card-title">
-        <a href="${escapeHtml(url)}" target="_blank" rel="noopener">
+        <a class="reader-link" href="#"
+           data-page-id="${page.id}"
+           data-page-name="${escapeHtml(title)}"
+           data-book-id="${CONFIG.POLICIES_BOOK_ID}"
+           data-book-name="Policies &amp; Procedures">
           ${escapeHtml(title)}
         </a>
       </h3>
@@ -43,7 +45,11 @@ function cardHtml(page) {
       </div>
       ${excerpt ? `<p class="card-excerpt">${escapeHtml(excerpt)}</p>` : ""}
       <div class="card-footer">
-        <a class="card-link" href="${escapeHtml(url)}" target="_blank" rel="noopener">
+        <a class="card-link reader-link" href="#"
+           data-page-id="${page.id}"
+           data-page-name="${escapeHtml(title)}"
+           data-book-id="${CONFIG.POLICIES_BOOK_ID}"
+           data-book-name="Policies &amp; Procedures">
           Read more &rarr;
         </a>
       </div>
@@ -116,6 +122,18 @@ export default async function init(_config) {
     </div>`;
 
   document.getElementById(REFRESH_ID)?.addEventListener("click", load);
+
+  section.addEventListener("click", e => {
+    const link = e.target.closest(".reader-link");
+    if (!link) return;
+    e.preventDefault();
+    window.__hub_reader?.openPage(
+      parseInt(link.dataset.pageId, 10),
+      link.dataset.pageName,
+      parseInt(link.dataset.bookId, 10),
+      link.dataset.bookName
+    );
+  });
 
   // Auto-fetch on init
   await load();
