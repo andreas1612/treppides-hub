@@ -12,6 +12,7 @@ import initPolicies      from "./components/policies.js";
 import initTraining      from "./components/training.js";
 import initQuicklinks    from "./components/quicklinks.js";
 import initReader        from "./components/reader.js";
+import initFees          from "./components/fees.js";
 import initAdmin         from "./components/admin.js";
 import initSupport       from "./components/support.js";
 
@@ -39,6 +40,7 @@ async function boot() {
     initPolicies(CONFIG),
     initTraining(CONFIG),
     initQuicklinks(CONFIG),
+    initFees(CONFIG),
   ]);
 }
 

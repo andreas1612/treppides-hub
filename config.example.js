@@ -40,4 +40,9 @@ export default {
   // click the activation link once, then all tickets will be forwarded.
   // ⚠ Fill in config.js only
   SUPPORT_EMAIL: "--SUPPORT-EMAIL--",
+
+  // ClickUp Fees Aggregator API — Python backend (FastAPI)
+  // Set to the host:port where api/clickup/server.py is running
+  // ⚠ Fill in config.js only
+  CLICKUP_FEES_API: "--CLICKUP-FEES-API-URL--",
 };

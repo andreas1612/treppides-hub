@@ -1,2 +1,8 @@
 # Real config with API credentials — never commit this
 config.js
+
+# ClickUp API credentials
+api/clickup/.env
+
+# Temp exploration scripts
+api/clickup/_explore.py
