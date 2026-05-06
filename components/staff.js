@@ -8,7 +8,25 @@
 
 import { escapeHtml } from "../utils/dom.js";
 
-const SECTION_ID = "section-staff";
+const SECTION_ID  = "section-staff";
+const BACK_BTN_ID = "staff-back-btn";
+
+// ---- Page visibility ----------------------------------------
+
+function showStaffPage() {
+  const main = document.querySelector(".main");
+  if (!main) return;
+  main.classList.remove("fees-active"); // ensure fees page is closed
+  main.classList.add("staff-active");
+  document.dispatchEvent(new CustomEvent("hub:navchange", { detail: { section: "staff" } }));
+}
+
+function hideStaffPage() {
+  document.querySelector(".main")?.classList.remove("staff-active");
+  document.dispatchEvent(new CustomEvent("hub:navchange", { detail: { section: "home" } }));
+}
+
+window.__hub_staff = { show: showStaffPage, hide: hideStaffPage };
 
 // ---- State --------------------------------------------------
 let _allStaff   = [];
@@ -255,7 +273,9 @@ export default async function init(_config) {
     section.innerHTML = `
       <div class="hub-section">
         <div class="section-header">
-          <div><h2 class="section-title">Staff Directory</h2></div>
+          <div class="staff-header-left">
+            <div><h2 class="section-title">Staff Directory</h2></div>
+          </div>
         </div>
         <div class="state-box error" role="alert">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -277,9 +297,18 @@ export default async function init(_config) {
   section.innerHTML = `
     <div class="hub-section">
       <div class="section-header">
-        <div>
-          <h2 class="section-title">Staff Directory</h2>
-          <p class="section-subtitle">K. Treppides &amp; Co Ltd &mdash; <span id="staff-count"></span></p>
+        <div class="staff-header-left">
+          <button class="staff-back-btn" id="${BACK_BTN_ID}" aria-label="Back to Hub">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"/>
+              <polyline points="12 19 5 12 12 5"/>
+            </svg>
+          </button>
+          <div>
+            <h2 class="section-title">Staff Directory</h2>
+            <p class="section-subtitle">K. Treppides &amp; Co Ltd &mdash; <span id="staff-count"></span></p>
+          </div>
         </div>
       </div>
 
@@ -311,6 +340,12 @@ export default async function init(_config) {
     </div>`;
 
   renderGrid();
+
+  // Back button
+  document.getElementById(BACK_BTN_ID)?.addEventListener("click", () => {
+    hideStaffPage();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
 
   // Expand All / Collapse All
   document.getElementById("staff-expand-all")?.addEventListener("click", toggleAll, { once: true });

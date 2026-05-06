@@ -2,6 +2,48 @@
    styles/staff.css — Staff Directory component
    ============================================================ */
 
+/* ---- Page-view toggle (mirrors fees.css pattern) ---------- */
+#section-staff {
+  display: none;
+  padding: var(--page-gutter, 32px);
+}
+
+.main.staff-active .page-content   { display: none !important; }
+.main.staff-active .reader-overlay { display: none !important; }
+.main.staff-active #section-staff  { display: block !important; }
+
+/* Back button — reuse fees pattern */
+.staff-back-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--page-bg);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  transition: background var(--transition), color var(--transition);
+}
+
+.staff-back-btn:hover {
+  background: var(--border);
+  color: var(--text-primary);
+}
+
+.staff-back-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.staff-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 /* ---- Controls bar ----------------------------------------- */
 .staff-controls {
   display: flex;

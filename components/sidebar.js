@@ -188,9 +188,9 @@ export default async function init(config) {
           ${ICONS.book} Knowledge Base
         </a>
 
-        <a class="nav-item" id="sb-staff" href="#section-staff">
+        <button class="nav-item nav-btn" id="sb-staff">
           ${ICONS.person} Staff Directory
-        </a>
+        </button>
 
         <a class="nav-item" id="sb-proj" href="${projHref}" ${extAttrs}>
           ${ICONS.grid} Projects
@@ -232,15 +232,12 @@ export default async function init(config) {
       }, 50);
     });
 
-    // Staff link: go home, hide fees page, scroll to staff
-    document.getElementById("sb-staff")?.addEventListener("click", e => {
-      e.preventDefault();
-      if (window.__hub_fees) window.__hub_fees.hide();
+    // Staff Directory link: open dedicated staff page view
+    document.getElementById("sb-staff")?.addEventListener("click", () => {
       if (window.__hub_reader) window.__hub_reader.goHome();
-      setTimeout(() => {
-        document.getElementById("section-staff")
-          ?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 50);
+      if (window.__hub_fees)   window.__hub_fees.hide();
+      if (window.__hub_staff)  window.__hub_staff.show();
+      window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
     // Fees link: open dedicated fees page view
@@ -287,9 +284,9 @@ export default async function init(config) {
         <a class="nav-item" id="mb-kb" href="#section-knowledgebase">
           ${ICONS.book} Knowledge Base
         </a>
-        <a class="nav-item" id="mb-staff" href="#section-staff">
+        <button class="nav-item nav-btn" id="mb-staff">
           ${ICONS.person} Staff Directory
-        </a>
+        </button>
         <a class="nav-item" id="mb-proj" href="${projHref}" ${extAttrs}>
           ${ICONS.grid} Projects
         </a>
@@ -325,15 +322,12 @@ export default async function init(config) {
       }, 50);
     });
 
-    document.getElementById("mb-staff")?.addEventListener("click", e => {
-      e.preventDefault();
+    document.getElementById("mb-staff")?.addEventListener("click", () => {
       document.getElementById("mobile-nav")?.classList.remove("open");
-      if (window.__hub_fees) window.__hub_fees.hide();
       if (window.__hub_reader) window.__hub_reader.goHome();
-      setTimeout(() => {
-        document.getElementById("section-staff")
-          ?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 50);
+      if (window.__hub_fees)   window.__hub_fees.hide();
+      if (window.__hub_staff)  window.__hub_staff.show();
+      window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
     // Mobile fees link
@@ -369,9 +363,10 @@ export default async function init(config) {
   // ---- Active nav state ----
   function setActiveNav(section) {
     const map = {
-      home: ["sb-home", "mb-home"],
-      kb:   ["sb-kb",   "mb-kb"],
-      fees: ["sb-fees", "mb-fees"],
+      home:  ["sb-home",  "mb-home"],
+      kb:    ["sb-kb",    "mb-kb"],
+      staff: ["sb-staff", "mb-staff"],
+      fees:  ["sb-fees",  "mb-fees"],
     };
     ["sb-home","sb-kb","sb-staff","sb-proj","sb-fees","mb-home","mb-kb","mb-staff","mb-proj","mb-fees"].forEach(id => {
       document.getElementById(id)?.classList.remove("active");
