@@ -14,6 +14,7 @@
 // ============================================================
 
 import { fetchBook, fetchChapter, fetchPageContent, fetchAttachments, fetchAttachmentBlob } from "../api/bookstack.js";
+import { formatDate } from "../utils/format.js";
 import CONFIG from "../config.js";
 
 // ── State ────────────────────────────────────────────────────
@@ -202,7 +203,58 @@ function renderBookView() {
     { label: esc(_book.name), action: null },
   ];
 
-  const pageCount = countPages(_book.contents);
+  const contents = _book.contents || [];
+
+  // Count pages per chapter using chapter_id on each page item
+  const pagesByChapter = {};
+  contents.forEach(item => {
+    if (item.type === "page" && item.chapter_id) {
+      pagesByChapter[item.chapter_id] = (pagesByChapter[item.chapter_id] || 0) + 1;
+    }
+  });
+
+  const chapters    = contents.filter(c => c.type === "chapter");
+  const allPages    = contents.filter(c => c.type === "page");
+  const pageCount   = allPages.length;
+
+  // 3 most recently updated pages (requires updated_at on page items)
+  const recentPages = allPages
+    .filter(p => p.updated_at)
+    .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
+    .slice(0, 3);
+
+  const chaptersHtml = chapters.length ? `
+    <div class="dept-landing-section">
+      <h2 class="dept-landing-heading">Contents</h2>
+      <ul class="dept-chapter-list">
+        ${chapters.map(ch => {
+          const n = pagesByChapter[ch.id] || 0;
+          return `<li class="dept-chapter-item">
+            <span class="dept-chapter-name">${esc(ch.name)}</span>
+            <span class="dept-chapter-count">${n} page${n !== 1 ? "s" : ""}</span>
+          </li>`;
+        }).join("")}
+      </ul>
+    </div>` : "";
+
+  const recentHtml = recentPages.length ? `
+    <div class="dept-landing-section">
+      <h2 class="dept-landing-heading">Recently Updated</h2>
+      <div class="dept-recent-grid">
+        ${recentPages.map(p => `
+          <button class="dept-recent-card" data-page-id="${p.id}" data-page-name="${escAttr(p.name)}">
+            <span class="dept-recent-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+              </svg>
+            </span>
+            <span class="dept-recent-title">${esc(p.name)}</span>
+            <span class="dept-recent-date">Updated ${esc(formatDate(p.updated_at))}</span>
+          </button>`).join("")}
+      </div>
+    </div>` : "";
 
   _overlay.innerHTML = `
     ${breadcrumbHtml(bc)}
@@ -212,16 +264,31 @@ function renderBookView() {
         ${navItemsHtml(_book.contents, null)}
       </nav>
       <div class="reader-content">
-        <div class="reader-welcome">
-          <h1>${esc(_book.name)}</h1>
-          ${_book.description ? `<p>${esc(_book.description)}</p>` : ""}
-          <p class="welcome-meta">${pageCount} page${pageCount !== 1 ? "s" : ""} in this book. Select a page from the left to start reading.</p>
+        <div class="dept-landing">
+          <h1 class="dept-landing-title">${esc(_book.name)}</h1>
+          ${_book.description ? `<p class="dept-landing-desc">${esc(_book.description)}</p>` : ""}
+          <p class="dept-landing-meta">
+            ${pageCount} page${pageCount !== 1 ? "s" : ""}
+            ${chapters.length ? ` &nbsp;·&nbsp; ${chapters.length} chapter${chapters.length !== 1 ? "s" : ""}` : ""}
+            &nbsp;·&nbsp; Select a page from the left to start reading.
+          </p>
+          ${chaptersHtml}
+          ${recentHtml}
         </div>
       </div>
     </div>`;
 
   attachBreadcrumbHandlers(bc);
   attachNavHandlers(_overlay);
+
+  // Wire recent page card clicks
+  _overlay.querySelectorAll(".dept-recent-card").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const pageId   = parseInt(btn.dataset.pageId, 10);
+      const pageName = btn.dataset.pageName || "Page";
+      openPage(pageId, pageName, _book.id, _book.name);
+    });
+  });
 }
 
 function renderPageViewShell(pageName) {
@@ -364,6 +431,10 @@ function hideOverlay() {
 }
 
 // ── Navigation ───────────────────────────────────────────────
+function navChange(section) {
+  document.dispatchEvent(new CustomEvent("hub:navchange", { detail: { section } }));
+}
+
 function goHome() {
   _state = "home";
   _book  = null;
@@ -371,6 +442,7 @@ function goHome() {
   _expandedChapters.clear();
   hideOverlay();
   window.history.pushState({ view: "home" }, "", "/");
+  navChange("home");
 }
 
 async function openBook(bookId, bookName, bookSlug) {
@@ -396,6 +468,7 @@ async function openBook(bookId, bookName, bookSlug) {
   _overlay.querySelector("#bc-home-tmp")?.addEventListener("click", goHome);
 
   window.history.pushState({ view: "book", bookId, bookName, bookSlug }, "", `/book/${bookId}`);
+  navChange("kb");
 
   try {
     const book = await fetchBook(bookId);
@@ -439,6 +512,7 @@ async function openPage(pageId, pageName, bookId, bookName) {
     "",
     `/book/${bookId}/page/${pageId}`
   );
+  navChange("kb");
 
   try {
     const [pageData, attachments] = await Promise.all([
@@ -465,6 +539,7 @@ function handlePopState(e) {
     _page  = null;
     _expandedChapters.clear();
     hideOverlay();
+    navChange("home");
     return;
   }
   if (s.view === "book") {

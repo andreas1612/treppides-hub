@@ -27,6 +27,7 @@ const TOGGLE_ID    = "fees-view-toggle";
 const CHART_ID     = "fees-chart-area";
 const TABLE_ID     = "fees-drilldown";
 const REFRESH_ID   = "fees-refresh";
+const EXPORT_ID    = "fees-export";
 const BACK_ID      = "fees-back-btn";
 
 // ---- Palette -------------------------------------------------------
@@ -51,10 +52,10 @@ function loadChartJs() {
   if (_chartJsLoaded) return Promise.resolve();
   return new Promise((resolve, reject) => {
     const s1 = document.createElement("script");
-    s1.src = "https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js";
+    s1.src = "/vendor/chart.umd.min.js";
     s1.onload = () => {
       const s2 = document.createElement("script");
-      s2.src = "https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js";
+      s2.src = "/vendor/chartjs-plugin-datalabels.min.js";
       s2.onload = () => { _chartJsLoaded = true; resolve(); };
       s2.onerror = () => reject(new Error("Failed to load chartjs-plugin-datalabels"));
       document.head.appendChild(s2);
@@ -100,6 +101,7 @@ function groupLabel() {
  */
 function showFeesPage() {
   document.querySelector(".main")?.classList.add("fees-active");
+  document.dispatchEvent(new CustomEvent("hub:navchange", { detail: { section: "fees" } }));
 }
 
 /**
@@ -107,6 +109,7 @@ function showFeesPage() {
  */
 function hideFeesPage() {
   document.querySelector(".main")?.classList.remove("fees-active");
+  document.dispatchEvent(new CustomEvent("hub:navchange", { detail: { section: "home" } }));
 }
 
 // Expose toggle functions for sidebar
@@ -493,15 +496,54 @@ async function fetchFeesData(forceRefresh = false) {
   return resp.json();
 }
 
+// ---- CSV Export -----------------------------------------------------
+
+function csvCell(val) {
+  if (val === null || val === undefined) return "";
+  const s = String(val);
+  // Wrap in quotes if contains comma, quote, or newline
+  if (s.includes(",") || s.includes('"') || s.includes("\n") || s.includes("\r")) {
+    return '"' + s.replace(/"/g, '""') + '"';
+  }
+  return s;
+}
+
+function exportCsv() {
+  const monthTasks = _rawTasks.filter(t => t.month_year === _activeMonth);
+  if (!monthTasks.length) return;
+
+  const header = DRILL_COLUMNS.map(c => csvCell(c.label)).join(",");
+  const rows   = monthTasks.map(task =>
+    DRILL_COLUMNS.map(col => {
+      const v = task[col.key];
+      if (v === null || v === undefined || v === "—") return "";
+      return csvCell(col.isCurrency ? v : String(v));
+    }).join(",")
+  );
+
+  const csv  = [header, ...rows].join("\r\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href     = url;
+  a.download = `fees-${_activeMonth.replace(/\s+/g, "-")}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 // ---- Main load ------------------------------------------------------
 
 async function load(forceRefresh = false) {
   const section    = document.getElementById(SECTION_ID);
   const chartArea  = document.getElementById(CHART_ID);
   const refreshBtn = document.getElementById(REFRESH_ID);
+  const exportBtn  = document.getElementById(EXPORT_ID);
   if (!chartArea) return;
 
   if (refreshBtn) { refreshBtn.disabled = true; refreshBtn.classList.add("loading"); }
+  if (exportBtn)  { exportBtn.disabled = true; }
   chartArea.innerHTML = `<div class="fees-chart-wrapper">${renderSkeleton()}</div>`;
   const kpi = document.getElementById(KPI_ID);
   if (kpi) kpi.innerHTML = "";
@@ -546,6 +588,7 @@ async function load(forceRefresh = false) {
     renderChart();
     clearDrillDown();
 
+    if (exportBtn) { exportBtn.disabled = false; }
     setStatus("All systems operational");
   } catch (err) {
     console.error("[Hub] fees fetch error:", err);
@@ -578,14 +621,25 @@ export default async function init(_config) {
             <p class="section-subtitle">Monthly fee breakdown — sourced from ClickUp</p>
           </div>
         </div>
-        <button class="btn-refresh" id="${REFRESH_ID}" aria-label="Refresh fees data">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="23 4 23 10 17 10"/>
-            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-          </svg>
-          Refresh
-        </button>
+        <div class="fees-header-actions">
+          <button class="btn-refresh" id="${EXPORT_ID}" aria-label="Export fees as CSV" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Export CSV
+          </button>
+          <button class="btn-refresh" id="${REFRESH_ID}" aria-label="Refresh fees data">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 4 23 10 17 10"/>
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+            </svg>
+            Refresh
+          </button>
+        </div>
       </div>
 
       <div id="${KPI_ID}"></div>
@@ -608,6 +662,9 @@ export default async function init(_config) {
     hideFeesPage();
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
+
+  // Export CSV button
+  document.getElementById(EXPORT_ID)?.addEventListener("click", exportCsv);
 
   // Refresh button
   document.getElementById(REFRESH_ID)?.addEventListener("click", () => load(true));

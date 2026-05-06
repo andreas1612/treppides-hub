@@ -54,6 +54,7 @@ const SEARCH_STYLES = `
     color: var(--text-primary);
     border-bottom: 1px solid var(--border);
     transition: background var(--transition);
+    cursor: pointer;
   }
   #search-dropdown .sd-item:last-child {
     border-bottom: none;
@@ -101,11 +102,29 @@ function renderResults(results) {
   if (!results.length) {
     return `<div class="sd-msg">No results found</div>`;
   }
-  return results.slice(0, 5).map(r => `
-    <a class="sd-item" href="${r.url || "#"}" target="_blank" rel="noopener">
+  return results.slice(0, 5).map((r, i) => `
+    <div class="sd-item" role="button" tabindex="0" data-idx="${i}">
       <span class="sd-title">${r.name || r.title || "Untitled"}</span>
       <span class="sd-book">${r.book_title || r.book?.name || ""}</span>
-    </a>`).join("");
+    </div>`).join("");
+}
+
+function attachResultHandlers(results) {
+  const dd = document.getElementById("search-dropdown");
+  if (!dd) return;
+  dd.querySelectorAll(".sd-item").forEach(el => {
+    const r = results[parseInt(el.dataset.idx, 10)];
+    const open = () => {
+      closeDropdown();
+      document.getElementById("search-input").value = "";
+      if (window.__hub_reader && r.id && r.book?.id) {
+        window.__hub_fees?.hide();
+        window.__hub_reader.openPage(r.id, r.name || "Untitled", r.book.id, r.book.name || "");
+      }
+    };
+    el.addEventListener("click", open);
+    el.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") open(); });
+  });
 }
 
 function setupSearch() {
@@ -124,6 +143,7 @@ function setupSearch() {
       try {
         const results = await searchPages(q);
         openDropdown(renderResults(results));
+        attachResultHandlers(results);
       } catch {
         openDropdown(`<div class="sd-msg">Search unavailable</div>`);
       } finally {

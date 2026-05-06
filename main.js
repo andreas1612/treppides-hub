@@ -15,6 +15,7 @@ import initReader        from "./components/reader.js";
 import initFees          from "./components/fees.js";
 import initAdmin         from "./components/admin.js";
 import initSupport       from "./components/support.js";
+import initStaff         from "./components/staff.js";
 
 async function boot() {
   // Structural components (no async data needed — run in parallel)
@@ -37,6 +38,7 @@ async function boot() {
   await Promise.allSettled([
     initAnnouncements(CONFIG),
     initKnowledgeBase(CONFIG),
+    initStaff(CONFIG),
     initPolicies(CONFIG),
     initTraining(CONFIG),
     initQuicklinks(CONFIG),

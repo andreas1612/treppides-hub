@@ -1,0 +1,363 @@
+/* ============================================================
+   styles/staff.css — Staff Directory component
+   ============================================================ */
+
+/* ---- Controls bar ----------------------------------------- */
+.staff-controls {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* Search */
+.staff-search-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 160px;
+}
+
+.staff-search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 14px;
+  height: 14px;
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
+.staff-search {
+  width: 100%;
+  padding: 8px 12px 8px 32px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 13.5px;
+  background: var(--card-bg);
+  color: var(--text-primary);
+  box-sizing: border-box;
+  transition: border-color var(--transition);
+}
+
+.staff-search:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* Department dropdown */
+.staff-dept-select {
+  padding: 8px 28px 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 13.5px;
+  background: var(--card-bg);
+  color: var(--text-primary);
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23718096' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  background-size: 15px;
+  transition: border-color var(--transition);
+  min-width: 170px;
+}
+
+.staff-dept-select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* Location toggle */
+.staff-loc-toggle {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.staff-loc-btn {
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  border: none;
+  border-right: 1px solid var(--border);
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+  white-space: nowrap;
+}
+
+.staff-loc-btn:last-child {
+  border-right: none;
+}
+
+.staff-loc-btn:hover {
+  background: var(--page-bg);
+  color: var(--text-primary);
+}
+
+.staff-loc-btn.active {
+  background: var(--accent);
+  color: #1a202c;
+  font-weight: 700;
+}
+
+/* Expand All */
+.staff-expand-all {
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--transition), color var(--transition);
+  flex-shrink: 0;
+}
+
+.staff-expand-all:hover {
+  background: var(--page-bg);
+  color: var(--text-primary);
+}
+
+/* ---- Department accordion ---------------------------------- */
+.staff-dept-section {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.staff-dept-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 14px 18px;
+  background: var(--card-bg);
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--transition);
+  gap: 12px;
+}
+
+.staff-dept-header:hover {
+  background: var(--page-bg);
+}
+
+.staff-dept-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.staff-dept-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.staff-dept-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.staff-dept-badge {
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--page-bg);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1px 8px;
+  flex-shrink: 0;
+}
+
+/* Nicosia / Limassol pills in header */
+.staff-dept-offices {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.staff-office-pip {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 10px;
+}
+
+.staff-office-pip.loc-nicosia  { background: #e0f2fe; color: #0369a1; }
+.staff-office-pip.loc-limassol { background: #fef3c7; color: #b45309; }
+
+/* Chevron */
+.staff-chevron {
+  width: 16px;
+  height: 16px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  transition: transform var(--transition);
+}
+
+.staff-chevron.open {
+  transform: rotate(180deg);
+}
+
+/* Accordion body */
+.staff-dept-body {
+  display: none;
+  padding: 16px 18px 20px;
+  background: var(--page-bg);
+  border-top: 1px solid var(--border);
+}
+
+.staff-dept-body.open {
+  display: block;
+}
+
+/* ---- Office sub-group (Nicosia / Limassol) ----------------- */
+.staff-office-group {
+  margin-bottom: 20px;
+}
+
+.staff-office-group:last-child {
+  margin-bottom: 0;
+}
+
+.staff-office-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.staff-office-label svg {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+}
+
+.loc-nicosia-label  { color: #0369a1; }
+.loc-limassol-label { color: #b45309; }
+
+/* ---- Staff card -------------------------------------------- */
+.staff-grid {
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.staff-card {
+  gap: 6px;
+}
+
+.staff-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-bottom: 6px;
+}
+
+/* Location badge on card */
+.staff-loc-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  width: fit-content;
+}
+
+.staff-loc-badge svg {
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+}
+
+.staff-loc-badge.loc-nicosia  { background: #e0f2fe; color: #0369a1; }
+.staff-loc-badge.loc-limassol { background: #fef3c7; color: #b45309; }
+
+/* Staff meta row (extension / email) */
+.staff-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.staff-meta svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+.staff-email {
+  color: var(--accent);
+  font-size: 12.5px;
+  word-break: break-all;
+  transition: opacity var(--transition);
+}
+
+.staff-email:hover { opacity: 0.75; }
+
+/* ---- Responsive ------------------------------------------- */
+@media (max-width: 900px) {
+  .staff-grid {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  .staff-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .staff-dept-select,
+  .staff-loc-toggle,
+  .staff-expand-all {
+    width: 100%;
+  }
+
+  .staff-loc-toggle {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+  .staff-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .staff-grid {
+    grid-template-columns: 1fr;
+  }
+}

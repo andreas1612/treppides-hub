@@ -1,0 +1,982 @@
+[
+  {
+    "name": "Maria Kourtella",
+    "department": "Accounting",
+    "location": "Nicosia",
+    "extension": "2910",
+    "email": ""
+  },
+  {
+    "name": "Elena Patsou",
+    "department": "Administration",
+    "location": "Nicosia",
+    "extension": "2205",
+    "email": ""
+  },
+  {
+    "name": "Maria Theoti",
+    "department": "Administration",
+    "location": "Nicosia",
+    "extension": "5100",
+    "email": ""
+  },
+  {
+    "name": "Niki Teneketzi",
+    "department": "Administration",
+    "location": "Nicosia",
+    "extension": "2204",
+    "email": ""
+  },
+  {
+    "name": "Eleni Charalambous",
+    "department": "Assurance & Risk",
+    "location": "Nicosia",
+    "extension": "2512",
+    "email": ""
+  },
+  {
+    "name": "Eleni Kasieri",
+    "department": "Assurance & Risk",
+    "location": "Nicosia",
+    "extension": "2509",
+    "email": ""
+  },
+  {
+    "name": "Eleni Theodorou",
+    "department": "Assurance & Risk",
+    "location": "Nicosia",
+    "extension": "2508",
+    "email": ""
+  },
+  {
+    "name": "Despoina Kaikiti",
+    "department": "Audit",
+    "location": "Limassol",
+    "extension": "5222",
+    "email": ""
+  },
+  {
+    "name": "Dimitris Kalanidis",
+    "department": "Audit",
+    "location": "Limassol",
+    "extension": "5215",
+    "email": ""
+  },
+  {
+    "name": "Ioanna Agathokleous",
+    "department": "Audit",
+    "location": "Limassol",
+    "extension": "5211",
+    "email": ""
+  },
+  {
+    "name": "Ioanna Costa",
+    "department": "Audit",
+    "location": "Limassol",
+    "extension": "5114",
+    "email": ""
+  },
+  {
+    "name": "Panagiotis Antoniou",
+    "department": "Audit",
+    "location": "Limassol",
+    "extension": "5224",
+    "email": ""
+  },
+  {
+    "name": "Periklis Genethliou",
+    "department": "Audit",
+    "location": "Limassol",
+    "extension": "5214",
+    "email": ""
+  },
+  {
+    "name": "Stanislava Kirisheva",
+    "department": "Audit",
+    "location": "Limassol",
+    "extension": "5340",
+    "email": ""
+  },
+  {
+    "name": "Amalia Elisavet Lambrou",
+    "department": "Audit",
+    "location": "Nicosia",
+    "extension": "2816",
+    "email": ""
+  },
+  {
+    "name": "Andrea Louca",
+    "department": "Audit",
+    "location": "Nicosia",
+    "extension": "2839",
+    "email": ""
+  },
+  {
+    "name": "Andreas Andreou",
+    "department": "Audit",
+    "location": "Nicosia",
+    "extension": "2857",
+    "email": ""
+  },
+  {
+    "name": "Andreas Damianou Charalambous",
+    "department": "Audit",
+    "location": "Nicosia",
+    "extension": "2815",
+    "email": ""
+  },
+  {
+    "name": "Andreas Panayiotou",
+    "department": "Audit",
+    "location": "Nicosia",
+    "extension": "2863",
+    "email": ""
+  },
+  {
+    "name": "Anna Kallenou",
+    "department": "Audit",
+    "location": "Nicosia",
+    "extension": "2822",
+    "email": ""
+  },
+  {
+    "name": "Anna Pitzioli",
+    "department": "Audit",
+    "location": "Nicosia",
+    "extension": "2841",
+    "email": ""
+  },
+  {
+    "name": "Antri Nikolaou",
+    "department": "Audit",
+    "location": "Nicosia",
+    "extension": "2838",
+    "email": ""
+  },
+  {
+    "name": "Charis Christoudias",
+    "department": "Audit",
+    "location": "Nicosia",
+    "extension": "2823",
+    "email": ""
+  },
+  {
+    "name": "Christina Kiza",
+    "department": "Audit",
+    "location": "Nicosia",
+    "extension": "2831",
+    "email": ""
+  },
+  {
+    "name": "Chrysa Antreou",
+    "department": "Audit",
+    "location": "Nicosia",
+    "extension": "2846",
+    "email": ""
+  },
+  {
+    "name": "Constantina Demetriou",
+    "department": "Audit",
+    "location": "Nicosia",
+    "extension": "2864",
+    "email": ""
+  },
+  {
+    "name": "Constantinos Iacovides",
+    "department": "Audit",
+    "location": "Nicosia",
+    "extension": "2812",
+    "email": ""
+  },
+  {
+    "name": "Constantinos Kallis",
+    "department": "Audit",
+    "location": "Nicosia",
+    "extension": "2832",
+    "email": ""
+  },
+  {
+    "name": "Dimitris Agathokleous",
+    "department": "Audit",
+    "location": "Nicosia",
+    "extension": "2834",
+    "email": ""
+  },
+  {
+    "name": "Dimitris Michael",
+    "department": "Audit",
+    "location": "Nicosia",
+    "extension": "2867",
+    "email": ""
+  },
+  {
+    "name": "Evelyn Dalitou",
+    "department": "Audit",
+    "location": "Nicosia",
+    "extension": "2835",
+    "email": ""
+  },
+  {
+    "name": "George Savva",
+    "department": "Audit",
+    "location": "Nicosia",
+    "extension": "2825",
+    "email": ""
+  },
+  {
+    "name": "Giorgos Kounni",
+    "department": "Audit",
+    "location": "Nicosia",
+    "extension": "2842",
+    "email": ""
+  },
+  {
+    "name": "Iacovos Kaiserlides",
+    "department": "Audit",
+    "location": "Nicosia",
+    "extension": "2862",
+    "email": ""
+  },
+  {
+    "name": "Ioannis Meimaris",
+    "department": "Audit",
+    "location": "Nicosia",
+    "extension": "2824",
+    "email": ""
+  },
+  {
+    "name": "Katerina Stylianou",
+    "department": "Audit",
+    "location": "Nicosia",
+    "extension": "2818",
+    "email": ""
+  },
+  {
+    "name": "Korina Magou",
+    "department": "Audit",
+    "location": "Nicosia",
+    "extension": "2854",
+    "email": ""
+  },
+  {
+    "name": "Kypros Hadjiefrem",
+    "department": "Audit",
+    "location": "Nicosia",
+    "extension": "2853",
+    "email": ""
+  },
+  {
+    "name": "Kyriaki Photiou",
+    "department": "Audit",
+    "location": "Nicosia",
+    "extension": "2833",
+    "email": ""
+  },
+  {
+    "name": "Kyriaki Pontiki",
+    "department": "Audit",
+    "location": "Nicosia",
+    "extension": "2843",
+    "email": ""
+  },
+  {
+    "name": "Maria Georgiou",
+    "department": "Audit",
+    "location": "Nicosia",
+    "extension": "2851",
+    "email": ""
+  },
+  {
+    "name": "Marina Chartzioti",
+    "department": "Audit",
+    "location": "Nicosia",
+    "extension": "2837",
+    "email": ""
+  },
+  {
+    "name": "Nicolas Falas",
+    "department": "Audit",
+    "location": "Nicosia",
+    "extension": "2866",
+    "email": ""
+  },
+  {
+    "name": "Rozalinta Kerchanatseva",
+    "department": "Audit",
+    "location": "Nicosia",
+    "extension": "2856",
+    "email": ""
+  },
+  {
+    "name": "Stavros Tofias",
+    "department": "Audit",
+    "location": "Nicosia",
+    "extension": "2813",
+    "email": ""
+  },
+  {
+    "name": "Stefanos Kyprianou",
+    "department": "Audit",
+    "location": "Nicosia",
+    "extension": "2836",
+    "email": ""
+  },
+  {
+    "name": "Xenios Pitzioli",
+    "department": "Audit",
+    "location": "Nicosia",
+    "extension": "2859",
+    "email": ""
+  },
+  {
+    "name": "Alexis Dalitis",
+    "department": "Board of Directors",
+    "location": "Limassol",
+    "extension": "2701/5311",
+    "email": ""
+  },
+  {
+    "name": "Andreas Vladimirou",
+    "department": "Board of Directors",
+    "location": "Limassol",
+    "extension": "5330/2901",
+    "email": ""
+  },
+  {
+    "name": "Kyriakos Heracleous",
+    "department": "Board of Directors",
+    "location": "Nicosia",
+    "extension": "2801/5203",
+    "email": ""
+  },
+  {
+    "name": "Maria Sourmeli",
+    "department": "Board of Directors",
+    "location": "Nicosia",
+    "extension": "2301",
+    "email": ""
+  },
+  {
+    "name": "Nicolas Klappis",
+    "department": "Board of Management",
+    "location": "Limassol",
+    "extension": "5204",
+    "email": ""
+  },
+  {
+    "name": "Pambina Merakli",
+    "department": "Board of Management",
+    "location": "Limassol",
+    "extension": "5305",
+    "email": ""
+  },
+  {
+    "name": "Andreas Paraskeva",
+    "department": "Board of Management",
+    "location": "Nicosia",
+    "extension": "2602",
+    "email": ""
+  },
+  {
+    "name": "Chara Acheriotou",
+    "department": "Board of Management",
+    "location": "Nicosia",
+    "extension": "2702",
+    "email": ""
+  },
+  {
+    "name": "Chara Zampa",
+    "department": "Board of Management",
+    "location": "Nicosia",
+    "extension": "2503",
+    "email": ""
+  },
+  {
+    "name": "Georgios Panayiotou",
+    "department": "Board of Management",
+    "location": "Nicosia",
+    "extension": "2210",
+    "email": ""
+  },
+  {
+    "name": "Georgios Strati",
+    "department": "Board of Management",
+    "location": "Nicosia",
+    "extension": "2802",
+    "email": ""
+  },
+  {
+    "name": "Maria Xenophontos",
+    "department": "Board of Management",
+    "location": "Nicosia",
+    "extension": "2810",
+    "email": ""
+  },
+  {
+    "name": "Marios Eleftheriades",
+    "department": "Board of Management",
+    "location": "Nicosia",
+    "extension": "2230",
+    "email": ""
+  },
+  {
+    "name": "Marios Papanicolaou",
+    "department": "Board of Management",
+    "location": "Nicosia",
+    "extension": "2220",
+    "email": ""
+  },
+  {
+    "name": "Stelios Yiannaki",
+    "department": "Board of Management",
+    "location": "Nicosia",
+    "extension": "2502",
+    "email": ""
+  },
+  {
+    "name": "Andriani Ioannou",
+    "department": "Compliance",
+    "location": "Nicosia",
+    "extension": "2310",
+    "email": ""
+  },
+  {
+    "name": "Ifigenia Koutsonikola",
+    "department": "Compliance",
+    "location": "Nicosia",
+    "extension": "2308",
+    "email": ""
+  },
+  {
+    "name": "Irene Beiti",
+    "department": "Compliance",
+    "location": "Nicosia",
+    "extension": "2304",
+    "email": ""
+  },
+  {
+    "name": "Andri Elia",
+    "department": "Financial Controlling",
+    "location": "Limassol",
+    "extension": "5220",
+    "email": ""
+  },
+  {
+    "name": "Christiana Georgiou",
+    "department": "Financial Controlling",
+    "location": "Limassol",
+    "extension": "5329",
+    "email": ""
+  },
+  {
+    "name": "Clairy Antoniadou",
+    "department": "Financial Controlling",
+    "location": "Limassol",
+    "extension": "5338",
+    "email": ""
+  },
+  {
+    "name": "Despoina Evripidou",
+    "department": "Financial Controlling",
+    "location": "Limassol",
+    "extension": "5335",
+    "email": ""
+  },
+  {
+    "name": "Nana Louca",
+    "department": "Financial Controlling",
+    "location": "Limassol",
+    "extension": "5331",
+    "email": ""
+  },
+  {
+    "name": "Nicolina Nicolaou",
+    "department": "Financial Controlling",
+    "location": "Limassol",
+    "extension": "5336",
+    "email": ""
+  },
+  {
+    "name": "Nikolas Radunovic",
+    "department": "Financial Controlling",
+    "location": "Limassol",
+    "extension": "5320",
+    "email": ""
+  },
+  {
+    "name": "Eva Nikolaou",
+    "department": "Financial Controlling",
+    "location": "Nicosia",
+    "extension": "2912",
+    "email": ""
+  },
+  {
+    "name": "Georgia Pitsillidou",
+    "department": "Financial Controlling",
+    "location": "Nicosia",
+    "extension": "2911",
+    "email": ""
+  },
+  {
+    "name": "Konstantina Georgiou",
+    "department": "Financial Controlling",
+    "location": "Nicosia",
+    "extension": "2903",
+    "email": ""
+  },
+  {
+    "name": "Margarita Sagiridou",
+    "department": "Financial Controlling",
+    "location": "Nicosia",
+    "extension": "2904",
+    "email": ""
+  },
+  {
+    "name": "Maria Efstathiou",
+    "department": "Financial Controlling",
+    "location": "Nicosia",
+    "extension": "2902",
+    "email": ""
+  },
+  {
+    "name": "Shady Hosseini",
+    "department": "Financial Controlling",
+    "location": "Nicosia",
+    "extension": "2906",
+    "email": ""
+  },
+  {
+    "name": "Antrea Choutri",
+    "department": "Financial Reporting",
+    "location": "Limassol",
+    "extension": "5209",
+    "email": ""
+  },
+  {
+    "name": "Chrysa Gkirgkiri",
+    "department": "Financial Reporting",
+    "location": "Limassol",
+    "extension": "5314",
+    "email": ""
+  },
+  {
+    "name": "Despoina Ellina",
+    "department": "Financial Reporting",
+    "location": "Limassol",
+    "extension": "5323",
+    "email": ""
+  },
+  {
+    "name": "Elli Amman",
+    "department": "Financial Reporting",
+    "location": "Limassol",
+    "extension": "5321",
+    "email": ""
+  },
+  {
+    "name": "Foivi Achilleos",
+    "department": "Financial Reporting",
+    "location": "Limassol",
+    "extension": "5318",
+    "email": ""
+  },
+  {
+    "name": "Ioanna Fteroudi",
+    "department": "Financial Reporting",
+    "location": "Limassol",
+    "extension": "5315",
+    "email": ""
+  },
+  {
+    "name": "Ioanna Roti",
+    "department": "Financial Reporting",
+    "location": "Limassol",
+    "extension": "5334",
+    "email": ""
+  },
+  {
+    "name": "Maria Panagiotou",
+    "department": "Financial Reporting",
+    "location": "Limassol",
+    "extension": "5219",
+    "email": ""
+  },
+  {
+    "name": "Marios Kanjo",
+    "department": "Financial Reporting",
+    "location": "Limassol",
+    "extension": "5216",
+    "email": ""
+  },
+  {
+    "name": "Chrysovalantis Herodotou",
+    "department": "Financial Reporting",
+    "location": "Nicosia",
+    "extension": "2609",
+    "email": ""
+  },
+  {
+    "name": "Giorgos Konstantinou",
+    "department": "Financial Reporting",
+    "location": "Nicosia",
+    "extension": "2612",
+    "email": ""
+  },
+  {
+    "name": "Sergios Kallis",
+    "department": "Financial Reporting",
+    "location": "Nicosia",
+    "extension": "2611",
+    "email": ""
+  },
+  {
+    "name": "Antrea Fotiou",
+    "department": "Human Resources",
+    "location": "Nicosia",
+    "extension": "2106",
+    "email": ""
+  },
+  {
+    "name": "Kalliopi Louca",
+    "department": "Human Resources",
+    "location": "Nicosia",
+    "extension": "2105",
+    "email": ""
+  },
+  {
+    "name": "Lydia Sofokleous",
+    "department": "Human Resources",
+    "location": "Nicosia",
+    "extension": "2109",
+    "email": ""
+  },
+  {
+    "name": "Rimma Lambrou",
+    "department": "Human Resources",
+    "location": "Nicosia",
+    "extension": "2108",
+    "email": ""
+  },
+  {
+    "name": "Stavros Timotheou",
+    "department": "Human Resources",
+    "location": "Nicosia",
+    "extension": "2104",
+    "email": ""
+  },
+  {
+    "name": "Charalambos Hadjineophytou",
+    "department": "Internal Accounting",
+    "location": "Nicosia",
+    "extension": "2110",
+    "email": ""
+  },
+  {
+    "name": "Maria Nicolaou",
+    "department": "Internal Accounting",
+    "location": "Nicosia",
+    "extension": "2114",
+    "email": ""
+  },
+  {
+    "name": "Stavria Panayi",
+    "department": "Internal Accounting",
+    "location": "Nicosia",
+    "extension": "2118",
+    "email": ""
+  },
+  {
+    "name": "Antrea Eleftheriou",
+    "department": "Internal Audit",
+    "location": "Nicosia",
+    "extension": "2402",
+    "email": ""
+  },
+  {
+    "name": "Michalis Pittas",
+    "department": "Internal Audit",
+    "location": "Nicosia",
+    "extension": "2406",
+    "email": ""
+  },
+  {
+    "name": "Nikolas Papadimitriou",
+    "department": "Internal Audit",
+    "location": "Nicosia",
+    "extension": "2403",
+    "email": ""
+  },
+  {
+    "name": "Paraskevi Efthymiou",
+    "department": "Internal Audit",
+    "location": "Nicosia",
+    "extension": "2405",
+    "email": ""
+  },
+  {
+    "name": "Symeon Karamouzas",
+    "department": "Internal Audit",
+    "location": "Nicosia",
+    "extension": "2404",
+    "email": ""
+  },
+  {
+    "name": "Dimitra Themistokleous",
+    "department": "Internal Compliance",
+    "location": "Nicosia",
+    "extension": "2120",
+    "email": ""
+  },
+  {
+    "name": "George Hamatsos",
+    "department": "Internal Compliance",
+    "location": "Nicosia",
+    "extension": "2115",
+    "email": ""
+  },
+  {
+    "name": "Maria Evangelou",
+    "department": "Internal Compliance",
+    "location": "Nicosia",
+    "extension": "2117",
+    "email": ""
+  },
+  {
+    "name": "Marina Dimitriou",
+    "department": "Internal Compliance",
+    "location": "Nicosia",
+    "extension": "2112",
+    "email": ""
+  },
+  {
+    "name": "Marios Hannadjias",
+    "department": "Internal Compliance",
+    "location": "Nicosia",
+    "extension": "2113",
+    "email": ""
+  },
+  {
+    "name": "Myrofora Savva",
+    "department": "Internal Compliance",
+    "location": "Nicosia",
+    "extension": "2121",
+    "email": ""
+  },
+  {
+    "name": "Chara Chrysanthou",
+    "department": "Licencing",
+    "location": "Nicosia",
+    "extension": "2703",
+    "email": ""
+  },
+  {
+    "name": "Eirini Skamnaki",
+    "department": "Licencing",
+    "location": "Nicosia",
+    "extension": "2705",
+    "email": ""
+  },
+  {
+    "name": "Vasiliki Chalkidi",
+    "department": "Licencing",
+    "location": "Nicosia",
+    "extension": "2704",
+    "email": ""
+  },
+  {
+    "name": "Christina Maximidou",
+    "department": "Marketing",
+    "location": "Nicosia",
+    "extension": "2107",
+    "email": ""
+  },
+  {
+    "name": "Andriana Kallenou",
+    "department": "Tax",
+    "location": "Nicosia",
+    "extension": "2225",
+    "email": ""
+  },
+  {
+    "name": "Elpida Georgiou",
+    "department": "Tax",
+    "location": "Nicosia",
+    "extension": "2213",
+    "email": ""
+  },
+  {
+    "name": "Fani Kaikiti",
+    "department": "Tax",
+    "location": "Nicosia",
+    "extension": "2212",
+    "email": ""
+  },
+  {
+    "name": "Katerina Mosfili",
+    "department": "Tax",
+    "location": "Nicosia",
+    "extension": "2223",
+    "email": ""
+  },
+  {
+    "name": "Nadiia Georgiou",
+    "department": "Tax",
+    "location": "Nicosia",
+    "extension": "2218",
+    "email": ""
+  },
+  {
+    "name": "Nektaria Kalliarekou",
+    "department": "Tax",
+    "location": "Nicosia",
+    "extension": "2217",
+    "email": ""
+  },
+  {
+    "name": "Nikos Georgiou",
+    "department": "Tax",
+    "location": "Nicosia",
+    "extension": "2221",
+    "email": ""
+  },
+  {
+    "name": "Stephanie Chronia",
+    "department": "Tax",
+    "location": "Nicosia",
+    "extension": "2219",
+    "email": ""
+  },
+  {
+    "name": "Stephanie Georgiou",
+    "department": "Tax",
+    "location": "Nicosia",
+    "extension": "2224",
+    "email": ""
+  },
+  {
+    "name": "Demetris Charalambous",
+    "department": "Tax & Accounting Compliance",
+    "location": "Nicosia",
+    "extension": "2604",
+    "email": ""
+  },
+  {
+    "name": "Louben Stylianou",
+    "department": "Tax & Accounting Compliance",
+    "location": "Nicosia",
+    "extension": "2606",
+    "email": ""
+  },
+  {
+    "name": "Maria Angeli",
+    "department": "Tax & Accounting Compliance",
+    "location": "Nicosia",
+    "extension": "2608",
+    "email": ""
+  },
+  {
+    "name": "Marianna Matevosian",
+    "department": "Tax & Accounting Compliance",
+    "location": "Nicosia",
+    "extension": "2610",
+    "email": ""
+  },
+  {
+    "name": "Andreas Pieri",
+    "department": "Technology",
+    "location": "Nicosia",
+    "extension": "2732",
+    "email": ""
+  },
+  {
+    "name": "Daniel Odysseos Katsiolas",
+    "department": "Technology",
+    "location": "Nicosia",
+    "extension": "2733",
+    "email": ""
+  },
+  {
+    "name": "Lygia Pampaka",
+    "department": "Technology",
+    "location": "Nicosia",
+    "extension": "2731",
+    "email": ""
+  },
+  {
+    "name": "Maria Pefani",
+    "department": "Technology",
+    "location": "Nicosia",
+    "extension": "2730",
+    "email": ""
+  },
+  {
+    "name": "Christos Pavlou",
+    "department": "Transfer Pricing",
+    "location": "Nicosia",
+    "extension": "2211",
+    "email": ""
+  },
+  {
+    "name": "Constantia Cheimonidou",
+    "department": "Transfer Pricing",
+    "location": "Nicosia",
+    "extension": "2228",
+    "email": ""
+  },
+  {
+    "name": "Eliana Theodoridou",
+    "department": "Transfer Pricing",
+    "location": "Nicosia",
+    "extension": "2227",
+    "email": ""
+  },
+  {
+    "name": "Fokion Moraitis Kallidopoulos",
+    "department": "Transfer Pricing",
+    "location": "Nicosia",
+    "extension": "2216",
+    "email": ""
+  },
+  {
+    "name": "Marios Kyriacou",
+    "department": "Transfer Pricing",
+    "location": "Nicosia",
+    "extension": "2214",
+    "email": ""
+  },
+  {
+    "name": "Tatiana Andreou",
+    "department": "Transfer Pricing",
+    "location": "Nicosia",
+    "extension": "2215",
+    "email": ""
+  },
+  {
+    "name": "Athineos Phivou",
+    "department": "VAT",
+    "location": "Nicosia",
+    "extension": "2206",
+    "email": ""
+  },
+  {
+    "name": "Christiana Tsioli",
+    "department": "VAT",
+    "location": "Nicosia",
+    "extension": "2222",
+    "email": ""
+  },
+  {
+    "name": "Fanourios Sergiou",
+    "department": "VAT",
+    "location": "Nicosia",
+    "extension": "2241",
+    "email": ""
+  },
+  {
+    "name": "Milena Bahjenjia",
+    "department": "VAT",
+    "location": "Nicosia",
+    "extension": "2226",
+    "email": ""
+  }
+]

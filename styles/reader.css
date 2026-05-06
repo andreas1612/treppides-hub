@@ -483,3 +483,141 @@
 @media (max-width: 767px) {
   .pdf-embed { height: 420px; }
 }
+
+/* ── Department Landing Page ───────────────────────────────── */
+.dept-landing {
+  max-width: 720px;
+}
+
+.dept-landing-title {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--text-primary, #1a202c);
+  margin-bottom: 12px;
+}
+
+.dept-landing-desc {
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--text-secondary, #718096);
+  margin-bottom: 8px;
+}
+
+.dept-landing-meta {
+  font-size: 13px;
+  color: var(--text-secondary, #718096);
+  margin-bottom: 36px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+}
+
+.dept-landing-section {
+  margin-bottom: 36px;
+}
+
+.dept-landing-heading {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary, #718096);
+  margin-bottom: 14px;
+}
+
+/* Chapter list */
+.dept-chapter-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--radius, 8px);
+  overflow: hidden;
+}
+
+.dept-chapter-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  font-size: 14px;
+  color: var(--text-primary, #1a202c);
+  border-bottom: 1px solid var(--border, #e2e8f0);
+}
+
+.dept-chapter-item:last-child {
+  border-bottom: none;
+}
+
+.dept-chapter-item:nth-child(even) {
+  background: var(--page-bg, #f7f8fa);
+}
+
+.dept-chapter-name {
+  font-weight: 500;
+}
+
+.dept-chapter-count {
+  font-size: 12px;
+  color: var(--text-secondary, #718096);
+  background: var(--border, #e2e8f0);
+  border-radius: 12px;
+  padding: 2px 10px;
+  flex-shrink: 0;
+}
+
+/* Recent pages grid */
+.dept-recent-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.dept-recent-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--radius, 8px);
+  text-align: left;
+  cursor: pointer;
+  transition: box-shadow var(--transition, .2s ease), transform var(--transition, .2s ease),
+              border-color var(--transition, .2s ease);
+}
+
+.dept-recent-card:hover {
+  box-shadow: var(--shadow-hover, 0 4px 16px rgba(0,0,0,.13));
+  transform: translateY(-2px);
+  border-color: var(--accent, #c8d400);
+}
+
+.dept-recent-icon {
+  width: 28px;
+  height: 28px;
+  background: rgba(200, 212, 0, 0.1);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dept-recent-icon svg {
+  width: 14px;
+  height: 14px;
+  color: var(--accent, #c8d400);
+}
+
+.dept-recent-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-primary, #1a202c);
+  line-height: 1.4;
+}
+
+.dept-recent-date {
+  font-size: 11.5px;
+  color: var(--text-secondary, #718096);
+  margin-top: auto;
+}

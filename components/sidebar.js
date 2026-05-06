@@ -140,6 +140,12 @@ const ICONS = {
            <line x1="12" y1="20" x2="12" y2="4"/>
            <line x1="6"  y1="20" x2="6"  y2="14"/>
          </svg>`,
+
+  person: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+             <circle cx="12" cy="7" r="4"/>
+           </svg>`,
 };
 
 // ---- Component ------------------------------------------------
@@ -174,12 +180,16 @@ export default async function init(config) {
       <nav class="sidebar-nav" aria-label="Main navigation">
         <div class="nav-label">Menu</div>
 
-        <a class="nav-item active" id="sb-home" href="#" aria-current="page">
+        <a class="nav-item" id="sb-home" href="#" aria-current="page">
           ${ICONS.home} Home
         </a>
 
         <a class="nav-item" id="sb-kb" href="#section-knowledgebase">
           ${ICONS.book} Knowledge Base
+        </a>
+
+        <a class="nav-item" id="sb-staff" href="#section-staff">
+          ${ICONS.person} Staff Directory
         </a>
 
         <a class="nav-item" id="sb-proj" href="${projHref}" ${extAttrs}>
@@ -218,6 +228,17 @@ export default async function init(config) {
       if (window.__hub_reader) window.__hub_reader.goHome();
       setTimeout(() => {
         document.getElementById("section-knowledgebase")
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 50);
+    });
+
+    // Staff link: go home, hide fees page, scroll to staff
+    document.getElementById("sb-staff")?.addEventListener("click", e => {
+      e.preventDefault();
+      if (window.__hub_fees) window.__hub_fees.hide();
+      if (window.__hub_reader) window.__hub_reader.goHome();
+      setTimeout(() => {
+        document.getElementById("section-staff")
           ?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 50);
     });
@@ -262,9 +283,12 @@ export default async function init(config) {
 
       <!-- Mobile nav drawer -->
       <div class="mobile-nav" id="mobile-nav">
-        <a class="nav-item active" id="mb-home" href="#">${ICONS.home} Home</a>
+        <a class="nav-item" id="mb-home" href="#">${ICONS.home} Home</a>
         <a class="nav-item" id="mb-kb" href="#section-knowledgebase">
           ${ICONS.book} Knowledge Base
+        </a>
+        <a class="nav-item" id="mb-staff" href="#section-staff">
+          ${ICONS.person} Staff Directory
         </a>
         <a class="nav-item" id="mb-proj" href="${projHref}" ${extAttrs}>
           ${ICONS.grid} Projects
@@ -301,6 +325,17 @@ export default async function init(config) {
       }, 50);
     });
 
+    document.getElementById("mb-staff")?.addEventListener("click", e => {
+      e.preventDefault();
+      document.getElementById("mobile-nav")?.classList.remove("open");
+      if (window.__hub_fees) window.__hub_fees.hide();
+      if (window.__hub_reader) window.__hub_reader.goHome();
+      setTimeout(() => {
+        document.getElementById("section-staff")
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 50);
+    });
+
     // Mobile fees link
     document.getElementById("mb-fees")?.addEventListener("click", e => {
       e.preventDefault();
@@ -330,4 +365,22 @@ export default async function init(config) {
   document.getElementById("sb-support")?.addEventListener("click", () => {
     window.__hub_support?.open();
   });
+
+  // ---- Active nav state ----
+  function setActiveNav(section) {
+    const map = {
+      home: ["sb-home", "mb-home"],
+      kb:   ["sb-kb",   "mb-kb"],
+      fees: ["sb-fees", "mb-fees"],
+    };
+    ["sb-home","sb-kb","sb-staff","sb-proj","sb-fees","mb-home","mb-kb","mb-staff","mb-proj","mb-fees"].forEach(id => {
+      document.getElementById(id)?.classList.remove("active");
+    });
+    (map[section] || map.home).forEach(id => {
+      document.getElementById(id)?.classList.add("active");
+    });
+  }
+
+  setActiveNav("home");
+  document.addEventListener("hub:navchange", e => setActiveNav(e.detail?.section));
 }

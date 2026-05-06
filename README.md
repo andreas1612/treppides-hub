@@ -2,90 +2,97 @@
 
 **Status: LIVE IN PRODUCTION**
 **Server: 192.168.0.221 (tech-srv)**
-**Last updated: 2026-04-07 (session 3)**
+**Last updated: 2026-05-06 (session 4)**
 
-Internal company portal for daily access to announcements, policies, training materials, and the knowledge base. Backed by a self-hosted BookStack instance. Includes a full in-app content reader — staff can browse and read all department books without leaving the Hub.
+Internal company portal for daily access to announcements, policies, training materials, knowledge base, and the New Client UBO Fees dashboard. Backed by a self-hosted BookStack instance and a ClickUp API backend. Zero dependencies, no build step.
 
 ---
 
 ## Session Log — Pick Up From Here
 
+### Session 2026-05-06 (4) — Infrastructure fixes, ClickUp Fees fully operational
+
+**BookStack API token rotated** — old token had expired (403 on all API calls).
+New token active until **15/08/2026** — rotate before that date in BookStack admin → My Account → API Tokens.
+
+**ClickUp Fees API — systemd service installed:**
+- Python venv created at `api/clickup/venv/` — no system pip on Ubuntu, venv is the correct approach
+- Service file written to `clickup-fees.service`, installed at `/etc/systemd/system/`
+- Runs as `tech-admin`, auto-starts on boot, restarts on crash
+- Start/stop: `sudo systemctl start|stop|restart clickup-fees`
+
+**nginx proxy added for ClickUp API:**
+- Added `/api/clickup/` → `localhost:8001` proxy block to nginx config
+- Browser now reaches the fees backend through port 80 — port 8001 never needs to be open
+- Config at `/etc/nginx/sites-enabled/treppides-hub` (copy of `nginx-treppides-hub.conf` in repo)
+
+**`localhost` bug fixed in fees.js:**
+- Was defaulting to `http://localhost:8001` — fails in any browser not on the VM itself
+- Fixed: `CLICKUP_FEES_API: "/api/clickup/fees"` in `config.js` (relative, goes through nginx)
+
+**Chart.js bundled locally:**
+- Was loading from `cdn.jsdelivr.net` — LAN browsers may have no internet access
+- Both files downloaded to `vendor/` and served by nginx:
+  - `vendor/chart.umd.min.js`
+  - `vendor/chartjs-plugin-datalabels.min.js`
+
+**SETUP.sh written** — run `bash SETUP.sh` on a fresh VM to provision everything in one go.
+
+---
+
 ### Session 2026-04-07 (3) — Admin panel + IT Support ticket modal
 
-**New files:** `components/admin.js`, `components/support.js`, `styles/modals.css`
-
-**Admin panel (`components/admin.js`):**
-- Subtle **Admin** button in the sidebar footer (person+ icon)
-- PIN dialog on first click — correct PIN cached in `sessionStorage` for the session
-- **Add Content** modal: Section dropdown, Title, plain-text Content → publishes a new BookStack page via `POST /api/pages`
-- No code or BookStack login needed for content authors
-
-**IT Support ticket modal (`components/support.js`):**
-- Replaces all `mailto:` IT Support links across sidebar (desktop + mobile) and quicklinks widget
-- Fields: Name, Email, Issue Category, Description
-- Submits via **FormSubmit** AJAX → email forwarded to `SUPPORT_EMAIL` in `config.js`
-- Inline spinner, success confirmation, and error fallback
-
-**Other changes:**
-- `api/bookstack.js` — added `createPage(bookId, title, htmlContent)` (9th function)
-- `styles/modals.css` — shared modal styles (backdrop, card, form fields, PIN input, spinner, status boxes, mobile slide-up sheet)
-- `styles/layout.css` — added `.nav-btn` (button styled identically to nav `<a>` links)
-- `index.html` — added `<link>` for `styles/modals.css`
-- `main.js` — imports and inits `admin` and `support` between reader and content sections
-- `config.example.js` — added `ADMIN_PIN` and `SUPPORT_EMAIL` placeholder keys
-
-**VM — add to `config.js` before using:**
-```js
-ADMIN_PIN:     "your-pin-here",
-SUPPORT_EMAIL: "techsupport@treppides.com",
-```
-FormSubmit first-use: first ticket triggers a one-time activation email to `SUPPORT_EMAIL` — click the link, then all future submissions are forwarded.
+- `components/admin.js` — PIN-protected in-page content publisher; sidebar Admin button; publishes to BookStack via API
+- `components/support.js` — IT Support ticket modal; FormSubmit AJAX → `SUPPORT_EMAIL`; replaces all mailto: links
+- `styles/modals.css` — shared modal styles
+- `api/bookstack.js` — added `createPage()` and `deletePage()` and `uploadAttachment()`
 
 ---
 
 ### Session 2026-04-03 (2) — Hardcoded IP removal + credential hygiene
 
-**Committed:** `a87ede1` — everything below is live on `main`.
-
-**Changes:**
-1. **`components/reader.js`** — imported `CONFIG` (was missing). Replaced all 3 hardcoded `192.168.0.221` occurrences in `sanitizeHtml()`:
-   - Image src rewriting now uses `CONFIG.BASE_URL` to match and `new URL(src).pathname` to rewrite to a relative path
-   - Internal link fallbacks now use `window.location.origin` instead of a hardcoded IP
-   - No hardcoded IPs remain anywhere in `components/` or `api/`
-
-2. **`config.js`** — added a detailed credential security comment block explaining:
-   - Why plaintext is unavoidable with no build step
-   - Mitigations in place: read-only token, LAN-only, now gitignored
-   - Future migration plan: server-side proxy or SSO session cookies
-
-3. **`config.example.js`** — safe-to-commit template committed to the repo so developers know what values to fill in
-
-4. **`.gitignore`** — created; `config.js` excluded so real credentials are never committed again
-
-5. **`git rm --cached config.js`** — untracked from git; file stays on disk and the live site is unaffected
-
-> **Token rotation note:** The old API token was in git history before this session (commits before `a87ede1`). If this repo is ever shared outside the team or made public, regenerate the BookStack API token: BookStack admin → Settings → API Tokens → delete and recreate.
-
-**Nothing pending — repo is clean, all changes committed and pushed.**
+- `config.js` gitignored and untracked (`git rm --cached config.js`)
+- `config.example.js` committed as safe template
+- All hardcoded IPs removed from `reader.js` — now uses `CONFIG.BASE_URL` + `window.location.origin`
 
 ---
 
 ### Session 2026-04-03 (1) — Reader + Knowledge Base
 
-**Committed:** `365d485`
+- `components/knowledgebase.js` — department books grid from shelf 57
+- `components/reader.js` — full in-app reader; breadcrumbs, chapters, pushState routing, PDF blob preview
+- `api/bookstack.js` — added fetchShelfBooks, fetchBook, fetchChapter, fetchPageContent, fetchAttachments, fetchAttachmentBlob
 
-**Built:**
-- `components/knowledgebase.js` — department books grid from shelf 57; cards fire `hub:openBook`
-- `components/reader.js` — full in-app reader: breadcrumbs, two-column layout, collapsible chapters, pushState routing, PDF blob preview, non-PDF download list
-- `styles/reader.css` — all reader styles
-- `api/bookstack.js` — added `fetchShelfBooks`, `fetchBook`, `fetchChapter`, `fetchPageContent`, `fetchAttachments`, `fetchAttachmentBlob`
-- `main.js` + `index.html` — wired in reader and KB section
+---
 
-**Fixed:**
-- PDF attachments were force-downloading (`Content-Type: application/octet-stream`) — fixed with `fetchAttachmentBlob()` blob URL approach
-- Non-PDF cards auto-downloaded on any click — changed wrapper to `<div>`; Download button is the only trigger
-- BookStack guest access enabled in admin
-- "Failed to load book" dead-end → "Try again" button
+## Developer Access
+
+3 developers have admin access to the VM via SSH. Development is done by SSHing into the server and editing files in `~/treppides-hub`, or pushing from a local machine via git.
+
+| Developer | Access |
+|---|---|
+| Andreas Pieri | SSH + GitHub push |
+| _(dev 2)_ | SSH + GitHub push |
+| _(dev 3)_ | SSH + GitHub push |
+
+**SSH:**
+```bash
+ssh tech-admin@192.168.0.221
+```
+
+**GitHub repo:** `git@github.com:andreas1612/treppides-hub.git`
+**SSH key for GitHub:** `~/.ssh/github_key` (configured in `~/.ssh/config`)
+
+### CRITICAL — Never use `localhost` in browser-facing code
+
+The hub runs in staff browsers on the LAN. `localhost` in a browser means the user's own machine, not the server.
+
+| Context | Correct |
+|---|---|
+| SSH session, nginx config, Python backend | `localhost` / `127.0.0.1` is fine |
+| `config.js`, any frontend `fetch()` | Use relative paths (`/api/...`) or full server IP |
+
+All ClickUp API calls now go through nginx as `/api/clickup/fees` — no port, no IP, works from any machine.
 
 ---
 
@@ -95,126 +102,87 @@ FormSubmit first-use: first ticket triggers a one-time activation email to `SUPP
 |---|---|
 | **Employee Hub** | http://192.168.0.221/ |
 | **Knowledge Base (BookStack)** | http://192.168.0.221/docs/ |
+| **ClickUp Fees API** | http://192.168.0.221/api/clickup/fees |
 | **BookStack direct port** | http://192.168.0.221:6875/ |
 
 ---
 
 ## Server Infrastructure
 
-**Host:** tech-srv · Ubuntu Server · IP `192.168.0.221`
-**User:** `tech-admin`
+**Host:** tech-srv · Ubuntu Server · IP `192.168.0.221` · User `tech-admin`
 
 ### Services
 
-| Service | How it runs | Config location |
+| Service | How it runs | Managed by |
 |---|---|---|
-| **Nginx** (host) | systemd service | `/etc/nginx/sites-enabled/treppides-hub` |
-| **BookStack** | Docker container `bookstack` | `~/bookstack/docker-compose.yml` |
-| **MariaDB** | Docker container `bookstack_db` | `~/bookstack/docker-compose.yml` |
+| **Nginx** | Host process | `sudo systemctl start\|stop\|reload nginx` |
+| **BookStack** | Docker container `bookstack` | `cd ~/bookstack && sudo docker compose up -d` |
+| **MariaDB** | Docker container `bookstack_db` | same docker-compose |
+| **ClickUp Fees API** | systemd service `clickup-fees` | `sudo systemctl start\|stop\|restart clickup-fees` |
 
 ### Nginx routing (port 80)
 
 ```
-/          → serves ~/treppides-hub (this repo) with try_files → index.html for SPA routes
-/docs/*    → proxied to localhost:6875 (BookStack container)
+/               → serves ~/treppides-hub (SPA, try_files → index.html)
+/docs/*         → proxied to localhost:6875 (BookStack container)
+/api/clickup/*  → proxied to localhost:8001 (ClickUp Fees API)
 ```
 
-Config file: `/etc/nginx/sites-enabled/treppides-hub`
+Nginx config: `/etc/nginx/sites-enabled/treppides-hub`
+Repo copy: `nginx-treppides-hub.conf` — edit this, then `sudo cp` and `sudo systemctl reload nginx`
 
-**Important:** `try_files $uri $uri/ /index.html` is already in the config. This means all `/book/:id` and `/book/:id/page/:id` URLs correctly serve `index.html` and the reader handles routing client-side.
+### ClickUp Fees API
+
+```bash
+sudo systemctl status clickup-fees     # check status
+sudo systemctl restart clickup-fees    # restart
+journalctl -u clickup-fees -f          # live logs
+```
+
+Service file: `/etc/systemd/system/clickup-fees.service`
+Venv: `api/clickup/venv/`
+Credentials: `api/clickup/.env` (gitignored)
 
 ### BookStack Docker stack
 
 ```bash
 cd ~/bookstack
-sudo docker compose up -d       # start
-sudo docker compose down        # stop
-sudo docker compose logs -f     # live logs
+sudo docker compose up -d        # start
+sudo docker compose down         # stop
+sudo docker compose logs -f      # live logs
+sudo docker compose ps           # status
 ```
 
 Persistent data:
-- `~/bookstack/config/` — app config, nginx, PHP, SSL keys, `.env`
-- `~/bookstack/mysql_data/` — MariaDB data files
+- `~/bookstack/config/` — app config, `.env`, SSL
+- `~/bookstack/mysql_data/` — MariaDB data
 
-**BookStack `.env`** is at `~/bookstack/config/www/.env` — this is the authoritative config file. Environment variables in `docker-compose.yml` are secondary; `.env` always wins.
+**BookStack `.env`** at `~/bookstack/config/www/.env` — this always overrides `docker-compose.yml`.
 
 ---
 
-## Hub Configuration
+## Hub Configuration (`config.js`)
 
-All settings live in one file: [`config.js`](config.js)
+`config.js` is gitignored. Copy `config.example.js` → `config.js` and fill in values.
 
-| Setting | Value | Notes |
+| Setting | Current value | Notes |
 |---|---|---|
-| `BASE_URL` | `http://192.168.0.221/docs` | BookStack base; nginx proxies /docs/* |
-| `API_TOKEN_ID` | `BKS134yZFbh0dSXZP324ZABmz9SIFH8U` | BookStack API token (live) |
-| `API_TOKEN_SECRET` | `N3CUTHrV43nfOr22eFozfkkwPewqkonS` | BookStack API secret (live) |
-| `DEPARTMENTS_SHELF_ID` | `57` | Shelf containing all department books |
-| `ANNOUNCEMENTS_BOOK_ID` | `58` | Book: Announcements |
-| `POLICIES_BOOK_ID` | `3` | Book: Compliance |
-| `TRAINING_BOOK_ID` | `59` | Book: Training & Development |
-| `DOCS_URL` | `http://192.168.0.221/docs` | Knowledge Base quick link |
-| `PROJECTS_URL` | `http://192.168.0.221/projects` | Projects quick link (not yet deployed) |
-| `ENV_LIVE` | `true` | Disables "Coming Soon" modals |
-| `USE_MOCK` | `false` | In `api/bookstack.js` — live BookStack API |
-| `SEARCH_ENABLED` | `true` | Search bar in topbar |
-| `ADMIN_PIN` | your PIN | Gates the in-page admin content publisher |
-| `SUPPORT_EMAIL` | techsupport@treppides.com | FormSubmit forwards IT tickets here |
+| `BASE_URL` | `http://192.168.0.221/docs` | BookStack base |
+| `API_TOKEN_ID` | `th0aMsvxEBeW86m52FuLs20hYfiBZB6e` | Expires 15/08/2026 |
+| `API_TOKEN_SECRET` | _(in config.js on server)_ | Rotate in BookStack admin |
+| `DEPARTMENTS_SHELF_ID` | `57` | Shelf with all dept books |
+| `ANNOUNCEMENTS_BOOK_ID` | `58` | |
+| `POLICIES_BOOK_ID` | `3` | |
+| `TRAINING_BOOK_ID` | `59` | |
+| `DOCS_URL` | `http://192.168.0.221/docs` | KB quick link |
+| `PROJECTS_URL` | `http://192.168.0.221/projects` | Not yet deployed |
+| `SEARCH_ENABLED` | `true` | |
+| `ENV_LIVE` | `true` | Disables Coming Soon modals |
+| `ADMIN_PIN` | _(set on server)_ | PIN for admin panel |
+| `SUPPORT_EMAIL` | `apieri@treppides.com` | IT ticket destination |
+| `CLICKUP_FEES_API` | `/api/clickup/fees` | Relative — proxied by nginx |
 
----
-
-## BookStack Content Structure
-
-**Shelf: Departments (ID: 57)**
-
-| Book | ID | Contents |
-|---|---|---|
-| Audit | 1 | Audit Manual |
-| Compliance | 3 | Compliance Manual (also used as Policies feed) |
-| FRA - Financial Regulatory Affairs | 5 | E-SOFT Manual, Financial Services Procedures |
-| Funds | 8 | IOM TFS documents, Business Continuity |
-| HR - Human Resources | 13 | HR Manual |
-| Internal Audit (IA) | 15 | IA Manual, Methodology, Programs, Archive, CAR Guidance |
-| Licensing Procedures | 48 | Licensing procedures |
-| Payroll | 50 | Payroll Department Manual |
-| Risk Management (RM) | 52 | Risk Management Manual |
-| Tax | 54 | Procedures, Tax Department Manual |
-| **Announcements** | **58** | Company announcements (add pages here) |
-| **Training & Development** | **59** | Training materials (add pages here) |
-
-To add content to the Announcements or Training feeds: log into BookStack, open the relevant book, and create a new page. The hub pulls the 3 most recently updated pages automatically.
-
----
-
-## BookStack API Functions (api/bookstack.js)
-
-| Function | Endpoint | Used by |
-|---|---|---|
-| `fetchPages(bookId, count)` | `GET /api/pages?filter[book_id]=N` | announcements, policies, training |
-| `fetchShelfBooks(shelfId)` | `GET /api/shelves/{id}` | knowledgebase |
-| `fetchBook(bookId)` | `GET /api/books/{id}` | reader |
-| `fetchChapter(chapterId)` | `GET /api/chapters/{id}` | reader (lazy chapter expand) |
-| `fetchPageContent(pageId)` | `GET /api/pages/{id}` | reader |
-| `fetchAttachments(pageId)` | `GET /api/attachments?filter[uploaded_to]=N` | reader |
-| `fetchAttachmentBlob(id, mime)` | `GET /attachments/{id}` (file bytes) | reader PDF preview |
-| `searchPages(query)` | `GET /api/search?query=N` | topbar search |
-| `createPage(bookId, title, html)` | `POST /api/pages` | admin panel content publisher |
-
-**Note on `fetchAttachmentBlob`:** BookStack serves attachments as `application/octet-stream` regardless of file type. This function fetches the raw bytes with auth headers and re-wraps them as the correct MIME type (e.g. `application/pdf`) so the browser can display inline rather than force-download.
-
----
-
-## Reader URL Scheme
-
-The in-app reader uses `pushState` to update the browser URL. All these routes fall back to `index.html` via nginx `try_files` and are handled client-side:
-
-| URL | What shows |
-|---|---|
-| `/` | Hub dashboard (all sections) |
-| `/book/13` | Book view — nav sidebar + welcome panel |
-| `/book/13/page/42` | Page view — nav sidebar + page content + attachments |
-
-Refresh on any of these URLs works correctly.
+**Token rotation:** BookStack admin → top-right avatar → My Account → API Tokens → delete old → create new → update `API_TOKEN_ID` and `API_TOKEN_SECRET` in `config.js`.
 
 ---
 
@@ -222,40 +190,56 @@ Refresh on any of these URLs works correctly.
 
 ```
 treppides-hub/
-├── index.html                  Shell — loads CSS, reader overlay div, and main.js
-├── main.js                     Entry point — boots sidebar, topbar, reader, then all sections
-├── config.js                   All config, tokens, book IDs, feature flags  ← gitignored, not in repo
-├── config.example.js           Safe-to-commit template — copy to config.js and fill in values
-├── .gitignore                  Excludes config.js from version control
-├── favicon.svg                 Treppides globe favicon
+├── index.html                    Shell — CSS links, mount divs, loads main.js
+├── main.js                       Entry point — boots all components in order
+├── config.js                     All config (gitignored — never committed)
+├── config.example.js             Safe template — copy to config.js on new VM
+├── .gitignore                    Excludes config.js, venv, __pycache__
+├── favicon.svg                   Treppides globe favicon
+├── SETUP.sh                      Full VM provisioning script — run on fresh install
+├── nginx-treppides-hub.conf      Nginx config — sudo cp to /etc/nginx/sites-enabled/
+├── clickup-fees.service          systemd service file — sudo cp to /etc/systemd/system/
 │
 ├── components/
-│   ├── sidebar.js              Left nav + mobile burger menu
-│   ├── topbar.js               Header bar + live search
-│   ├── announcements.js        Announcements feed (BookStack book 58)
-│   ├── knowledgebase.js        Department books grid (BookStack shelf 57) — opens reader
-│   ├── policies.js             Policies feed (BookStack book 3)
-│   ├── training.js             Training feed (BookStack book 59)
-│   ├── quicklinks.js           Quick access widgets (KB, Projects, IT Support)
-│   ├── reader.js               In-app content reader (overlay, nav, PDF preview)
-│   ├── admin.js                PIN-protected in-page content publisher → BookStack API
-│   └── support.js              IT support ticket modal → FormSubmit → email
+│   ├── sidebar.js                Left nav + mobile burger menu
+│   ├── topbar.js                 Header bar + live search + setStatus()
+│   ├── announcements.js          Announcements feed (BookStack book 58)
+│   ├── knowledgebase.js          Department books grid (shelf 57) → opens reader
+│   ├── policies.js               Policies feed (BookStack book 3)
+│   ├── training.js               Training feed (BookStack book 59)
+│   ├── quicklinks.js             Quick access widgets (KB, Projects, IT Support)
+│   ├── reader.js                 In-app content reader (overlay, nav, PDF preview)
+│   ├── fees.js                   New Client UBO Fees dashboard (ClickUp data)
+│   ├── admin.js                  PIN-protected content publisher → BookStack API
+│   └── support.js                IT support ticket modal → FormSubmit → email
 │
 ├── api/
-│   ├── bookstack.js            All API calls (9 functions) — see table above
-│   └── mock.js                 Mock data for local dev (USE_MOCK=true in bookstack.js)
+│   ├── bookstack.js              All BookStack API calls (9 functions)
+│   ├── mock.js                   Mock data (USE_MOCK=false in production)
+│   └── clickup/
+│       ├── server.py             FastAPI backend — fetches ClickUp fees data
+│       ├── requirements.txt      Python deps (fastapi, uvicorn, requests, python-dotenv)
+│       ├── .env                  ClickUp API token + List ID (gitignored)
+│       ├── .env.example          Safe template
+│       ├── Dockerfile            Docker alternative (not used currently)
+│       └── venv/                 Python virtualenv (gitignored)
 │
 ├── utils/
-│   ├── dom.js                  Shared DOM helpers, XSS escaping
-│   └── format.js               Date and text formatting
+│   ├── dom.js                    escapeHtml, renderSkeleton, renderError, renderEmpty
+│   └── format.js                 formatDate, excerptFromHtml
 │
-└── styles/
-    ├── theme.css               Brand colours — edit here to retheme
-    ├── base.css                Reset and defaults
-    ├── layout.css              App shell and responsive layout
-    ├── cards.css               Cards, skeletons, animations
-    ├── reader.css              Reader overlay, nav sidebar, prose, PDF embed, attachments
-    └── modals.css              Admin panel, support ticket, PIN dialog — shared modal styles
+├── styles/
+│   ├── theme.css                 CSS variables only — edit here to retheme
+│   ├── base.css                  Reset and defaults
+│   ├── layout.css                App shell, sidebar, topbar, mobile responsive
+│   ├── cards.css                 Cards, skeletons, state boxes, animations
+│   ├── reader.css                Reader overlay, nav, prose, PDF embed, attachments
+│   ├── modals.css                Admin panel, support ticket, PIN dialog
+│   └── fees.css                  Fees dashboard — KPI cards, tabs, chart, drilldown table
+│
+└── vendor/
+    ├── chart.umd.min.js          Chart.js 4.4.7 — bundled locally (no CDN)
+    └── chartjs-plugin-datalabels.min.js
 ```
 
 ---
@@ -263,40 +247,137 @@ treppides-hub/
 ## Boot Sequence (main.js)
 
 ```
-1. initSidebar + initTopbar   (parallel — no async data)
-2. initReader                 (must run before KB section so hub:openBook listener is registered)
-3. initAdmin + initSupport    (must be ready before content sections — quicklinks calls window.__hub_support)
+1. initSidebar + initTopbar      (parallel — structural, no async data)
+2. initReader                    (must be before KB — registers hub:openBook listener)
+3. initAdmin + initSupport       (must be before content — quicklinks calls window.__hub_support)
 4. Promise.allSettled([
      initAnnouncements,
      initKnowledgeBase,
      initPolicies,
      initTraining,
      initQuicklinks,
+     initFees,
    ])
 ```
 
 ---
 
-## SSH & GitHub Access
+## Global API (window.__hub_*)
 
-**SSH to server:**
-```bash
-ssh tech-admin@192.168.0.221
+| Global | Set by | Used by |
+|---|---|---|
+| `window.__hub_reader` | reader.js | sidebar, KB, announcements, policies, training |
+| `window.__hub_fees` | fees.js | sidebar (show/hide fees page) |
+| `window.__hub_support` | support.js | sidebar, quicklinks |
+| `window.__hub_admin` | admin.js | sidebar admin button |
+
+---
+
+## BookStack API Functions
+
+| Function | Endpoint | Used by |
+|---|---|---|
+| `fetchPages(bookId, count)` | `GET /api/pages?filter[book_id]=N` | announcements, policies, training |
+| `fetchShelfBooks(shelfId)` | `GET /api/shelves/{id}` | knowledgebase |
+| `fetchBook(bookId)` | `GET /api/books/{id}` | reader |
+| `fetchChapter(chapterId)` | `GET /api/chapters/{id}` | reader |
+| `fetchPageContent(pageId)` | `GET /api/pages/{id}` | reader |
+| `fetchAttachments(pageId)` | `GET /api/attachments?filter[uploaded_to]=N` | reader |
+| `fetchAttachmentBlob(id, mime)` | `GET /attachments/{id}` | reader PDF preview |
+| `searchPages(query)` | `GET /api/search?query=N` | topbar search |
+| `createPage(bookId, title, html)` | `POST /api/pages` | admin panel |
+| `deletePage(pageId)` | `DELETE /api/pages/{id}` | admin panel |
+| `uploadAttachment(pageId, name, file)` | `POST /api/attachments` | admin panel |
+
+---
+
+## ClickUp Fees API
+
+**Backend:** `api/clickup/server.py` — FastAPI, port 8001 (proxied via nginx)
+
+| Endpoint | Description |
+|---|---|
+| `GET /api/clickup/fees` | Full cleaned dataset — 5-min cache |
+| `GET /api/clickup/fees/refresh` | Force-refresh, bypasses cache |
+| `GET /health` | Health check |
+
+Data shape:
+```json
+{
+  "months": ["April 2025", "January 2026", ...],
+  "tasks": [ { "task_name", "ubo", "fees", "client_status", "month_year", ... } ]
+}
 ```
 
-**GitHub repo:** `git@github.com:andreas1612/treppides-hub.git`
-**SSH key for GitHub:** `~/.ssh/github_key` (configured in `~/.ssh/config`)
+ClickUp credentials in `api/clickup/.env`:
+- `CLICKUP_API_TOKEN` — personal token starting with `pk_`
+- `CLICKUP_LIST_ID` — `901215683313`
 
-**Deploy workflow** (after any change):
+---
+
+## Reader URL Scheme
+
+| URL | What shows |
+|---|---|
+| `/` | Hub dashboard |
+| `/book/13` | Book view — nav + welcome panel |
+| `/book/13/page/42` | Page view — nav + content + attachments |
+
+All routes fall back to `index.html` via nginx `try_files`. Refresh works on all URLs.
+
+---
+
+## Fresh VM Setup
+
 ```bash
-cd ~/treppides-hub
-git add <files>
-git commit -m "description"
-git push origin main
-# Changes are live immediately — nginx serves directly from this directory
+bash ~/treppides-hub/SETUP.sh
 ```
 
-> No build step. No CI pipeline. Nginx serves the repo directory directly — a `git push` instantly updates the live site.
+Handles: nginx config, Python venv, systemd service, smoke tests. Requires `sudo` (will prompt for password).
+
+Manual steps after SETUP.sh:
+1. Copy `config.example.js` → `config.js` and fill in all values
+2. Copy `api/clickup/.env.example` → `api/clickup/.env` and fill in ClickUp credentials
+
+---
+
+## Troubleshooting
+
+**Hub shows old content after a push:**
+nginx serves files directly — just hard-refresh the browser (`Ctrl+Shift+R`). No restart needed.
+
+**All sections show "Could not reach the knowledge base":**
+BookStack API token has expired. Rotate it:
+1. BookStack admin → avatar → My Account → API Tokens → delete old → create new
+2. Update `API_TOKEN_ID` and `API_TOKEN_SECRET` in `config.js` on the server
+3. Hard-refresh browser
+
+Test token directly:
+```bash
+curl http://192.168.0.221/docs/api/books \
+  -H "Authorization: Token TOKEN_ID:TOKEN_SECRET"
+```
+
+**Fees dashboard shows "Fees data unreachable":**
+```bash
+sudo systemctl status clickup-fees     # is it running?
+sudo systemctl restart clickup-fees    # restart if not
+curl http://192.168.0.221/api/clickup/fees   # test through nginx
+journalctl -u clickup-fees -f          # check logs
+```
+
+**BookStack container down:**
+```bash
+cd ~/bookstack
+sudo docker compose up -d
+sudo docker compose logs bookstack --tail=50
+```
+
+**PDF attachments downloading instead of previewing:**
+Check browser console for blob fetch errors. Verify API token in `config.js` is valid.
+
+**"Failed to load book" in reader:**
+Intermittent — slow cold BookStack response. Click "Try again". If persistent, check BookStack container.
 
 ---
 
@@ -304,59 +385,24 @@ git push origin main
 
 | # | Severity | Status | Description |
 |---|---|---|---|
-| 1 | Low | Open | `excerptFromHtml()` in `utils/format.js` calls `document.createElement` — browser-only, breaks in Node/SSR |
-| 2 | Low | Open | Nav active state hardcoded on Home link — no routing, single-page portal so acceptable |
-| 3 | Info | Open | `--brand-green` and `--brand-green-dk` CSS vars defined but not consumed (reserved) |
-| 4 | Low | **Fixed** | Hardcoded IP in `reader.js` `sanitizeHtml()` — replaced with `CONFIG.BASE_URL` and `window.location.origin` |
-| 5 | Medium | **Mitigated** | API credentials in `config.js`: file is now gitignored and untracked. Token still plaintext on disk (no build step = no env vars). Future plan: server-side proxy. If repo goes public, rotate the token. |
-| 6 | Low | Open | Reader nav sidebar hidden on mobile (`display:none`) — no mobile alternative for page navigation within a book |
+| 1 | Low | Open | `excerptFromHtml()` calls `document.createElement` — browser-only, breaks in Node/SSR |
+| 2 | Low | Open | Nav active state hardcoded on Home — acceptable for single-page portal |
+| 3 | Info | Open | `--brand-green` CSS vars defined but not consumed — reserved |
+| 4 | Low | Open | Reader nav hidden on mobile — no page navigation within a book on small screens |
+| 5 | Medium | Mitigated | BookStack API token plaintext in `config.js` — file is gitignored, token is read-only, LAN-only |
 
 ---
 
 ## Next Features — Priority Order
 
-1. **Treppides logo** — replace SVG globe placeholder in sidebar with actual logo asset; update `favicon.svg`
-2. **OpenProject deployment** — provision and deploy at `192.168.0.221/projects` (Docker); update `PROJECTS_URL` in `config.js`
-3. **User identity in topbar** — show logged-in user name (requires BookStack session or SSO)
-4. **Mobile reader nav** — sidebar hidden on mobile; add drawer or bottom sheet for page navigation
-5. **Active nav routing** — update sidebar active class when navigating between sections
-6. **LDAP/SSO auth** — integrate with company directory; Phase 2 post-launch
-7. **SSL / HTTPS** — Let's Encrypt via Nginx once a domain is confirmed
-8. **Credential migration** — move API token to a server-side proxy so it never reaches the browser
-
-**Done this session:** Admin panel (in-page BookStack publishing) ✓  IT Support ticket modal via FormSubmit ✓
-
----
-
-## Troubleshooting
-
-**Hub shows old content after a push:**
-```bash
-# Not needed — nginx reads files directly. Hard-refresh the browser (Ctrl+Shift+R).
-```
-
-**PDF attachments downloading instead of previewing:**
-- The hub fetches PDFs via the API with auth token and creates a blob URL — guest access is not required for PDF preview.
-- If PDFs still download: check browser console for blob fetch errors, verify API token in `config.js` is valid.
-
-**BookStack container down:**
-```bash
-cd ~/bookstack && sudo docker compose up -d
-sudo docker compose logs bookstack --tail=50
-```
-
-**BookStack DB connection error in logs:**
-Check `~/bookstack/config/www/.env` — this file overrides docker-compose.yml env vars. Ensure DB_HOST, DB_USERNAME, DB_PASSWORD match the MariaDB container settings.
-
-**API calls failing (hub shows error cards):**
-```bash
-# Test API directly:
-curl http://192.168.0.221/docs/api/books \
-  -H "Authorization: Token BKS134yZFbh0dSXZP324ZABmz9SIFH8U:N3CUTHrV43nfOr22eFozfkkwPewqkonS"
-```
-
-**"Failed to load book" error in reader:**
-Intermittent — usually a slow cold API response. Click "Try again" button. If persistent, check BookStack container status.
+1. **Treppides logo** — replace SVG globe in sidebar with real logo asset; update favicon.svg
+2. **OpenProject** — deploy at `192.168.0.221/projects` (Docker); update `PROJECTS_URL` in config.js
+3. **Mobile reader nav** — reader nav sidebar hidden on mobile; add drawer or bottom sheet
+4. **Active nav routing** — sidebar active class should update when navigating sections
+5. **User identity in topbar** — show logged-in user name (requires BookStack session or SSO)
+6. **LDAP/SSO auth** — Phase 2 post-launch
+7. **SSL / HTTPS** — Let's Encrypt once a domain is confirmed
+8. **Credential migration** — server-side proxy so API token never reaches the browser
 
 ---
 

@@ -1,0 +1,14 @@
+[Unit]
+Description=ClickUp Fees API — Treppides Hub backend
+After=network.target
+
+[Service]
+Type=simple
+User=tech-admin
+WorkingDirectory=/home/tech-admin/treppides-hub/api/clickup
+ExecStart=/home/tech-admin/treppides-hub/api/clickup/venv/bin/uvicorn server:app --host 127.0.0.1 --port 8001
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
