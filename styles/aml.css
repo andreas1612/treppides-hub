@@ -1,0 +1,111 @@
+/* ============================================================
+   aml.css — styles for the AML Dashboard landing page.
+   Three full-width cards: New / Rejected / Disengaged.
+   Mirrors the fees-page show/hide pattern.
+   ============================================================ */
+
+/* Default: hidden, hub content visible */
+#section-aml {
+  display: none;
+  padding: var(--page-gutter, 32px);
+}
+
+.main.aml-active .page-content   { display: none !important; }
+.main.aml-active .reader-overlay { display: none !important; }
+.main.aml-active #section-aml    { display: block !important; }
+
+/* ---- Header ---- */
+.aml-header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.aml-back-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.aml-back-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+  background: rgba(0, 0, 0, .02);
+}
+.aml-back-btn svg { width: 18px; height: 18px; }
+
+/* ---- Card grid ---- */
+.aml-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+  margin-top: 24px;
+}
+
+.aml-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px 24px;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow: var(--shadow);
+  transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition);
+}
+
+.aml-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-hover);
+  border-color: var(--text-secondary);
+}
+
+.aml-card-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.aml-card-icon svg { width: 26px; height: 26px; stroke-width: 2; }
+
+.aml-card-icon.new        { background: rgba(72, 187, 120, .12);  color: #2F855A; }
+.aml-card-icon.rejected   { background: rgba(229, 62, 62, .12);   color: #C53030; }
+.aml-card-icon.disengaged { background: rgba(237, 137, 54, .12);  color: #B7791F; }
+
+.aml-card-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.aml-card-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.aml-card-cta {
+  margin-top: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-hover, #1a1f2e);
+}
+.aml-card-cta svg { width: 14px; height: 14px; }

@@ -16,6 +16,7 @@ import initFees          from "./components/fees.js";
 import initAdmin         from "./components/admin.js";
 import initSupport       from "./components/support.js";
 import initStaff         from "./components/staff.js";
+import initAml           from "./components/aml.js";
 
 async function boot() {
   // Structural components (no async data needed — run in parallel)
@@ -32,6 +33,10 @@ async function boot() {
   // so the IT Support widget in quicklinks can call window.__hub_support
   initAdmin(CONFIG);
   initSupport(CONFIG);
+
+  // AML landing must be ready before sidebar clicks fire — sidebar.js
+  // calls window.__hub_aml.show(), which aml.js exposes during init.
+  await initAml(CONFIG);
 
   // Content sections — initialise in visual page order.
   // Each runs independently; a failure in one does not block others.

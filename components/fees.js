@@ -38,11 +38,61 @@ const COLORS = {
 };
 
 // ---- State ---------------------------------------------------------
+//
+// _activeScope holds whichever filter the user has selected:
+//   - a month_year string  ("April 2025")
+//   - a year sentinel       ("__year__:2025")
+//
+// Year sentinels are derived client-side from the months in the data, so
+// year aggregate tabs appear automatically as new years show up in ClickUp.
+
+const YEAR_PREFIX = "__year__:";
+const isYearScope   = s => typeof s === "string" && s.startsWith(YEAR_PREFIX);
+const yearOfScope   = s => s.slice(YEAR_PREFIX.length);
+const makeYearScope = y => `${YEAR_PREFIX}${y}`;
+
+// AML list metadata — drives page title, subtitle, and CSV filename.
+const LIST_META = {
+  new:        { title: "New Clients",        subtitle: "AML Dashboard · Monthly fee breakdown", csv: "new-clients" },
+  rejected:   { title: "Rejected Clients",   subtitle: "AML Dashboard · Monthly fee breakdown", csv: "rejected-clients" },
+  disengaged: { title: "Disengaged Clients", subtitle: "AML Dashboard · Monthly fee breakdown", csv: "disengaged-clients" },
+};
+const DEFAULT_LIST = "new";
+
 let _rawTasks    = [];
 let _months      = [];
-let _activeMonth = "";
-let _viewMode    = "ubo";     // "ubo" | "company"
+let _years       = [];
+let _activeScope = "";          // month_year or year sentinel
+let _activeList  = DEFAULT_LIST;
+let _viewMode    = "ubo";       // "ubo" | "company"
 let _activeChart = null;
+
+function activeScopeLabel() {
+  return isYearScope(_activeScope) ? yearOfScope(_activeScope) : _activeScope;
+}
+
+function tasksForActiveScope() {
+  if (isYearScope(_activeScope)) {
+    const yr = yearOfScope(_activeScope);
+    return _rawTasks.filter(t => extractYear(t.month_year) === yr);
+  }
+  return _rawTasks.filter(t => t.month_year === _activeScope);
+}
+
+// Extract the trailing 4-digit year from a "Month YYYY" string.
+function extractYear(monthYear) {
+  const m = String(monthYear || "").match(/(\d{4})\s*$/);
+  return m ? m[1] : null;
+}
+
+function uniqueYears(months) {
+  const seen = new Set();
+  for (const m of months) {
+    const y = extractYear(m);
+    if (y) seen.add(y);
+  }
+  return [...seen].sort();
+}
 
 // ---- Chart.js CDN loader -------------------------------------------
 
@@ -95,24 +145,32 @@ function groupLabel() {
 // ---- Page visibility toggle -----------------------------------------
 
 /**
- * Show the fees dashboard and hide the main hub content.
- * Uses a CSS class on <main> — the CSS rules handle visibility.
- * Exposed on window.__hub_fees so sidebar.js can call it.
+ * Show the fees dashboard for the given AML list. If no list is passed,
+ * keep whichever was previously loaded; if none, default to "new".
+ * If the list changed (or no data is loaded yet) we re-fetch.
  */
-function showFeesPage() {
-  document.querySelector(".main")?.classList.add("fees-active");
+function showFeesPage(listKey) {
+  const main = document.querySelector(".main");
+  if (!main) return;
+  main.classList.remove("aml-active", "staff-active");
+  main.classList.add("fees-active");
   document.dispatchEvent(new CustomEvent("hub:navchange", { detail: { section: "fees" } }));
+
+  const wantedList = listKey || _activeList || DEFAULT_LIST;
+  const listChanged = wantedList !== _activeList || _rawTasks.length === 0;
+  _activeList = wantedList;
+  if (listChanged) load();
 }
 
 /**
- * Hide the fees dashboard and show the main hub content.
+ * Hide the fees dashboard. Returns to the AML landing if it was the entry
+ * point; otherwise to the hub home (the AML hide logic is owned by aml.js,
+ * so we only clear our own class here).
  */
 function hideFeesPage() {
   document.querySelector(".main")?.classList.remove("fees-active");
-  document.dispatchEvent(new CustomEvent("hub:navchange", { detail: { section: "home" } }));
 }
 
-// Expose toggle functions for sidebar
 window.__hub_fees = { show: showFeesPage, hide: hideFeesPage };
 
 // ---- KPI cards ------------------------------------------------------
@@ -156,13 +214,22 @@ function renderKPIs(tasks) {
 // ---- Month tabs -----------------------------------------------------
 
 function renderTabs() {
-  const tabs = _months
+  const monthTabs = _months
     .map(m => {
-      const cls = m === _activeMonth ? "fees-tab active" : "fees-tab";
-      return `<button class="${cls}" data-month="${escapeHtml(m)}">${escapeHtml(m)}</button>`;
+      const cls = m === _activeScope ? "fees-tab active" : "fees-tab";
+      return `<button class="${cls}" data-scope="${escapeHtml(m)}">${escapeHtml(m)}</button>`;
     })
     .join("");
-  return `<div class="fees-tabs" id="${TABS_ID}">${tabs}</div>`;
+
+  const yearTabs = _years
+    .map(y => {
+      const scope = makeYearScope(y);
+      const active = scope === _activeScope ? " active" : "";
+      return `<button class="fees-tab fees-tab-year${active}" data-scope="${escapeHtml(scope)}">${escapeHtml(y)}</button>`;
+    })
+    .join("");
+
+  return `<div class="fees-tabs" id="${TABS_ID}">${monthTabs}${yearTabs}</div>`;
 }
 
 // ---- View toggle ----------------------------------------------------
@@ -181,7 +248,7 @@ function renderToggle() {
 // ---- Data grouping --------------------------------------------------
 
 function groupForChart() {
-  const monthTasks = _rawTasks.filter(t => t.month_year === _activeMonth);
+  const monthTasks = tasksForActiveScope();
   const map = new Map();
   for (const t of monthTasks) {
     const key = groupKey(t);
@@ -216,16 +283,28 @@ function renderChart() {
           <line x1="3" y1="9" x2="21" y2="9"/>
           <line x1="9" y1="21" x2="9" y2="9"/>
         </svg>
-        <h3>No data for ${escapeHtml(_activeMonth)}</h3>
-        <p>No tasks with fee data were found for this month.</p>
+        <h3>No data for ${escapeHtml(activeScopeLabel())}</h3>
+        <p>No tasks with fee data were found for this ${isYearScope(_activeScope) ? "year" : "month"}.</p>
       </div>`;
     return;
   }
 
-  const needsStack = labels.some(l => {
-    const e = entityMap.get(l);
-    return e.Existing > 0 && e.New > 0;
-  });
+  // Always stack the two client-status datasets. If we let Chart.js group
+  // them side-by-side (when no entity has BOTH statuses), every row's slot
+  // gets split into two sub-slots — bars render at half thickness and shift
+  // off the y-axis tick, leaving labels misaligned. Stacking makes every
+  // row a single full-thickness bar (one segment if single status, two
+  // segments if both).
+  const needsStack = true;
+
+  // Pre-truncate labels for display; keep full names for tooltips.
+  // Truncating in chart.data (rather than via ticks.callback) is more
+  // reliable — Chart.js otherwise sometimes fails to render axis labels.
+  const MAX_LABEL = 24;
+  const displayLabels = labels.map(l =>
+    l && l.length > MAX_LABEL ? l.slice(0, MAX_LABEL - 1) + "…" : l
+  );
+  const fullLabels = labels.slice();
 
   const datasets = ["Existing", "New"].map(status => ({
     label: status,
@@ -235,17 +314,18 @@ function renderChart() {
     borderWidth: 1,
     borderRadius: 4,
     borderSkipped: false,
-    barPercentage: 0.7,
-    categoryPercentage: 0.8,
+    barPercentage: 0.85,
+    categoryPercentage: 0.85,
+    maxBarThickness: 32,
   })).filter(ds => ds.data.some(v => v > 0));
 
-  const chartHeight = Math.max(300, labels.length * 38 + 80);
+  const chartHeight = Math.max(260, labels.length * 46 + 100);
 
   container.innerHTML = `
     <div class="fees-chart-wrapper">
       <div class="fees-chart-title">
         Fees by ${escapeHtml(groupLabel())}
-        <span class="month-badge">${escapeHtml(_activeMonth)}</span>
+        <span class="month-badge">${escapeHtml(activeScopeLabel())}</span>
       </div>
       <div class="fees-chart-canvas-container" style="height:${chartHeight}px">
         <canvas id="fees-canvas"></canvas>
@@ -265,7 +345,7 @@ function renderChart() {
 
   _activeChart = new Chart(ctx, {
     type: "bar",
-    data: { labels, datasets },
+    data: { labels: displayLabels, datasets },
     plugins: [ChartDataLabels],
     options: {
       indexAxis: "y",
@@ -283,7 +363,11 @@ function renderChart() {
         y: {
           stacked: needsStack,
           grid: { display: false },
-          ticks: { font: { size: 12, weight: "600" }, color: "#1a202c", crossAlign: "far" },
+          ticks: {
+            font: { size: 12, weight: "600" },
+            color: "#1a202c",
+            autoSkip: false,
+          },
         },
       },
       plugins: {
@@ -294,7 +378,10 @@ function renderChart() {
           bodyFont: { size: 12 },
           padding: 12,
           cornerRadius: 8,
-          callbacks: { label: ctx => `${ctx.dataset.label}: ${fmtCurrency(ctx.raw)}` },
+          callbacks: {
+            title: items => items.length ? fullLabels[items[0].dataIndex] : "",
+            label: ctx => `${ctx.dataset.label}: ${fmtCurrency(ctx.raw)}`,
+          },
         },
         datalabels: {
           anchor: "end", align: "right", offset: 6,
@@ -373,9 +460,7 @@ function showDrillDown(entityName) {
   const container = document.getElementById(TABLE_ID);
   if (!container) return;
 
-  const filtered = _rawTasks.filter(t =>
-    t.month_year === _activeMonth && groupKey(t) === entityName
-  );
+  const filtered = tasksForActiveScope().filter(t => groupKey(t) === entityName);
 
   if (!filtered.length) {
     container.innerHTML = `
@@ -419,7 +504,7 @@ function showDrillDown(entityName) {
       <div class="fees-drilldown-header">
         <div>
           <h3 class="fees-drilldown-title">${escapeHtml(entityName)}</h3>
-          <p class="fees-drilldown-sub">${filtered.length} task${filtered.length !== 1 ? "s" : ""} · ${fmtCurrency(totalFees)} total · ${escapeHtml(_activeMonth)}</p>
+          <p class="fees-drilldown-sub">${filtered.length} task${filtered.length !== 1 ? "s" : ""} · ${fmtCurrency(totalFees)} total · ${escapeHtml(activeScopeLabel())}</p>
         </div>
         <button class="fees-drilldown-close" id="fees-clear-drill">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -470,7 +555,7 @@ function wireTabs() {
     if (!tab) return;
     document.querySelectorAll(".fees-tab").forEach(t => t.classList.remove("active"));
     tab.classList.add("active");
-    _activeMonth = tab.dataset.month;
+    _activeScope = tab.dataset.scope;
     renderAll();
   });
 }
@@ -490,7 +575,9 @@ function wireToggle() {
 
 async function fetchFeesData(forceRefresh = false) {
   const baseUrl = CONFIG.CLICKUP_FEES_API || "http://localhost:8001/api/clickup/fees";
-  const url = forceRefresh ? `${baseUrl}/refresh` : baseUrl;
+  const path    = forceRefresh ? `${baseUrl}/refresh` : baseUrl;
+  const sep     = path.includes("?") ? "&" : "?";
+  const url     = `${path}${sep}list=${encodeURIComponent(_activeList)}`;
   const resp = await fetch(url);
   if (!resp.ok) throw new Error(`Fees API error: HTTP ${resp.status}`);
   return resp.json();
@@ -509,11 +596,11 @@ function csvCell(val) {
 }
 
 function exportCsv() {
-  const monthTasks = _rawTasks.filter(t => t.month_year === _activeMonth);
-  if (!monthTasks.length) return;
+  const scopeTasks = tasksForActiveScope();
+  if (!scopeTasks.length) return;
 
   const header = DRILL_COLUMNS.map(c => csvCell(c.label)).join(",");
-  const rows   = monthTasks.map(task =>
+  const rows   = scopeTasks.map(task =>
     DRILL_COLUMNS.map(col => {
       const v = task[col.key];
       if (v === null || v === undefined || v === "—") return "";
@@ -526,7 +613,9 @@ function exportCsv() {
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement("a");
   a.href     = url;
-  a.download = `fees-${_activeMonth.replace(/\s+/g, "-")}.csv`;
+  const listSlug  = LIST_META[_activeList]?.csv || _activeList;
+  const scopeSlug = activeScopeLabel().replace(/\s+/g, "-").toLowerCase();
+  a.download = `${listSlug}-${scopeSlug}.csv`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -549,12 +638,20 @@ async function load(forceRefresh = false) {
   if (kpi) kpi.innerHTML = "";
   setStatus("Fetching client fees…");
 
+  // Update page header to match the active list
+  const meta = LIST_META[_activeList] || LIST_META[DEFAULT_LIST];
+  const titleEl    = section?.querySelector(".section-title");
+  const subtitleEl = section?.querySelector(".section-subtitle");
+  if (titleEl)    titleEl.textContent    = meta.title;
+  if (subtitleEl) subtitleEl.textContent = meta.subtitle;
+
   try {
     await loadChartJs();
 
     const apiData = await fetchFeesData(forceRefresh);
     _rawTasks = apiData.tasks || [];
     _months   = apiData.months || [];
+    _years    = uniqueYears(_months);
 
     if (!_months.length) {
       chartArea.innerHTML = `
@@ -565,13 +662,13 @@ async function load(forceRefresh = false) {
             <line x1="9" y1="21" x2="9" y2="9"/>
           </svg>
           <h3>No fee data available</h3>
-          <p>No tasks with fee data were found in the ClickUp list.</p>
+          <p>No tasks with fee data were found in this ClickUp list.</p>
         </div>`;
       setStatus("All systems operational");
       return;
     }
 
-    _activeMonth = _months[0];
+    _activeScope = _months[0];
     _viewMode = "ubo";
 
     const kpiMount = section.querySelector(`#${KPI_ID}`);
@@ -617,8 +714,8 @@ export default async function init(_config) {
             </svg>
           </button>
           <div>
-            <h2 class="section-title">New Client UBO Fees</h2>
-            <p class="section-subtitle">Monthly fee breakdown — sourced from ClickUp</p>
+            <h2 class="section-title">AML Dashboard</h2>
+            <p class="section-subtitle">Pick a list from the AML Dashboard to load data</p>
           </div>
         </div>
         <div class="fees-header-actions">
@@ -657,9 +754,10 @@ export default async function init(_config) {
       </div>
     </div>`;
 
-  // Back button
+  // Back button — return to AML landing (its own back button returns home)
   document.getElementById(BACK_ID)?.addEventListener("click", () => {
     hideFeesPage();
+    if (window.__hub_aml) window.__hub_aml.show();
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
 
@@ -669,6 +767,6 @@ export default async function init(_config) {
   // Refresh button
   document.getElementById(REFRESH_ID)?.addEventListener("click", () => load(true));
 
-  // Auto-fetch on init
-  await load();
+  // Note: no auto-fetch — load() is triggered by window.__hub_fees.show(listKey)
+  // when the user clicks a card on the AML landing page.
 }

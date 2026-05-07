@@ -197,7 +197,7 @@ export default async function init(config) {
         </a>
 
         <button class="nav-item nav-btn" id="sb-fees">
-          ${ICONS.chart} New Client UBO Fees
+          ${ICONS.chart} AML Dashboard
         </button>
 
         <div class="nav-label" style="margin-top:12px;">Support</div>
@@ -213,18 +213,22 @@ export default async function init(config) {
         <span class="version">v0.1.0</span> &nbsp;·&nbsp; Internal use only
       </div>`;
 
-    // Home link: return to hub, hide fees page
+    // Home link: return to hub, hide all overlay pages
     document.getElementById("sb-home")?.addEventListener("click", e => {
       e.preventDefault();
-      if (window.__hub_fees) window.__hub_fees.hide();
+      if (window.__hub_fees)  window.__hub_fees.hide();
+      if (window.__hub_aml)   window.__hub_aml.hide();
+      if (window.__hub_staff) window.__hub_staff.hide();
       if (window.__hub_reader) window.__hub_reader.goHome();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
-    // KB link: go home, hide fees page, scroll to KB
+    // KB link: go home, hide overlay pages, scroll to KB
     document.getElementById("sb-kb")?.addEventListener("click", e => {
       e.preventDefault();
-      if (window.__hub_fees) window.__hub_fees.hide();
+      if (window.__hub_fees)  window.__hub_fees.hide();
+      if (window.__hub_aml)   window.__hub_aml.hide();
+      if (window.__hub_staff) window.__hub_staff.hide();
       if (window.__hub_reader) window.__hub_reader.goHome();
       setTimeout(() => {
         document.getElementById("section-knowledgebase")
@@ -236,14 +240,18 @@ export default async function init(config) {
     document.getElementById("sb-staff")?.addEventListener("click", () => {
       if (window.__hub_reader) window.__hub_reader.goHome();
       if (window.__hub_fees)   window.__hub_fees.hide();
+      if (window.__hub_aml)    window.__hub_aml.hide();
       if (window.__hub_staff)  window.__hub_staff.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
-    // Fees link: open dedicated fees page view
+    // AML Dashboard: open the landing page (three-card chooser).
+    // The actual fees view opens from one of those cards.
     document.getElementById("sb-fees")?.addEventListener("click", () => {
       if (window.__hub_reader) window.__hub_reader.goHome();
-      if (window.__hub_fees) window.__hub_fees.show();
+      if (window.__hub_fees)   window.__hub_fees.hide();
+      if (window.__hub_staff)  window.__hub_staff.hide();
+      if (window.__hub_aml)    window.__hub_aml.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
@@ -291,7 +299,7 @@ export default async function init(config) {
           ${ICONS.grid} Projects
         </a>
         <button class="nav-item nav-btn" id="mb-fees">
-          ${ICONS.chart} New Client UBO Fees
+          ${ICONS.chart} AML Dashboard
         </button>
         <button class="nav-item nav-btn" id="mb-support">
           ${ICONS.phone} IT Support
@@ -306,7 +314,9 @@ export default async function init(config) {
     document.getElementById("mb-home")?.addEventListener("click", e => {
       e.preventDefault();
       document.getElementById("mobile-nav")?.classList.remove("open");
-      if (window.__hub_fees) window.__hub_fees.hide();
+      if (window.__hub_fees)  window.__hub_fees.hide();
+      if (window.__hub_aml)   window.__hub_aml.hide();
+      if (window.__hub_staff) window.__hub_staff.hide();
       if (window.__hub_reader) window.__hub_reader.goHome();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
@@ -314,7 +324,9 @@ export default async function init(config) {
     document.getElementById("mb-kb")?.addEventListener("click", e => {
       e.preventDefault();
       document.getElementById("mobile-nav")?.classList.remove("open");
-      if (window.__hub_fees) window.__hub_fees.hide();
+      if (window.__hub_fees)  window.__hub_fees.hide();
+      if (window.__hub_aml)   window.__hub_aml.hide();
+      if (window.__hub_staff) window.__hub_staff.hide();
       if (window.__hub_reader) window.__hub_reader.goHome();
       setTimeout(() => {
         document.getElementById("section-knowledgebase")
@@ -326,16 +338,19 @@ export default async function init(config) {
       document.getElementById("mobile-nav")?.classList.remove("open");
       if (window.__hub_reader) window.__hub_reader.goHome();
       if (window.__hub_fees)   window.__hub_fees.hide();
+      if (window.__hub_aml)    window.__hub_aml.hide();
       if (window.__hub_staff)  window.__hub_staff.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
-    // Mobile fees link
+    // Mobile AML Dashboard link
     document.getElementById("mb-fees")?.addEventListener("click", e => {
       e.preventDefault();
       document.getElementById("mobile-nav")?.classList.remove("open");
       if (window.__hub_reader) window.__hub_reader.goHome();
-      if (window.__hub_fees) window.__hub_fees.show();
+      if (window.__hub_fees)   window.__hub_fees.hide();
+      if (window.__hub_staff)  window.__hub_staff.hide();
+      if (window.__hub_aml)    window.__hub_aml.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
@@ -366,7 +381,8 @@ export default async function init(config) {
       home:  ["sb-home",  "mb-home"],
       kb:    ["sb-kb",    "mb-kb"],
       staff: ["sb-staff", "mb-staff"],
-      fees:  ["sb-fees",  "mb-fees"],
+      aml:   ["sb-fees",  "mb-fees"],   // landing → highlight AML Dashboard
+      fees:  ["sb-fees",  "mb-fees"],   // dashboard view → same highlight
     };
     ["sb-home","sb-kb","sb-staff","sb-proj","sb-fees","mb-home","mb-kb","mb-staff","mb-proj","mb-fees"].forEach(id => {
       document.getElementById(id)?.classList.remove("active");

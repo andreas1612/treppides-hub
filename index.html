@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="styles/modals.css" />
   <link rel="stylesheet" href="styles/fees.css" />
   <link rel="stylesheet" href="styles/staff.css" />
+  <link rel="stylesheet" href="styles/aml.css" />
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
 </head>
 
@@ -74,7 +75,12 @@
            Populated by: components/staff.js -->
       <div id="section-staff"></div>
 
-      <!-- New Client UBO Fees — dedicated page view
+      <!-- AML Dashboard landing — dedicated page view
+           Three cards (New / Rejected / Disengaged) → opens fees view per list.
+           Populated by: components/aml.js -->
+      <div id="section-aml"></div>
+
+      <!-- AML fees view — dedicated page view, scoped to one ClickUp list.
            Lives OUTSIDE .page-content so it can be toggled independently.
            Populated by: components/fees.js -->
       <div id="section-fees"></div>

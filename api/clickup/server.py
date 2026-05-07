@@ -16,7 +16,7 @@ import datetime
 from typing import Any
 
 import requests
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
@@ -25,13 +25,21 @@ from dotenv import load_dotenv
 load_dotenv()  # reads .env in the same directory
 
 CLICKUP_API_TOKEN = os.getenv("CLICKUP_API_TOKEN", "")
-CLICKUP_LIST_ID   = os.getenv("CLICKUP_LIST_ID", "")
 
-if not CLICKUP_API_TOKEN or not CLICKUP_LIST_ID:
-    logging.warning(
-        "CLICKUP_API_TOKEN and/or CLICKUP_LIST_ID not set. "
-        "Create a .env file from .env.example and fill in real values."
-    )
+# Multi-list support — each AML Dashboard view points at its own ClickUp List.
+# CLICKUP_LIST_NEW falls back to legacy CLICKUP_LIST_ID for back-compat with
+# existing .env files on the server.
+LIST_IDS: dict[str, str] = {
+    "new":        os.getenv("CLICKUP_LIST_NEW")        or os.getenv("CLICKUP_LIST_ID", ""),
+    "rejected":   os.getenv("CLICKUP_LIST_REJECTED", ""),
+    "disengaged": os.getenv("CLICKUP_LIST_DISENGAGED", ""),
+}
+
+if not CLICKUP_API_TOKEN:
+    logging.warning("CLICKUP_API_TOKEN not set. Create a .env file from .env.example.")
+for _key, _val in LIST_IDS.items():
+    if not _val:
+        logging.warning(f"CLICKUP_LIST_{_key.upper()} not set — the '{_key}' view will be unavailable.")
 
 # ---- App setup -------------------------------------------------------
 
@@ -44,7 +52,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-_cache: dict[str, Any] = {}
+# Per-list cache: { list_key: {"data": ..., "ts": ...} }
+_cache: dict[str, dict[str, Any]] = {}
 CACHE_TTL_SECONDS = 300  # 5 minutes
 
 
@@ -54,12 +63,23 @@ def _clickup_headers() -> dict:
     return {"Authorization": CLICKUP_API_TOKEN}
 
 
-def fetch_all_tasks() -> list[dict]:
-    """Fetch ALL tasks from the ClickUp List, handling pagination."""
+def _resolve_list_id(list_key: str) -> str:
+    list_id = LIST_IDS.get(list_key)
+    if not list_id:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Unknown or unconfigured list '{list_key}'. "
+                   f"Valid keys: {sorted(k for k, v in LIST_IDS.items() if v)}"
+        )
+    return list_id
+
+
+def fetch_all_tasks(list_id: str) -> list[dict]:
+    """Fetch ALL tasks from the given ClickUp List, handling pagination."""
     all_tasks: list[dict] = []
     page = 0
     while True:
-        url = f"https://api.clickup.com/api/v2/list/{CLICKUP_LIST_ID}/task"
+        url = f"https://api.clickup.com/api/v2/list/{list_id}/task"
         params = {"page": page, "include_closed": "true"}
         resp = requests.get(url, headers=_clickup_headers(), params=params)
         if resp.status_code != 200:
@@ -238,36 +258,41 @@ def get_ordered_months(rows: list[dict]) -> list[str]:
 # ---- API endpoints ---------------------------------------------------
 
 @app.get("/api/clickup/fees")
-def get_fees():
+def get_fees(list: str = Query("new", description="Which AML list: new | rejected | disengaged")):
     """
-    Returns the full cleaned dataset with ALL custom fields + month list.
+    Returns the full cleaned dataset for the requested list, with ALL custom
+    fields + ordered month list.
 
     Response shape:
     {
+      "list": "new",
       "months": ["April 2025", "January 2026", ...],
       "tasks": [ { ...all fields... }, ... ]
     }
     """
-    global _cache
-    now = time.time()
-    if _cache and (now - _cache.get("ts", 0)) < CACHE_TTL_SECONDS:
-        return _cache["data"]
+    list_key = list.lower()
+    list_id  = _resolve_list_id(list_key)
 
-    raw_tasks = fetch_all_tasks()
+    now    = time.time()
+    bucket = _cache.get(list_key)
+    if bucket and (now - bucket.get("ts", 0)) < CACHE_TTL_SECONDS:
+        return bucket["data"]
+
+    raw_tasks = fetch_all_tasks(list_id)
     cleaned   = clean_tasks(raw_tasks)
     months    = get_ordered_months(cleaned)
-    result    = {"months": months, "tasks": cleaned}
+    result    = {"list": list_key, "months": months, "tasks": cleaned}
 
-    _cache = {"data": result, "ts": now}
+    _cache[list_key] = {"data": result, "ts": now}
     return result
 
 
 @app.get("/api/clickup/fees/refresh")
-def refresh_fees():
-    """Force-refresh: clears cache and re-fetches from ClickUp."""
-    global _cache
-    _cache = {}
-    return get_fees()
+def refresh_fees(list: str = Query("new", description="Which AML list: new | rejected | disengaged")):
+    """Force-refresh: clears the cache for this list and re-fetches from ClickUp."""
+    list_key = list.lower()
+    _cache.pop(list_key, None)
+    return get_fees(list=list_key)
 
 
 @app.get("/health")
