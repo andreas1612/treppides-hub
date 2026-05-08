@@ -416,27 +416,77 @@ function renderChart() {
 
 // ---- Drill-down table -----------------------------------------------
 
-// Fields to display in the drill-down table and their display labels.
-// Order matters — this is the column order.
-// Key must match the snake_case field key from the backend.
-const DRILL_COLUMNS = [
-  { key: "task_name",                 label: "Task Name" },
-  { key: "ubo",                       label: "UBO" },
-  { key: "group_name",                label: "Group Name" },
-  { key: "managing_company",          label: "Managing Company" },
-  { key: "engagement_leader",         label: "Assignee" },
-  { key: "supervisor___manager",      label: "Supervisor" },
-  { key: "client_status",             label: "Client Status" },
-  { key: "service",                   label: "Service" },
-  { key: "departement",               label: "Department" },
-  { key: "categorization",            label: "Categorization" },
-  { key: "introducer",                label: "Introducer" },
-  { key: "cross_sell_to",             label: "Cross-sell To" },
-  { key: "new_clients_details",       label: "New Client Details" },
-  { key: "newgroup",                  label: "New Group?" },
+// Curated column order and labels for fields we know about across lists.
+// Any custom field present in the data but missing here (e.g. fields that
+// only exist on the Rejected or Disengaged ClickUp lists) is appended
+// automatically with a humanised label, so every list shows the full task.
+const KNOWN_COLUMNS = [
+  { key: "task_name",                   label: "Task Name" },
+  { key: "ubo",                         label: "UBO" },
+  { key: "group_name",                  label: "Group Name" },
+  { key: "managing_company",            label: "Managing Company" },
+  { key: "engagement_leader",           label: "Assignee" },
+  { key: "supervisor___manager",        label: "Supervisor" },
+  { key: "client_status",               label: "Client Status" },
+  { key: "service",                     label: "Service" },
+  { key: "departement",                 label: "Department" },
+  { key: "categorization",              label: "Categorization" },
+  { key: "introducer",                  label: "Introducer" },
+  { key: "cross_sell_to",               label: "Cross-sell To" },
+  { key: "new_clients_details",         label: "New Client Details" },
+  { key: "newgroup",                    label: "New Group?" },
   { key: "meeting_with_natural_person", label: "Meeting Date" },
-  { key: "fees",                      label: "Fees",           isCurrency: true },
 ];
+
+// Always render Fees last — it's the currency column the rest of the UI keys off.
+const FEES_COLUMN = { key: "fees", label: "Fees", isCurrency: true };
+
+// Internal fields that are derived/used for grouping; never show as columns.
+const HIDDEN_KEYS = new Set(["month", "year", "month_year"]);
+
+// Computed at load time from the active list's data.
+let _drillColumns = [...KNOWN_COLUMNS, FEES_COLUMN];
+
+function humanizeKey(key) {
+  return String(key)
+    .replace(/_+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function looksLikeCurrencyKey(key, tasks) {
+  if (!/(fee|amount|price|cost|revenue|charge)/i.test(key)) return false;
+  return tasks.some(t => typeof t[key] === "number");
+}
+
+/**
+ * Build the drill-down column list from the loaded tasks.
+ *   - Known fields keep their curated order and label.
+ *   - Any additional custom fields surfaced by ClickUp are appended with a
+ *     humanised label so list-specific data (rejection reason,
+ *     disengagement date, etc.) is shown without code changes.
+ *   - "fees" is always pinned last.
+ */
+function buildDrillColumns(tasks) {
+  const known = new Set(KNOWN_COLUMNS.map(c => c.key));
+  const reserved = new Set([...known, FEES_COLUMN.key, ...HIDDEN_KEYS]);
+
+  const extras = new Set();
+  for (const t of tasks) {
+    for (const k of Object.keys(t)) {
+      if (!reserved.has(k)) extras.add(k);
+    }
+  }
+
+  const extraCols = [...extras].sort().map(k => ({
+    key: k,
+    label: humanizeKey(k),
+    isCurrency: looksLikeCurrencyKey(k, tasks),
+  }));
+
+  return [...KNOWN_COLUMNS, ...extraCols, FEES_COLUMN];
+}
 
 /**
  * Format a cell value for display.
@@ -473,7 +523,7 @@ function showDrillDown(entityName) {
   const totalFees = filtered.reduce((s, t) => s + t.fees, 0);
 
   // Determine which columns have data (skip entirely empty columns)
-  const activeCols = DRILL_COLUMNS.filter(col =>
+  const activeCols = _drillColumns.filter(col =>
     filtered.some(t => {
       const v = t[col.key];
       return v !== null && v !== undefined && v !== "" && v !== "—";
@@ -599,9 +649,9 @@ function exportCsv() {
   const scopeTasks = tasksForActiveScope();
   if (!scopeTasks.length) return;
 
-  const header = DRILL_COLUMNS.map(c => csvCell(c.label)).join(",");
+  const header = _drillColumns.map(c => csvCell(c.label)).join(",");
   const rows   = scopeTasks.map(task =>
-    DRILL_COLUMNS.map(col => {
+    _drillColumns.map(col => {
       const v = task[col.key];
       if (v === null || v === undefined || v === "—") return "";
       return csvCell(col.isCurrency ? v : String(v));
@@ -652,6 +702,7 @@ async function load(forceRefresh = false) {
     _rawTasks = apiData.tasks || [];
     _months   = apiData.months || [];
     _years    = uniqueYears(_months);
+    _drillColumns = buildDrillColumns(_rawTasks);
 
     if (!_months.length) {
       chartArea.innerHTML = `
