@@ -6,3 +6,10 @@ api/clickup/.env
 
 # Temp exploration scripts
 api/clickup/_explore.py
+
+# Python bytecode and virtualenv
+api/clickup/__pycache__/
+api/clickup/venv/
+
+# Raw data files
+staff.xlsx

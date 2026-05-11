@@ -164,6 +164,16 @@
   box-shadow: 0 2px 8px rgba(200, 212, 0, .25);
 }
 
+.fees-tab-year {
+  margin-left: 8px;
+  border-style: dashed;
+  font-weight: 700;
+}
+
+.fees-tab-year.active {
+  border-style: solid;
+}
+
 /* ============================================================
    VIEW TOGGLE — "Per UBO" / "Per Company" switch
    ============================================================ */
