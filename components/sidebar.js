@@ -89,25 +89,6 @@ function showModal(title, message) {
   document.getElementById("coming-soon-backdrop").classList.remove("hidden");
 }
 
-// ---- SVG helpers ----------------------------------------------
-
-/**
- * Treppides globe SVG — inline so no external image dependency.
- * TODO: replace before deploy — swap to actual Treppides logo <img> tag
- *       once the final logo asset is available.
- */
-function globeSvg(width = 38, height = 38) {
-  return `
-    <svg width="${width}" height="${height}" viewBox="0 0 40 40"
-         fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Treppides logo">
-      <circle cx="20" cy="20" r="18" fill="#1a1f2e" stroke="#c8d400" stroke-width="1.6"/>
-      <ellipse cx="20" cy="20" rx="8.5" ry="18" stroke="#c8d400" stroke-width="1.2" fill="none"/>
-      <line x1="2"   y1="20" x2="38"  y2="20"  stroke="#c8d400" stroke-width="1.2"/>
-      <path d="M5.5 12 Q20 9 34.5 12"  stroke="#c8d400" stroke-width="1" fill="none"/>
-      <path d="M5.5 28 Q20 31 34.5 28" stroke="#c8d400" stroke-width="1" fill="none"/>
-      <circle cx="20" cy="20" r="18" stroke="#c8d400" stroke-width="1.6" fill="none"/>
-    </svg>`;
-}
 
 const ICONS = {
   home: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -167,13 +148,8 @@ export default async function init(config) {
     sidebar.innerHTML = `
       <!-- Logo / Brand -->
       <div class="sidebar-logo">
-        <div class="logo-mark">
-          ${globeSvg(38, 38)}
-          <div class="logo-text">
-            <span class="company">Treppides</span>
-            <span class="portal">Company Hub</span>
-          </div>
-        </div>
+        <img src="/logo.png" class="sidebar-logo-img" alt="K. Treppides &amp; Co Ltd">
+        <span class="sidebar-portal-label">Company Hub</span>
       </div>
 
       <!-- Navigation Links -->
@@ -273,8 +249,7 @@ export default async function init(config) {
       <!-- Mobile sticky top bar -->
       <div class="mobile-topbar">
         <div class="mobile-logo">
-          ${globeSvg(26, 26)}
-          TREPPIDES
+          <img src="/logo.png" class="mobile-logo-img" alt="K. Treppides &amp; Co Ltd">
         </div>
         <button class="burger" id="burger-btn" aria-label="Toggle navigation">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
