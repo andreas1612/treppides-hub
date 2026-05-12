@@ -397,8 +397,7 @@ function injectPageContent(pageData, attachments) {
   if (!panel) return;
 
   const safe        = sanitizeHtml(pageData.html || "");
-  const hasRealBody = safe.replace(/<[^>]+>/g, "").trim().length > 30 &&
-                      !safe.includes("See attached");
+  const hasRealBody = safe.trim().length > 0 && !safe.includes("See attached");
 
   panel.innerHTML = `
     <h1 class="page-heading">${esc(pageData.name)}</h1>
