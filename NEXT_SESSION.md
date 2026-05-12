@@ -19,31 +19,72 @@
 
 ---
 
-## Last Session — 2026-05-12 (Session 9)
+## Last Session — 2026-05-12 (Session 10)
 
-**What was done:**
-- Announcements redesigned as social post feed (LinkedIn/FB style)
-  - Inline images (single + grid up to 4), uploaded video, YouTube/Vimeo embeds
-  - 10 posts shown (was 5)
-- Admin panel: media composer added to Publish tab
-  - Photo button → file picker → thumbnail preview grid
-  - Video button → file picker → inline video preview (validates ≤150MB)
-  - YouTube/Vimeo button → URL input → live iframe preview
-  - On publish: uploads media first → gets URLs → embeds in BookStack page HTML
-  - Auto-refreshes announcements feed after publish
-- FastAPI (`clickup-fees`): `/api/upload/image` and `/api/upload/video` endpoints
-- Nginx: `/media/` static block, `/api/upload/` proxy, `client_max_body_size 160m`
-- `styles/widgets/announcements.css` created
-- `media/images/` and `media/videos/` added to `.gitignore`
+**What was done — AML dashboard fees broken down per list:**
+- Each AML list now has its own breakdown field driving KPIs, chart, and
+  drill-down badges:
+  - `new` → `client_status` (Existing / New) — unchanged behaviour
+  - `rejected` → `rejection_reason`
+  - `disengaged` → `disengaged_reason`
+- Fixes a silent bug: Rejected/Disengaged previously had €0 in the
+  Existing/New KPI cards (because those lists have no `client_status`
+  field) **and** every bar in the chart was force-bucketed as "Existing".
+- New KPI layout for rejected/disengaged: **Top {Reason}** (€ value +
+  truncated reason name) + **{Reason}s** (distinct value count). The new
+  list keeps Existing / New cards exactly as before.
+- Chart datasets and legend now built dynamically from the distinct
+  breakdown values present in the data, with a stable per-load palette
+  (Existing/New keep their fixed blue/green; other reasons cycle through
+  a 9-colour palette).
+- Drill-down table cells in the breakdown column render as colour-coded
+  badges matching the chart bars (full text on hover for long labels).
+- Single file changed: `components/pages/fees.js` (commit `5f30c35`).
 
-**Pending (needs sudo from terminal):**
+**Unverified assumption — verify after server pull (see Priority 1):**
+The snake-cased ClickUp field keys are assumed to be `rejection_reason`
+and `disengaged_reason`. If they're different in ClickUp, the chart will
+show a single grey "Unknown" bar — fix is to update `LIST_META` in
+`components/pages/fees.js`.
+
+**Earlier today (Session 9):** Social-post announcements + media upload
+infrastructure. See PROJECT_BRIEF.md session log for details.
+
+**Pending (carry-over from Session 9):**
 ```bash
 sudo systemctl restart clickup-fees   # pick up new upload endpoints in server.py
 ```
 
 ---
 
-## Priority 1 — DNS Record (5-minute task, just needs office router access)
+## Priority 1 — Verify AML breakdown field names (5-minute task)
+
+After `git pull` on the server, hard-refresh the AML pages and check:
+
+| List | Expected |
+|---|---|
+| New | Identical to before — Existing blue, New green |
+| Rejected | Multiple coloured bars stacked by rejection reason, legend listing each reason, "Top Rejection Reason" KPI with real € value |
+| Disengaged | Same, by disengagement reason |
+
+If Rejected/Disengaged shows a single grey "Unknown" bar, the snake-cased
+key in `LIST_META` doesn't match what ClickUp returns. Diagnose from the
+server:
+
+```bash
+curl -sk https://192.168.0.221/api/clickup/fees?list=rejected | \
+  python3 -c "import json,sys;d=json.load(sys.stdin);print(sorted({k for t in d['tasks'] for k in t}))"
+curl -sk https://192.168.0.221/api/clickup/fees?list=disengaged | \
+  python3 -c "import json,sys;d=json.load(sys.stdin);print(sorted({k for t in d['tasks'] for k in t}))"
+```
+
+Find the actual key (e.g. maybe `disengagement_reason` or `reason_for_rejection`),
+update `breakdownField` per list in `components/pages/fees.js` `LIST_META`,
+push.
+
+---
+
+## Priority 2 — DNS Record (5-minute task, just needs office router access)
 
 Add an A record to the **office router / Active Directory DNS**:
 
@@ -60,7 +101,7 @@ Once added: any LAN browser hitting `https://hub.treppides.com` gets the padlock
 
 ---
 
-## Priority 2 — OpenProject Deployment
+## Priority 3 — OpenProject Deployment
 
 Deploy OpenProject at `https://hub.treppides.com/projects`.
 
@@ -71,7 +112,7 @@ sudo systemctl reload nginx   # nginx config already has the /projects proxy blo
 
 ---
 
-## Priority 3 — Test Media Upload (after clickup-fees restart)
+## Priority 4 — Test Media Upload (after clickup-fees restart)
 
 1. Open hub, click Admin in sidebar, enter PIN
 2. Select Announcements section

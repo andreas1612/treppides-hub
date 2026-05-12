@@ -2,7 +2,7 @@
 > Paste this at the start of a new chat and say "continue the Treppides Hub project"
 
 **Status: LIVE IN PRODUCTION — fully operational**
-**Last session: 2026-05-12 (session 9)**
+**Last session: 2026-05-12 (session 10)**
 **Server: 192.168.0.221 (tech-srv) · User: tech-admin**
 **Live URL: https://hub.treppides.com**
 
@@ -124,6 +124,24 @@ treppides-hub/
 ---
 
 ## Session Log
+
+### 2026-05-12 (session 10) — AML dashboard per-list fee breakdown
+
+- Each AML list now has its own breakdown field driving the chart, KPI
+  cards, and drill-down table badges:
+  - `new` → `client_status` (Existing / New) — unchanged
+  - `rejected` → `rejection_reason`
+  - `disengaged` → `disengaged_reason`
+- Fixes silent bug where rejected/disengaged showed €0 in Existing/New
+  KPI cards and force-bucketed every chart bar as "Existing".
+- KPI cards become list-aware: Top {Reason} + Distinct {Reason}s replace
+  Existing/New on non-new lists.
+- Chart datasets and legend built dynamically from distinct values present.
+- Stable per-load colour palette so colours don't shuffle between tab switches.
+- Drill-down breakdown column rendered as colour-coded badges.
+- One unverified assumption — exact snake-cased keys in ClickUp may differ;
+  see NEXT_SESSION.md Priority 1.
+- Single file changed: `components/pages/fees.js`.
 
 ### 2026-05-12 (session 9) — Social announcements + media upload infrastructure
 

@@ -1,6 +1,6 @@
 # STATUS — Treppides Hub
 
-**Last updated: 2026-05-12 (session 9)**
+**Last updated: 2026-05-12 (session 10)**
 **→ Start every session from [NEXT_SESSION.md](NEXT_SESSION.md)**
 
 ---
@@ -26,8 +26,8 @@
 | Training & Development | ✅ Live | BookStack book 59 | Card feed |
 | Quick Links | ✅ Live | — | KB / Projects / IT Support |
 | In-app Reader | ✅ Live | BookStack API | PDF preview, chapters, pushState routing |
-| AML Dashboard | ✅ Live | ClickUp → FastAPI | 3 lists (new/rejected/disengaged) |
-| Fees Dashboard | ✅ Live | ClickUp → FastAPI | Chart, drilldown, CSV export |
+| AML Dashboard | ✅ Live | ClickUp → FastAPI | 3 lists; each breaks fees down by its own field (status / rejection reason / disengagement reason) |
+| Fees Dashboard | ✅ Live | ClickUp → FastAPI | Chart, drilldown with reason badges, CSV export |
 | Staff Directory | ✅ Live | /staff.json | Accordion, search, dept filter |
 | Admin Panel | ✅ Live | BookStack API + upload API | PIN-protected, photo/video/YouTube media composer |
 | IT Support Modal | ✅ Live | FormSubmit → email | → apieri@treppides.com |
