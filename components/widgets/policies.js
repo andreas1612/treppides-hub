@@ -4,11 +4,11 @@
 // Mounts into: #section-policies
 // ============================================================
 
-import { fetchPages }      from "../api/bookstack.js";
-import { formatDate, excerptFromHtml } from "../utils/format.js";
-import { escapeHtml, renderSkeleton, renderError, renderEmpty } from "../utils/dom.js";
-import { setStatus }       from "./topbar.js";
-import CONFIG              from "../config.js";
+import { fetchPages }      from "../../api/bookstack.js";
+import { formatDate, excerptFromHtml } from "../../utils/format.js";
+import { escapeHtml, renderSkeleton, renderError, renderEmpty } from "../../utils/dom.js";
+import { setStatus }       from "../shell/topbar.js";
+import CONFIG              from "../../config.js";
 
 const SECTION_ID = "section-policies";
 const CARDS_ID   = "policies-cards";

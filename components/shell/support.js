@@ -10,7 +10,7 @@
 // Exposed: window.__hub_support.open()
 // ============================================================
 
-import CONFIG from "../config.js";
+import CONFIG from "../../config.js";
 
 // ---- Build modal DOM ------------------------------------------
 

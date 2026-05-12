@@ -15,9 +15,9 @@
 // Mounts into: #section-fees (sibling of .page-content)
 // ============================================================
 
-import { escapeHtml, renderError } from "../utils/dom.js";
-import { setStatus }               from "./topbar.js";
-import CONFIG                      from "../config.js";
+import { escapeHtml, renderError } from "../../utils/dom.js";
+import { setStatus }               from "../shell/topbar.js";
+import CONFIG                      from "../../config.js";
 
 // ---- DOM IDs -------------------------------------------------------
 const SECTION_ID   = "section-fees";

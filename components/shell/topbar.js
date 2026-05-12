@@ -4,8 +4,8 @@
 // Mounts into: #topbar
 // ============================================================
 
-import CONFIG from "../config.js";
-import { searchPages } from "../api/bookstack.js";
+import CONFIG from "../../config.js";
+import { searchPages } from "../../api/bookstack.js";
 
 const SEARCH_STYLES = `
   .search-wrap {

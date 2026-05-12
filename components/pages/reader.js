@@ -13,9 +13,9 @@
 //   /book/13/page/42 → page view (nav + page content)
 // ============================================================
 
-import { fetchBook, fetchChapter, fetchPageContent, fetchAttachments, fetchAttachmentBlob } from "../api/bookstack.js";
-import { formatDate } from "../utils/format.js";
-import CONFIG from "../config.js";
+import { fetchBook, fetchChapter, fetchPageContent, fetchAttachments, fetchAttachmentBlob } from "../../api/bookstack.js";
+import { formatDate } from "../../utils/format.js";
+import CONFIG from "../../config.js";
 
 // ── State ────────────────────────────────────────────────────
 let _state = "home"; // "home" | "book" | "page"

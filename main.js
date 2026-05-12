@@ -4,20 +4,20 @@
 // ============================================================
 
 import CONFIG            from "./config.js";
-import initSidebar       from "./components/sidebar.js";
-import initTopbar        from "./components/topbar.js";
-import initAnnouncements from "./components/announcements.js";
-import initKnowledgeBase from "./components/knowledgebase.js";
-import initPolicies      from "./components/policies.js";
-import initTraining      from "./components/training.js";
-import initQuicklinks    from "./components/quicklinks.js";
-import initReader        from "./components/reader.js";
-import initFees          from "./components/fees.js";
-import initAdmin         from "./components/admin.js";
-import initSupport       from "./components/support.js";
-import initStaff         from "./components/staff.js";
-import initAml           from "./components/aml.js";
-import initProjects      from "./components/projects.js";
+import initSidebar       from "./components/shell/sidebar.js";
+import initTopbar        from "./components/shell/topbar.js";
+import initAnnouncements from "./components/widgets/announcements.js";
+import initKnowledgeBase from "./components/pages/knowledgebase.js";
+import initPolicies      from "./components/widgets/policies.js";
+import initTraining      from "./components/widgets/training.js";
+import initQuicklinks    from "./components/widgets/quicklinks.js";
+import initReader        from "./components/pages/reader.js";
+import initFees          from "./components/pages/fees.js";
+import initAdmin         from "./components/shell/admin.js";
+import initSupport       from "./components/shell/support.js";
+import initStaff         from "./components/pages/staff.js";
+import initAml           from "./components/pages/aml.js";
+import initProjects      from "./components/pages/projects.js";
 
 async function boot() {
   // Structural components (no async data needed — run in parallel)

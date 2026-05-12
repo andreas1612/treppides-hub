@@ -4,7 +4,7 @@
 // Mounts into: #sidebar  (desktop) and #mobile-header (mobile)
 // ============================================================
 
-import CONFIG from "../config.js";
+import CONFIG from "../../config.js";
 
 // ---- Coming Soon modal ----------------------------------------
 // Guard: quicklinks.js may have already injected the modal.

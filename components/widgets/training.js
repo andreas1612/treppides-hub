@@ -4,11 +4,11 @@
 // Mounts into: #section-training
 // ============================================================
 
-import { fetchPages }      from "../api/bookstack.js";
-import { formatDate, excerptFromHtml } from "../utils/format.js";
-import { escapeHtml, renderSkeleton, renderError, renderEmpty } from "../utils/dom.js";
-import { setStatus }       from "./topbar.js";
-import CONFIG              from "../config.js";
+import { fetchPages }      from "../../api/bookstack.js";
+import { formatDate, excerptFromHtml } from "../../utils/format.js";
+import { escapeHtml, renderSkeleton, renderError, renderEmpty } from "../../utils/dom.js";
+import { setStatus }       from "../shell/topbar.js";
+import CONFIG              from "../../config.js";
 
 const SECTION_ID = "section-training";
 const CARDS_ID   = "training-cards";

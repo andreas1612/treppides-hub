@@ -5,10 +5,10 @@
 // Mounts into: #section-knowledgebase
 // ============================================================
 
-import { fetchShelfBooks }  from "../api/bookstack.js";
-import { escapeHtml, renderSkeleton, renderError } from "../utils/dom.js";
-import { setStatus }        from "./topbar.js";
-import CONFIG               from "../config.js";
+import { fetchShelfBooks }  from "../../api/bookstack.js";
+import { escapeHtml, renderSkeleton, renderError } from "../../utils/dom.js";
+import { setStatus }        from "../shell/topbar.js";
+import CONFIG               from "../../config.js";
 
 const SECTION_ID  = "section-kb";
 const CARDS_ID    = "kb-cards";
