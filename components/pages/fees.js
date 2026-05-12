@@ -31,11 +31,62 @@ const EXPORT_ID    = "fees-export";
 const BACK_ID      = "fees-back-btn";
 
 // ---- Palette -------------------------------------------------------
-const COLORS = {
+// Fixed colors for known client-status values (used on the "new" list).
+const FIXED_COLORS = {
   Existing: { bg: "#4A90D9", border: "#3A7BC8" },
   New:      { bg: "#48BB78", border: "#38A169" },
-  Unknown:  { bg: "#A0AEC0", border: "#718096" },
 };
+const UNKNOWN_COLOR = { bg: "#A0AEC0", border: "#718096" };
+
+// Palette for dynamic breakdown values (rejection reasons, disengagement
+// reasons — anything that varies per list and isn't a fixed status).
+// Order picked so the first few values are visually distinct from the
+// "Existing/New" blue/green pair on the new-client view.
+const PALETTE = [
+  { bg: "#9F7AEA", border: "#805AD5" },  // purple
+  { bg: "#ED8936", border: "#DD6B20" },  // orange
+  { bg: "#38B2AC", border: "#319795" },  // teal
+  { bg: "#F56565", border: "#E53E3E" },  // red
+  { bg: "#667EEA", border: "#5A67D8" },  // indigo
+  { bg: "#ECC94B", border: "#D69E2E" },  // yellow
+  { bg: "#48BB78", border: "#38A169" },  // green
+  { bg: "#4A90D9", border: "#3A7BC8" },  // blue
+  { bg: "#FC8181", border: "#F56565" },  // coral
+];
+
+// Stable value → color mapping for the active list. Computed once per load
+// (see rebuildBreakdownColors) so colors don't shuffle as the user clicks
+// between month/year tabs.
+let _breakdownColors = new Map();
+
+function colorFor(value) {
+  return _breakdownColors.get(value) || UNKNOWN_COLOR;
+}
+
+function rebuildBreakdownColors(values) {
+  _breakdownColors = new Map();
+  let paletteIdx = 0;
+  for (const v of values) {
+    if (v === "Unknown") {
+      _breakdownColors.set(v, UNKNOWN_COLOR);
+    } else if (FIXED_COLORS[v]) {
+      _breakdownColors.set(v, FIXED_COLORS[v]);
+    } else {
+      _breakdownColors.set(v, PALETTE[paletteIdx % PALETTE.length]);
+      paletteIdx++;
+    }
+  }
+}
+
+// Hex → rgba string. Used to derive the tinted badge background from a
+// palette colour so badges share visual language with chart bars.
+function hexToRgba(hex, alpha) {
+  const h = hex.replace("#", "");
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
 
 // ---- State ---------------------------------------------------------
 //
@@ -51,11 +102,33 @@ const isYearScope   = s => typeof s === "string" && s.startsWith(YEAR_PREFIX);
 const yearOfScope   = s => s.slice(YEAR_PREFIX.length);
 const makeYearScope = y => `${YEAR_PREFIX}${y}`;
 
-// AML list metadata — drives page title, subtitle, and CSV filename.
+// AML list metadata — drives page title, subtitle, CSV filename, and the
+// custom field each list breaks fees down by (stacked-bar segments + KPIs).
+//
+//   breakdownField — snake_cased ClickUp custom field key on the task row.
+//   breakdownLabel — human label used in headings, legends, KPI labels.
 const LIST_META = {
-  new:        { title: "New Clients",        subtitle: "AML Dashboard · Monthly fee breakdown", csv: "new-clients" },
-  rejected:   { title: "Rejected Clients",   subtitle: "AML Dashboard · Monthly fee breakdown", csv: "rejected-clients" },
-  disengaged: { title: "Disengaged Clients", subtitle: "AML Dashboard · Monthly fee breakdown", csv: "disengaged-clients" },
+  new: {
+    title: "New Clients",
+    subtitle: "AML Dashboard · Fees by client status",
+    csv: "new-clients",
+    breakdownField: "client_status",
+    breakdownLabel: "Client Status",
+  },
+  rejected: {
+    title: "Rejected Clients",
+    subtitle: "AML Dashboard · Fees by rejection reason",
+    csv: "rejected-clients",
+    breakdownField: "rejection_reason",
+    breakdownLabel: "Rejection Reason",
+  },
+  disengaged: {
+    title: "Disengaged Clients",
+    subtitle: "AML Dashboard · Fees by disengagement reason",
+    csv: "disengaged-clients",
+    breakdownField: "disengaged_reason",
+    breakdownLabel: "Disengaged Reason",
+  },
 };
 const DEFAULT_LIST = "new";
 
@@ -142,6 +215,49 @@ function groupLabel() {
   return _viewMode === "company" ? "Company" : "UBO";
 }
 
+// ---- Breakdown helpers ----------------------------------------------
+//
+// The chart and KPIs are broken down by a per-list custom field
+// (client_status / rejection_reason / disengaged_reason).
+//
+// `breakdownKey(row)` returns the normalised value for a row, mapping
+// missing/blank entries to "Unknown" so they form their own series.
+
+function activeMeta() {
+  return LIST_META[_activeList] || LIST_META[DEFAULT_LIST];
+}
+
+function activeBreakdownField() {
+  return activeMeta().breakdownField;
+}
+
+function activeBreakdownLabel() {
+  return activeMeta().breakdownLabel;
+}
+
+function breakdownKey(row) {
+  const v = row[activeBreakdownField()];
+  if (v === null || v === undefined || v === "" || v === "—") return "Unknown";
+  return String(v);
+}
+
+// All distinct breakdown values across the tasks, sorted alphabetically,
+// with "Unknown" pushed to the end so it never dominates the legend.
+function distinctBreakdownValues(tasks) {
+  const set = new Set(tasks.map(breakdownKey));
+  const hasUnknown = set.delete("Unknown");
+  const sorted = [...set].sort((a, b) => a.localeCompare(b));
+  if (hasUnknown) sorted.push("Unknown");
+  return sorted;
+}
+
+// Truncate a long label for compact display. Full text should go on a
+// `title` attribute so hovering still reveals the original.
+function truncate(s, max) {
+  if (!s) return s;
+  return s.length > max ? s.slice(0, max - 1) + "…" : s;
+}
+
 // ---- Page visibility toggle -----------------------------------------
 
 /**
@@ -176,23 +292,28 @@ window.__hub_fees = { show: showFeesPage, hide: hideFeesPage };
 // ---- KPI cards ------------------------------------------------------
 
 function renderKPIs(tasks) {
-  let totalFees = 0, existingFees = 0, newFees = 0;
+  let totalFees = 0;
   const uboSet = new Set();
+  const byBreakdown = new Map();   // breakdown value → summed fees
 
   for (const t of tasks) {
     totalFees += t.fees;
     uboSet.add(t.ubo);
-    if (t.client_status === "Existing") existingFees += t.fees;
-    else if (t.client_status === "New") newFees += t.fees;
+    const key = breakdownKey(t);
+    byBreakdown.set(key, (byBreakdown.get(key) || 0) + t.fees);
   }
 
-  return `
-    <div class="fees-kpi-row" id="${KPI_ID}">
-      <div class="fees-kpi-card">
-        <span class="fees-kpi-label">Total Fees</span>
-        <span class="fees-kpi-value accent">${fmtCurrency(totalFees)}</span>
-        <span class="fees-kpi-sub">Across ${_months.length} month${_months.length !== 1 ? "s" : ""}</span>
-      </div>
+  const meta  = activeMeta();
+  const label = meta.breakdownLabel;
+
+  // List-specific middle cards.
+  //   "new"  → Existing Clients / New Clients (preserve original UX)
+  //   else   → Top {Reason} (€ value) / # of distinct reasons
+  let middleCards;
+  if (_activeList === "new") {
+    const existingFees = byBreakdown.get("Existing") || 0;
+    const newFees      = byBreakdown.get("New")      || 0;
+    middleCards = `
       <div class="fees-kpi-card">
         <span class="fees-kpi-label">Existing Clients</span>
         <span class="fees-kpi-value">${fmtCurrency(existingFees)}</span>
@@ -202,7 +323,38 @@ function renderKPIs(tasks) {
         <span class="fees-kpi-label">New Clients</span>
         <span class="fees-kpi-value">${fmtCurrency(newFees)}</span>
         <span class="fees-kpi-sub">New business</span>
+      </div>`;
+  } else {
+    // Skip "Unknown" when picking the top reason — it's noise, not insight.
+    const ranked = [...byBreakdown.entries()]
+      .filter(([k]) => k !== "Unknown")
+      .sort((a, b) => b[1] - a[1]);
+    const topName = ranked[0]?.[0] ?? "—";
+    const topFees = ranked[0]?.[1] ?? 0;
+    const distinct = ranked.length;
+    const topNameDisplay = truncate(topName, 28);
+
+    middleCards = `
+      <div class="fees-kpi-card">
+        <span class="fees-kpi-label">Top ${escapeHtml(label)}</span>
+        <span class="fees-kpi-value">${fmtCurrency(topFees)}</span>
+        <span class="fees-kpi-sub" title="${escapeHtml(topName)}">${escapeHtml(topNameDisplay)}</span>
       </div>
+      <div class="fees-kpi-card">
+        <span class="fees-kpi-label">${escapeHtml(label)}s</span>
+        <span class="fees-kpi-value">${distinct}</span>
+        <span class="fees-kpi-sub">Distinct values</span>
+      </div>`;
+  }
+
+  return `
+    <div class="fees-kpi-row" id="${KPI_ID}">
+      <div class="fees-kpi-card">
+        <span class="fees-kpi-label">Total Fees</span>
+        <span class="fees-kpi-value accent">${fmtCurrency(totalFees)}</span>
+        <span class="fees-kpi-sub">Across ${_months.length} month${_months.length !== 1 ? "s" : ""}</span>
+      </div>
+      ${middleCards}
       <div class="fees-kpi-card">
         <span class="fees-kpi-label">Unique UBOs</span>
         <span class="fees-kpi-value">${uboSet.size}</span>
@@ -248,21 +400,30 @@ function renderToggle() {
 // ---- Data grouping --------------------------------------------------
 
 function groupForChart() {
-  const monthTasks = tasksForActiveScope();
+  const scopeTasks = tasksForActiveScope();
+  const series = distinctBreakdownValues(scopeTasks);
+
+  // entity → { breakdownValue: feeSum, ... }
   const map = new Map();
-  for (const t of monthTasks) {
+  for (const t of scopeTasks) {
     const key = groupKey(t);
-    if (!map.has(key)) map.set(key, { Existing: 0, New: 0 });
-    const entry = map.get(key);
-    const status = (t.client_status === "Existing" || t.client_status === "New")
-      ? t.client_status : "Existing";
-    entry[status] += t.fees;
+    if (!map.has(key)) {
+      const empty = {};
+      for (const s of series) empty[s] = 0;
+      map.set(key, empty);
+    }
+    map.get(key)[breakdownKey(t)] += t.fees;
   }
 
+  const totalFor = obj => series.reduce((s, k) => s + (obj[k] || 0), 0);
   const sorted = Array.from(map.entries())
-    .sort((a, b) => (b[1].Existing + b[1].New) - (a[1].Existing + a[1].New));
+    .sort((a, b) => totalFor(b[1]) - totalFor(a[1]));
 
-  return { labels: sorted.map(([n]) => n), entityMap: new Map(sorted) };
+  return {
+    labels: sorted.map(([n]) => n),
+    entityMap: new Map(sorted),
+    series,
+  };
 }
 
 // ---- Chart rendering ------------------------------------------------
@@ -273,7 +434,7 @@ function renderChart() {
 
   if (_activeChart) { _activeChart.destroy(); _activeChart = null; }
 
-  const { labels, entityMap } = groupForChart();
+  const { labels, entityMap, series } = groupForChart();
 
   if (!labels.length) {
     container.innerHTML = `
@@ -289,12 +450,11 @@ function renderChart() {
     return;
   }
 
-  // Always stack the two client-status datasets. If we let Chart.js group
-  // them side-by-side (when no entity has BOTH statuses), every row's slot
-  // gets split into two sub-slots — bars render at half thickness and shift
-  // off the y-axis tick, leaving labels misaligned. Stacking makes every
-  // row a single full-thickness bar (one segment if single status, two
-  // segments if both).
+  // Always stack the breakdown datasets. If we let Chart.js group them
+  // side-by-side (when no entity has more than one breakdown value), each
+  // row's slot gets split into sub-slots — bars render at half thickness
+  // and shift off the y-axis tick. Stacking makes every row a single
+  // full-thickness bar with one segment per breakdown value present.
   const needsStack = true;
 
   // Pre-truncate labels for display; keep full names for tooltips.
@@ -306,38 +466,47 @@ function renderChart() {
   );
   const fullLabels = labels.slice();
 
-  const datasets = ["Existing", "New"].map(status => ({
-    label: status,
-    data: labels.map(l => entityMap.get(l)?.[status] || 0),
-    backgroundColor: COLORS[status].bg,
-    borderColor: COLORS[status].border,
-    borderWidth: 1,
-    borderRadius: 4,
-    borderSkipped: false,
-    barPercentage: 0.85,
-    categoryPercentage: 0.85,
-    maxBarThickness: 32,
-  })).filter(ds => ds.data.some(v => v > 0));
+  // One stacked dataset per breakdown value present in the data.
+  // Empty series are filtered out so the legend doesn't list zero-value bars.
+  const datasets = series.map(val => {
+    const c = colorFor(val);
+    return {
+      label: val,
+      data: labels.map(l => entityMap.get(l)?.[val] || 0),
+      backgroundColor: c.bg,
+      borderColor: c.border,
+      borderWidth: 1,
+      borderRadius: 4,
+      borderSkipped: false,
+      barPercentage: 0.85,
+      categoryPercentage: 0.85,
+      maxBarThickness: 32,
+    };
+  }).filter(ds => ds.data.some(v => v > 0));
 
   const chartHeight = Math.max(260, labels.length * 46 + 100);
+
+  // Legend swatches use inline colors so any breakdown value renders correctly
+  // (rejection reasons, disengagement reasons — not just Existing/New).
+  const MAX_LEGEND_LABEL = 28;
+  const legendHtml = series.map(val => {
+    const c = colorFor(val);
+    const display = truncate(val, MAX_LEGEND_LABEL);
+    return `<span class="fees-legend-item" title="${escapeHtml(val)}">
+        <span class="fees-legend-swatch" style="background:${c.bg}"></span>${escapeHtml(display)}
+      </span>`;
+  }).join("");
 
   container.innerHTML = `
     <div class="fees-chart-wrapper">
       <div class="fees-chart-title">
-        Fees by ${escapeHtml(groupLabel())}
+        Fees by ${escapeHtml(groupLabel())} · ${escapeHtml(activeBreakdownLabel())}
         <span class="month-badge">${escapeHtml(activeScopeLabel())}</span>
       </div>
       <div class="fees-chart-canvas-container" style="height:${chartHeight}px">
         <canvas id="fees-canvas"></canvas>
       </div>
-      <div class="fees-legend">
-        <span class="fees-legend-item">
-          <span class="fees-legend-swatch existing"></span> Existing Client
-        </span>
-        <span class="fees-legend-item">
-          <span class="fees-legend-swatch new"></span> New Client
-        </span>
-      </div>
+      <div class="fees-legend">${legendHtml}</div>
       <p class="fees-chart-hint">Click a bar to see detailed entries below</p>
     </div>`;
 
@@ -499,9 +668,14 @@ function formatCell(col, value) {
   if (col.isCurrency) {
     return fmtCurrency(value);
   }
-  if (col.key === "client_status") {
-    const cls = value === "New" ? "new" : "existing";
-    return `<span class="fees-status-badge ${cls}">${escapeHtml(String(value))}</span>`;
+  // Colour-coded badge for the active breakdown field — same palette as the
+  // chart, so client_status / rejection_reason / disengaged_reason cells all
+  // render consistently with the stacked bars above.
+  if (col.key === activeBreakdownField()) {
+    const v = String(value);
+    const c = _breakdownColors.get(v) || UNKNOWN_COLOR;
+    const bg = hexToRgba(c.bg, 0.14);
+    return `<span class="fees-status-badge" style="background:${bg};color:${c.border}" title="${escapeHtml(v)}">${escapeHtml(v)}</span>`;
   }
   return escapeHtml(String(value));
 }
@@ -703,6 +877,7 @@ async function load(forceRefresh = false) {
     _months   = apiData.months || [];
     _years    = uniqueYears(_months);
     _drillColumns = buildDrillColumns(_rawTasks);
+    rebuildBreakdownColors(distinctBreakdownValues(_rawTasks));
 
     if (!_months.length) {
       chartArea.innerHTML = `
