@@ -4,7 +4,7 @@
 // Mounts into: #section-announcements
 // ============================================================
 
-import { fetchPages }      from "../../api/bookstack.js";
+import { fetchPages, fetchPageContent } from "../../api/bookstack.js";
 import { formatDate }      from "../../utils/format.js";
 import { escapeHtml, renderSkeleton, renderError, renderEmpty } from "../../utils/dom.js";
 import { setStatus }       from "../shell/topbar.js";
@@ -63,7 +63,7 @@ function extractMedia(html) {
 function cardHtml(page) {
   const title   = page.name || "Untitled";
   const date    = formatDate(page.updated_at);
-  const rawHtml = page.preview_html?.content || "";
+  const rawHtml = page.html || page.preview_html?.content || "";
   const media   = extractMedia(rawHtml);
 
   // Strip HTML tags for text excerpt
@@ -142,7 +142,12 @@ async function load() {
     if (!pages.length) {
       cardsEl.innerHTML = renderEmpty("No announcements yet.");
     } else {
-      cardsEl.innerHTML = `<div class="post-feed">${pages.map(cardHtml).join("")}</div>`;
+      // Fetch full page HTML for each post so media (images/video) is included.
+      // preview_html from the list API strips <img> tags.
+      const fullPages = await Promise.all(
+        pages.map(p => fetchPageContent(p.id).catch(() => p))
+      );
+      cardsEl.innerHTML = `<div class="post-feed">${fullPages.map(cardHtml).join("")}</div>`;
     }
 
     setStatus("All systems operational");
