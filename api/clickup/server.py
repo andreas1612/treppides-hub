@@ -11,12 +11,14 @@
 
 import os
 import time
+import uuid
 import logging
 import datetime
 from typing import Any
+from pathlib import Path
 
 import requests
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
@@ -48,9 +50,17 @@ app = FastAPI(title="ClickUp Fees API", version="2.1.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
+
+# ---- Media upload config ---------------------------------------------
+
+MEDIA_ROOT      = Path(__file__).parent.parent.parent / "media"
+MAX_IMAGE_BYTES = 20  * 1024 * 1024   # 20 MB per image
+MAX_VIDEO_BYTES = 150 * 1024 * 1024   # 150 MB per video
+ALLOWED_IMAGES  = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+ALLOWED_VIDEOS  = {".mp4", ".mov", ".webm"}
 
 # Per-list cache: { list_key: {"data": ..., "ts": ...} }
 _cache: dict[str, dict[str, Any]] = {}
@@ -293,6 +303,44 @@ def refresh_fees(list: str = Query("new", description="Which AML list: new | rej
     list_key = list.lower()
     _cache.pop(list_key, None)
     return get_fees(list=list_key)
+
+
+@app.post("/api/upload/image")
+async def upload_image(file: UploadFile = File(...)):
+    """Upload an image. Returns { url, filename }."""
+    ext = Path(file.filename).suffix.lower()
+    if ext not in ALLOWED_IMAGES:
+        raise HTTPException(status_code=400, detail=f"File type {ext} not allowed. Use: {ALLOWED_IMAGES}")
+
+    data = await file.read()
+    if len(data) > MAX_IMAGE_BYTES:
+        raise HTTPException(status_code=413, detail="Image exceeds 20 MB limit.")
+
+    fname = f"{uuid.uuid4().hex}{ext}"
+    dest  = MEDIA_ROOT / "images" / fname
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(data)
+
+    return {"url": f"/media/images/{fname}", "filename": file.filename}
+
+
+@app.post("/api/upload/video")
+async def upload_video(file: UploadFile = File(...)):
+    """Upload a video (≤150 MB). Returns { url, filename }."""
+    ext = Path(file.filename).suffix.lower()
+    if ext not in ALLOWED_VIDEOS:
+        raise HTTPException(status_code=400, detail=f"File type {ext} not allowed. Use: {ALLOWED_VIDEOS}")
+
+    data = await file.read()
+    if len(data) > MAX_VIDEO_BYTES:
+        raise HTTPException(status_code=413, detail="Video exceeds 150 MB limit.")
+
+    fname = f"{uuid.uuid4().hex}{ext}"
+    dest  = MEDIA_ROOT / "videos" / fname
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(data)
+
+    return {"url": f"/media/videos/{fname}", "filename": file.filename}
 
 
 @app.get("/health")

@@ -1,7 +1,6 @@
 // ============================================================
-// components/admin.js
-// PIN-protected in-page admin panel for publishing, uploading
-// attachments, and deleting content in BookStack.
+// components/shell/admin.js
+// PIN-protected in-page admin panel for publishing content.
 //
 // Usage:  window.__hub_admin.open()   — triggered by sidebar button
 // PIN:    set ADMIN_PIN in config.js (shared single PIN for all admins)
@@ -9,7 +8,7 @@
 // ============================================================
 
 import CONFIG from "../../config.js";
-import { createPage, deletePage, uploadAttachment, fetchPages } from "../../api/bookstack.js";
+import { createPage, deletePage, fetchPages } from "../../api/bookstack.js";
 import { escapeHtml } from "../../utils/dom.js";
 
 // ---- Helpers --------------------------------------------------
@@ -18,11 +17,29 @@ import { escapeHtml } from "../../utils/dom.js";
 function textToHtml(text) {
   return text
     .trim()
-    .split(/\n{2,}/)                          // double-newline → new <p>
-    .map(para =>
-      `<p>${para.trim().replace(/\n/g, "<br>")}</p>`
-    )
+    .split(/\n{2,}/)
+    .map(para => `<p>${para.trim().replace(/\n/g, "<br>")}</p>`)
     .join("\n");
+}
+
+/**
+ * Convert a YouTube or Vimeo URL to an embed URL.
+ * Returns null if the URL is not recognised.
+ */
+function youtubeEmbedUrl(url) {
+  const patterns = [
+    /youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})/,
+    /youtu\.be\/([a-zA-Z0-9_-]{11})/,
+    /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,
+    /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
+  ];
+  for (const p of patterns) {
+    const m = url.match(p);
+    if (m) return `https://www.youtube.com/embed/${m[1]}?rel=0`;
+  }
+  const vimeo = url.match(/vimeo\.com\/(\d+)/);
+  if (vimeo) return `https://player.vimeo.com/video/${vimeo[1]}`;
+  return null;
 }
 
 const SESSION_KEY = "hub_admin_auth";
@@ -33,6 +50,36 @@ function isAuthenticated() {
 
 function authenticate() {
   sessionStorage.setItem(SESSION_KEY, "1");
+}
+
+// ---- Upload helpers -------------------------------------------
+
+async function uploadImages(files) {
+  const urls = [];
+  for (const file of files) {
+    const fd = new FormData();
+    fd.append("file", file);
+    const resp = await fetch("/api/upload/image", { method: "POST", body: fd });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.detail || `Image upload failed (HTTP ${resp.status})`);
+    }
+    const json = await resp.json();
+    urls.push(json.url);
+  }
+  return urls;
+}
+
+async function uploadVideoFile(file) {
+  const fd = new FormData();
+  fd.append("file", file);
+  const resp = await fetch("/api/upload/video", { method: "POST", body: fd });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err.detail || `Video upload failed (HTTP ${resp.status})`);
+  }
+  const json = await resp.json();
+  return json.url;
 }
 
 // ---- DOM builders ---------------------------------------------
@@ -124,24 +171,43 @@ function buildAdminModal(sections) {
         </div>
         <div class="hub-field">
           <label class="hub-label" for="hub-admin-content">Content</label>
-          <textarea class="hub-textarea" id="hub-admin-content" rows="5"
+          <textarea class="hub-textarea" id="hub-admin-content" rows="4"
             placeholder="Type your content here. Press Enter twice to start a new paragraph."></textarea>
-          <p class="hub-admin-hint">Plain text only — blank line = new paragraph.</p>
+          <p class="hub-admin-hint">Plain text — blank line = new paragraph.</p>
         </div>
+
+        <!-- Media type selector -->
         <div class="hub-field">
-          <label class="hub-label">
-            Attachments <span class="hub-optional">(optional)</span>
-          </label>
-          <label class="hub-file-label" for="hub-admin-files">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                 stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;flex-shrink:0;">
-              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66L9.41 17.71a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
-            </svg>
-            <span id="hub-file-label-text">Choose files…</span>
-          </label>
-          <input class="hub-file-input" id="hub-admin-files" type="file" multiple />
-          <p class="hub-admin-hint">Images and documents are attached to the page.</p>
+          <label class="hub-label">Media <span class="hub-optional">(optional)</span></label>
+          <div class="hub-media-btns" id="hub-media-btns">
+            <button class="hub-media-btn" id="hub-media-photo-btn" type="button">📷 Photo</button>
+            <button class="hub-media-btn" id="hub-media-video-btn" type="button">🎥 Video</button>
+            <button class="hub-media-btn" id="hub-media-yt-btn"    type="button">🔗 YouTube / Vimeo</button>
+          </div>
         </div>
+
+        <!-- Photo area -->
+        <div id="hub-photo-area" hidden>
+          <input type="file" id="hub-photo-input" accept="image/*" multiple hidden>
+          <label for="hub-photo-input" class="hub-file-label">Choose images…</label>
+          <div class="hub-photo-previews" id="hub-photo-previews"></div>
+          <p class="hub-admin-hint">Max 4 images · 20 MB each.</p>
+        </div>
+
+        <!-- Video file area -->
+        <div id="hub-video-area" hidden>
+          <input type="file" id="hub-video-input" accept="video/mp4,video/quicktime,video/webm" hidden>
+          <label for="hub-video-input" class="hub-file-label">Choose video (max 150 MB)…</label>
+          <div id="hub-video-preview"></div>
+        </div>
+
+        <!-- YouTube / Vimeo area -->
+        <div id="hub-yt-area" hidden>
+          <input class="hub-input" id="hub-yt-input" type="url"
+                 placeholder="https://www.youtube.com/watch?v=...">
+          <div id="hub-yt-preview"></div>
+        </div>
+
         <div class="hub-status" id="hub-admin-status"></div>
         <div class="hub-modal-actions">
           <button class="hub-btn hub-btn-ghost" id="hub-admin-cancel">Cancel</button>
@@ -174,10 +240,10 @@ function buildAdminModal(sections) {
 
 function buildAdminButton() {
   const btn = document.createElement("button");
-  btn.className  = "admin-toggle-btn";
-  btn.id         = "hub-admin-btn";
-  btn.title      = "Admin — publish content";
-  btn.innerHTML  = `
+  btn.className = "admin-toggle-btn";
+  btn.id        = "hub-admin-btn";
+  btn.title     = "Admin — publish content";
+  btn.innerHTML = `
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="12" cy="8" r="4"/>
@@ -193,9 +259,9 @@ function buildAdminButton() {
 
 export default function init(config) {
   const sections = [
-    { label: "Announcements",         bookId: config.ANNOUNCEMENTS_BOOK_ID },
-    { label: "Policies & Procedures", bookId: config.POLICIES_BOOK_ID      },
-    { label: "Training & Development",bookId: config.TRAINING_BOOK_ID      },
+    { label: "Announcements",          bookId: config.ANNOUNCEMENTS_BOOK_ID },
+    { label: "Policies & Procedures",  bookId: config.POLICIES_BOOK_ID      },
+    { label: "Training & Development", bookId: config.TRAINING_BOOK_ID      },
   ];
 
   const pinModal   = buildPinModal();
@@ -254,7 +320,6 @@ export default function init(config) {
   // ---- Admin panel ----
 
   function openAdminPanel() {
-    // Always open on Publish tab
     adminModal.querySelectorAll(".hub-tab").forEach(t => {
       t.classList.toggle("active", t.dataset.tab === "publish");
     });
@@ -274,8 +339,18 @@ export default function init(config) {
     document.getElementById("hub-admin-status").textContent = "";
     document.getElementById("hub-admin-title-input").value  = "";
     document.getElementById("hub-admin-content").value      = "";
-    document.getElementById("hub-admin-files").value        = "";
-    document.getElementById("hub-file-label-text").textContent = "Choose files…";
+
+    // Reset media areas
+    document.getElementById("hub-photo-area").hidden = true;
+    document.getElementById("hub-video-area").hidden = true;
+    document.getElementById("hub-yt-area").hidden    = true;
+    document.getElementById("hub-photo-input").value   = "";
+    document.getElementById("hub-video-input").value   = "";
+    document.getElementById("hub-yt-input").value      = "";
+    document.getElementById("hub-photo-previews").innerHTML = "";
+    document.getElementById("hub-video-preview").innerHTML  = "";
+    document.getElementById("hub-yt-preview").innerHTML     = "";
+    adminModal.querySelectorAll(".hub-media-btn").forEach(b => b.classList.remove("active"));
   }
 
   document.getElementById("hub-admin-close").addEventListener("click",  closeAdminPanel);
@@ -294,13 +369,94 @@ export default function init(config) {
     });
   });
 
-  // ---- File input label ----
+  // ---- Media button toggles ----
 
-  document.getElementById("hub-admin-files").addEventListener("change", function () {
-    const label = document.getElementById("hub-file-label-text");
-    label.textContent = this.files.length
-      ? `${this.files.length} file(s) selected`
-      : "Choose files…";
+  function activateMediaArea(areaId, btnId) {
+    const areas  = ["hub-photo-area", "hub-video-area", "hub-yt-area"];
+    const btns   = ["hub-media-photo-btn", "hub-media-video-btn", "hub-media-yt-btn"];
+    const isOpen = !document.getElementById(areaId).hidden;
+
+    // Hide all, deactivate all buttons
+    areas.forEach(id => { document.getElementById(id).hidden = true; });
+    btns.forEach(id  => { document.getElementById(id).classList.remove("active"); });
+
+    // If it wasn't already open, open it
+    if (!isOpen) {
+      document.getElementById(areaId).hidden = false;
+      document.getElementById(btnId).classList.add("active");
+    }
+  }
+
+  document.getElementById("hub-media-photo-btn").addEventListener("click", () =>
+    activateMediaArea("hub-photo-area", "hub-media-photo-btn"));
+  document.getElementById("hub-media-video-btn").addEventListener("click", () =>
+    activateMediaArea("hub-video-area", "hub-media-video-btn"));
+  document.getElementById("hub-media-yt-btn").addEventListener("click", () =>
+    activateMediaArea("hub-yt-area", "hub-media-yt-btn"));
+
+  // ---- Photo preview ----
+
+  document.getElementById("hub-photo-input").addEventListener("change", function () {
+    const preview = document.getElementById("hub-photo-previews");
+    const files   = Array.from(this.files).slice(0, 4);
+    if (!files.length) { preview.innerHTML = ""; return; }
+
+    const extra = this.files.length > 4
+      ? `<p class="hub-admin-hint">Only first 4 images will be used (${this.files.length} selected).</p>`
+      : "";
+
+    preview.innerHTML = `
+      <div class="hub-photo-grid">
+        ${files.map(f => `<img src="${URL.createObjectURL(f)}" alt="" class="hub-photo-thumb">`).join("")}
+      </div>${extra}`;
+  });
+
+  // ---- Video preview ----
+
+  document.getElementById("hub-video-input").addEventListener("change", function () {
+    const preview = document.getElementById("hub-video-preview");
+    const file    = this.files[0];
+    if (!file) { preview.innerHTML = ""; return; }
+
+    const MAX = 150 * 1024 * 1024;
+    if (file.size > MAX) {
+      preview.innerHTML = `<p class="hub-admin-hint" style="color:var(--danger,#c53030);">
+        File is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Max 150 MB.</p>`;
+      this.value = "";
+      return;
+    }
+
+    const sizeMb = (file.size / 1024 / 1024).toFixed(1);
+    preview.innerHTML = `
+      <video class="hub-video-thumb" controls preload="metadata"
+             src="${URL.createObjectURL(file)}"></video>
+      <p class="hub-admin-hint">${escapeHtml(file.name)} — ${sizeMb} MB</p>`;
+  });
+
+  // ---- YouTube / Vimeo preview ----
+
+  function updateYtPreview() {
+    const val     = document.getElementById("hub-yt-input").value.trim();
+    const preview = document.getElementById("hub-yt-preview");
+    if (!val) { preview.innerHTML = ""; return; }
+    const embed = youtubeEmbedUrl(val);
+    if (embed) {
+      preview.innerHTML = `
+        <div class="hub-yt-preview-wrap">
+          <iframe src="${embed}" frameborder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media;
+                         gyroscope; picture-in-picture"
+                  allowfullscreen></iframe>
+        </div>`;
+    } else {
+      preview.innerHTML = `<p class="hub-admin-hint" style="color:var(--danger,#c53030);">
+        Not a recognised YouTube or Vimeo URL.</p>`;
+    }
+  }
+
+  document.getElementById("hub-yt-input").addEventListener("blur",  updateYtPreview);
+  document.getElementById("hub-yt-input").addEventListener("keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); updateYtPreview(); }
   });
 
   // ---- Publish ----
@@ -308,21 +464,15 @@ export default function init(config) {
   document.getElementById("hub-admin-submit").addEventListener("click", handlePublish);
 
   async function handlePublish() {
-    const titleVal   = document.getElementById("hub-admin-title-input").value.trim();
-    const contentVal = document.getElementById("hub-admin-content").value.trim();
-    const bookId     = parseInt(document.getElementById("hub-admin-section").value, 10);
-    const files      = document.getElementById("hub-admin-files").files;
-    const statusEl   = document.getElementById("hub-admin-status");
-    const submitBtn  = document.getElementById("hub-admin-submit");
+    const titleVal  = document.getElementById("hub-admin-title-input").value.trim();
+    const bodyVal   = document.getElementById("hub-admin-content").value.trim();
+    const bookId    = parseInt(document.getElementById("hub-admin-section").value, 10);
+    const statusEl  = document.getElementById("hub-admin-status");
+    const submitBtn = document.getElementById("hub-admin-submit");
 
     if (!titleVal) {
       showPublishStatus("Please enter a title.", "error");
       document.getElementById("hub-admin-title-input").focus();
-      return;
-    }
-    if (!contentVal) {
-      showPublishStatus("Please enter some content.", "error");
-      document.getElementById("hub-admin-content").focus();
       return;
     }
 
@@ -330,29 +480,44 @@ export default function init(config) {
     statusEl.className = "hub-status";
 
     try {
-      const page = await createPage(bookId, titleVal, textToHtml(contentVal));
+      let mediaHtml = "";
 
-      if (files.length > 0) {
-        setSubmitBusy(true, `Uploading ${files.length} file(s)…`);
-        let failed = 0;
-        for (const file of files) {
-          try {
-            await uploadAttachment(page.id, file.name, file);
-          } catch {
-            failed++;
+      const photoArea = document.getElementById("hub-photo-area");
+      const videoArea = document.getElementById("hub-video-area");
+      const ytArea    = document.getElementById("hub-yt-area");
+
+      if (!photoArea.hidden) {
+        const files = Array.from(document.getElementById("hub-photo-input").files).slice(0, 4);
+        if (files.length) {
+          setSubmitBusy(true, `Uploading ${files.length} image(s)…`);
+          const urls = await uploadImages(files);
+          mediaHtml = `<div class="hub-media-grid">${urls.map(u => `<img src="${u}" alt="">`).join("")}</div>`;
+        }
+      } else if (!videoArea.hidden) {
+        const file = document.getElementById("hub-video-input").files[0];
+        if (file) {
+          setSubmitBusy(true, "Uploading video…");
+          const url = await uploadVideoFile(file);
+          mediaHtml = `<div class="hub-media-video"><video controls preload="metadata" src="${url}"></video></div>`;
+        }
+      } else if (!ytArea.hidden) {
+        const url = document.getElementById("hub-yt-input").value.trim();
+        if (url) {
+          const embed = youtubeEmbedUrl(url);
+          if (embed) {
+            mediaHtml = `<div class="hub-media-video"><iframe src="${embed}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`;
           }
         }
-        showPublishStatus(
-          failed > 0
-            ? `Page published — ${failed}/${files.length} file(s) failed to upload.`
-            : `Published with ${files.length} attachment(s). Hit Refresh to see it.`,
-          "success"
-        );
-      } else {
-        showPublishStatus("Page published! Hit the Refresh button on the section to see it.", "success");
       }
 
+      const bodyHtml = bodyVal ? `<div class="hub-post-body">${textToHtml(bodyVal)}</div>` : "";
+      const pageHtml = mediaHtml + bodyHtml || "<p></p>";
+
+      await createPage(bookId, titleVal, pageHtml);
+
+      showPublishStatus("Published! Refreshing announcements…", "success");
       clearPublishForm();
+      window.__hub_announcements?.refresh();
 
     } catch (err) {
       showPublishStatus(`Failed to publish: ${err.message}`, "error");
