@@ -10,8 +10,26 @@ import { escapeHtml, renderSkeleton, renderError } from "../utils/dom.js";
 import { setStatus }        from "./topbar.js";
 import CONFIG               from "../config.js";
 
-const SECTION_ID = "section-knowledgebase";
-const CARDS_ID   = "kb-cards";
+const SECTION_ID  = "section-kb";
+const CARDS_ID    = "kb-cards";
+const BACK_BTN_ID = "kb-back-btn";
+
+// ---- Page visibility ----------------------------------------
+
+function showKbPage() {
+  const main = document.querySelector(".main");
+  if (!main) return;
+  main.classList.remove("fees-active", "aml-active", "staff-active");
+  main.classList.add("kb-active");
+  document.dispatchEvent(new CustomEvent("hub:navchange", { detail: { section: "kb" } }));
+}
+
+function hideKbPage() {
+  document.querySelector(".main")?.classList.remove("kb-active");
+  document.dispatchEvent(new CustomEvent("hub:navchange", { detail: { section: "home" } }));
+}
+
+window.__hub_kb = { show: showKbPage, hide: hideKbPage };
 
 /** Renders one department book card.
  *  Clicking dispatches hub:openBook so the in-app reader handles it.
@@ -106,9 +124,18 @@ export default async function init(_config) {
   section.innerHTML = `
     <div class="hub-section">
       <div class="section-header">
-        <div>
-          <h2 class="section-title">Knowledge Base</h2>
-          <p class="section-subtitle">Department manuals, procedures and documentation</p>
+        <div class="kb-header-left">
+          <button class="kb-back-btn" id="${BACK_BTN_ID}" aria-label="Back to Hub">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"/>
+              <polyline points="12 19 5 12 12 5"/>
+            </svg>
+          </button>
+          <div>
+            <h2 class="section-title">Knowledge Base</h2>
+            <p class="section-subtitle">Department manuals, procedures and documentation</p>
+          </div>
         </div>
         <a class="btn-refresh" href="${CONFIG.BASE_URL}" target="_blank" rel="noopener"
            style="text-decoration:none; color:#000;">
@@ -117,6 +144,11 @@ export default async function init(_config) {
       </div>
       <div id="${CARDS_ID}"></div>
     </div>`;
+
+  document.getElementById(BACK_BTN_ID)?.addEventListener("click", () => {
+    hideKbPage();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
 
   await load();
 }

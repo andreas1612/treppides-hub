@@ -202,6 +202,45 @@
 }
 
 /* ============================================================
+   KNOWLEDGE BASE — dedicated full-page view
+   Same show/hide pattern as staff-active and aml-active.
+   ============================================================ */
+#section-kb {
+  display: none;
+  padding: var(--page-gutter, 32px);
+}
+
+.main.kb-active .page-content   { display: none !important; }
+.main.kb-active .reader-overlay { display: none !important; }
+.main.kb-active #section-kb     { display: block !important; }
+
+.kb-header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.kb-back-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.kb-back-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+  background: rgba(0, 0, 0, .02);
+}
+.kb-back-btn svg { width: 18px; height: 18px; }
+
+/* ============================================================
    MOBILE — sidebar collapses to top nav bar on < 768px
    ============================================================ */
 .mobile-topbar {

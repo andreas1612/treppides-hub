@@ -38,11 +38,14 @@ async function boot() {
   // calls window.__hub_aml.show(), which aml.js exposes during init.
   await initAml(CONFIG);
 
+  // Knowledge Base must be ready before sidebar clicks fire — sidebar.js
+  // calls window.__hub_kb.show(), which knowledgebase.js exposes during init.
+  await initKnowledgeBase(CONFIG);
+
   // Content sections — initialise in visual page order.
   // Each runs independently; a failure in one does not block others.
   await Promise.allSettled([
     initAnnouncements(CONFIG),
-    initKnowledgeBase(CONFIG),
     initStaff(CONFIG),
     initPolicies(CONFIG),
     initTraining(CONFIG),

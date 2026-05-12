@@ -160,9 +160,9 @@ export default async function init(config) {
           ${ICONS.home} Home
         </a>
 
-        <a class="nav-item" id="sb-kb" href="#section-knowledgebase">
+        <button class="nav-item nav-btn" id="sb-kb">
           ${ICONS.book} Knowledge Base
-        </a>
+        </button>
 
         <button class="nav-item nav-btn" id="sb-staff">
           ${ICONS.person} Staff Directory
@@ -199,17 +199,14 @@ export default async function init(config) {
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
-    // KB link: go home, hide overlay pages, scroll to KB
-    document.getElementById("sb-kb")?.addEventListener("click", e => {
-      e.preventDefault();
-      if (window.__hub_fees)  window.__hub_fees.hide();
-      if (window.__hub_aml)   window.__hub_aml.hide();
-      if (window.__hub_staff) window.__hub_staff.hide();
+    // KB link: open dedicated Knowledge Base page view
+    document.getElementById("sb-kb")?.addEventListener("click", () => {
       if (window.__hub_reader) window.__hub_reader.goHome();
-      setTimeout(() => {
-        document.getElementById("section-knowledgebase")
-          ?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 50);
+      if (window.__hub_fees)   window.__hub_fees.hide();
+      if (window.__hub_aml)    window.__hub_aml.hide();
+      if (window.__hub_staff)  window.__hub_staff.hide();
+      if (window.__hub_kb)     window.__hub_kb.show();
+      window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
     // Staff Directory link: open dedicated staff page view
@@ -264,9 +261,9 @@ export default async function init(config) {
       <!-- Mobile nav drawer -->
       <div class="mobile-nav" id="mobile-nav">
         <a class="nav-item" id="mb-home" href="#">${ICONS.home} Home</a>
-        <a class="nav-item" id="mb-kb" href="#section-knowledgebase">
+        <button class="nav-item nav-btn" id="mb-kb">
           ${ICONS.book} Knowledge Base
-        </a>
+        </button>
         <button class="nav-item nav-btn" id="mb-staff">
           ${ICONS.person} Staff Directory
         </button>
@@ -296,17 +293,14 @@ export default async function init(config) {
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
-    document.getElementById("mb-kb")?.addEventListener("click", e => {
-      e.preventDefault();
+    document.getElementById("mb-kb")?.addEventListener("click", () => {
       document.getElementById("mobile-nav")?.classList.remove("open");
-      if (window.__hub_fees)  window.__hub_fees.hide();
-      if (window.__hub_aml)   window.__hub_aml.hide();
-      if (window.__hub_staff) window.__hub_staff.hide();
       if (window.__hub_reader) window.__hub_reader.goHome();
-      setTimeout(() => {
-        document.getElementById("section-knowledgebase")
-          ?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 50);
+      if (window.__hub_fees)   window.__hub_fees.hide();
+      if (window.__hub_aml)    window.__hub_aml.hide();
+      if (window.__hub_staff)  window.__hub_staff.hide();
+      if (window.__hub_kb)     window.__hub_kb.show();
+      window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
     document.getElementById("mb-staff")?.addEventListener("click", () => {
