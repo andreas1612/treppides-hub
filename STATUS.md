@@ -1,6 +1,6 @@
 # STATUS — Treppides Hub
 
-**Last updated: 2026-05-11 (session 7)**
+**Last updated: 2026-05-12 (session 9)**
 **→ Start every session from [NEXT_SESSION.md](NEXT_SESSION.md)**
 
 ---
@@ -10,9 +10,9 @@
 | Service | Status | How it runs | Notes |
 |---|---|---|---|
 | **Nginx** | ✅ Running | systemd | `sudo systemctl reload nginx` after config changes |
-| **BookStack** | ✅ Running | Docker `bookstack` | Up 5+ weeks |
-| **MariaDB** | ✅ Running | Docker `bookstack_db` | Up 5+ weeks |
-| **ClickUp Fees API** | ✅ Running | systemd `clickup-fees` | Installed session 4 — survives reboots |
+| **BookStack** | ✅ Running | Docker `bookstack` | |
+| **MariaDB** | ✅ Running | Docker `bookstack_db` | |
+| **ClickUp Fees + Upload API** | ✅ Running | systemd `clickup-fees` (port 8001) | Serves AML data + media upload endpoints |
 
 ---
 
@@ -20,86 +20,76 @@
 
 | Section | Status | Source | Notes |
 |---|---|---|---|
-| Announcements | ✅ Live | BookStack book 58 | Shows last 5 pages |
-| Knowledge Base | ✅ Live | BookStack shelf 57 | All 12 dept books |
-| Policies & Procedures | ✅ Live | BookStack book 3 | Shows last 3 pages |
-| Training & Development | ✅ Live | BookStack book 59 | Shows last 3 pages |
-| Quick Links | ✅ Live | — | KB + Projects (placeholder) + IT Support |
+| Announcements | ✅ Live | BookStack book 58 | Social post feed, 10 posts, inline images/video |
+| Knowledge Base | ✅ Live | BookStack shelf 57 | 12 dept books, dedicated full-page view |
+| Policies & Procedures | ✅ Live | BookStack book 3 | Card feed |
+| Training & Development | ✅ Live | BookStack book 59 | Card feed |
+| Quick Links | ✅ Live | — | KB / Projects / IT Support |
 | In-app Reader | ✅ Live | BookStack API | PDF preview, chapters, pushState routing |
-| AML Dashboard | ✅ Live | ClickUp → FastAPI | 3 lists (new/rejected/disengaged), chart + drilldown |
-| New Client UBO Fees | ✅ Live | ClickUp → FastAPI | 5 months data, per-year aggregate tabs, CSV export |
-| Staff Directory | ✅ Live | /staff.json | Accordion, Nicosia/Limassol filter, name search |
-| Admin Panel | ✅ Live | BookStack API | PIN-protected, publish/delete/upload |
-| IT Support Modal | ✅ Live | FormSubmit → email | Forwards to apieri@treppides.com |
+| AML Dashboard | ✅ Live | ClickUp → FastAPI | 3 lists (new/rejected/disengaged) |
+| Fees Dashboard | ✅ Live | ClickUp → FastAPI | Chart, drilldown, CSV export |
+| Staff Directory | ✅ Live | /staff.json | Accordion, search, dept filter |
+| Admin Panel | ✅ Live | BookStack API + upload API | PIN-protected, photo/video/YouTube media composer |
+| IT Support Modal | ✅ Live | FormSubmit → email | → apieri@treppides.com |
 | Search | ✅ Live | BookStack full-text | Topbar, 400ms debounce |
+| Projects | ⏳ Stub | — | "Under development" placeholder |
 
 ---
 
-## HTTPS / SSL Status
+## HTTPS / SSL
 
 | Item | Status | Notes |
 |---|---|---|
-| SSL certificate | ✅ Received | Sectigo wildcard `*.treppides.com` — in `TREPPIDES.zip` on laptop |
-| Cert chain built | ✅ Done | `/etc/nginx/ssl/treppides_chain.crt` — valid until 22 Nov 2026 |
-| nginx HTTPS config | ✅ Live | Deployed to `/etc/nginx/sites-enabled/treppides-hub` |
-| Internal DNS record | ⏳ Pending | `hub.treppides.com` → `192.168.0.221` — add to office DNS/router |
-| config.js BASE_URL | ✅ Done | Updated to `https://hub.treppides.com/docs` |
+| SSL certificate | ✅ Live | Sectigo wildcard `*.treppides.com` — valid until 22 Nov 2026 |
+| Cert chain | ✅ Live | `/etc/nginx/ssl/treppides_chain.crt` |
+| nginx HTTPS config | ✅ Live | Deployed at `/etc/nginx/sites-enabled/treppides-hub` |
+| Internal DNS | ⏳ Pending | Add A record: `hub.treppides.com` → `192.168.0.221` on office DNS/router |
+| config.js BASE_URL | ✅ Done | `https://hub.treppides.com/docs` |
+
+---
+
+## Nginx Routing
+
+| Path | Target | Notes |
+|---|---|---|
+| `http://*` (port 80) | → HTTPS redirect | |
+| `/` | `~/treppides-hub` | SPA, try_files |
+| `/docs/*` | `localhost:6875` | BookStack Docker |
+| `/api/clickup/*` | `localhost:8001` | FastAPI fees data |
+| `/api/upload/*` | `localhost:8001` | FastAPI media upload |
+| `/media/` | `~/treppides-hub/media/` | Static uploaded files, 7d cache |
+| `/projects` | `localhost:3000` | OpenProject (not deployed yet) |
 
 ---
 
 ## Credentials & Expiry
 
-| Item | Value | Expires | Action when expired |
-|---|---|---|---|
-| BookStack API token | `th0aMsvxEBeW86m52FuLs20hYfiBZB6e` | **15/08/2026** | BookStack admin → My Account → API Tokens → rotate → update config.js |
-| ClickUp API token | `pk_93846472_...` (in `api/clickup/.env`) | Never | Regenerate in ClickUp settings if revoked |
-| SSL cert (*.treppides.com) | Sectigo wildcard | **Check cert — typically 1 year from issue** | Re-issue from Sectigo with same CSR or new CSR |
-
----
-
-## Nginx Routing (post-HTTPS)
-
-| Path | Proxied to | Notes |
+| Item | Expires | Action |
 |---|---|---|
-| `http://*` (port 80) | Redirect → HTTPS | All HTTP auto-redirects to https://hub.treppides.com |
-| `https://hub.treppides.com/` | `~/treppides-hub` (files) | SPA — `try_files` → index.html |
-| `https://hub.treppides.com/docs/*` | `localhost:6875` | BookStack Docker |
-| `https://hub.treppides.com/api/clickup/*` | `localhost:8001` | ClickUp Fees API |
-| `https://hub.treppides.com/projects` | `localhost:3000` | OpenProject (not yet deployed) |
-
-Config file: `/etc/nginx/sites-enabled/treppides-hub`
-Repo copy: `nginx-treppides-hub.conf` — edit this, then `sudo cp` and `sudo systemctl reload nginx`
-
----
-
-## SSL Certificates on Server (after install)
-
-| File | Path | Notes |
-|---|---|---|
-| Certificate chain | `/etc/nginx/ssl/treppides_chain.crt` | STAR cert + 3 Sectigo intermediates, in order |
-| Private key | `/etc/nginx/ssl/treppides.key` | `chmod 600`, owned by root — never copy elsewhere |
+| BookStack API token | **15/08/2026** | BookStack admin → My Account → API Tokens → rotate → update config.js |
+| ClickUp API token | Never | Regenerate in ClickUp settings if revoked |
+| SSL cert (*.treppides.com) | **22/11/2026** | Re-issue from Sectigo |
 
 ---
 
 ## Known Issues
 
-| # | Severity | Description | Fix |
-|---|---|---|---|
-| 1 | Low | Reader nav hidden on mobile — no mobile support planned | N/A |
-| 2 | Low | Sidebar Home always `.active` — never updates | Acceptable for now |
-| 3 | Info | `--brand-green` CSS vars defined but unused | Reserved for future |
-| 4 | Medium | BookStack token plaintext in config.js | Mitigated: gitignored, read-only, LAN-only |
-| 5 | Low | Projects link goes nowhere | Blocked on OpenProject deployment |
+| # | Severity | Description |
+|---|---|---|
+| 1 | Low | Reader nav hidden on mobile — out of scope |
+| 2 | Low | Sidebar Home always `.active` on first load — acceptable |
+| 3 | Info | `--brand-green` CSS vars defined but unused — reserved |
+| 4 | Medium | BookStack token plaintext in config.js — mitigated: gitignored, LAN-only |
+| 5 | Low | Projects sidebar link → stub page only |
 
 ---
 
 ## What Is NOT Done Yet
 
-| Feature | Priority | Blocked on |
+| Feature | Priority | Notes |
 |---|---|---|
-| HTTPS live on server | **DNS only** | Add A record: hub.treppides.com → 192.168.0.221 on office DNS/router |
-| Real Treppides logo in sidebar | High | Logo asset — check GitHub gallery (2 latest additions) |
-| OpenProject at `/projects` | High | Docker setup on VM |
-| Mobile reader navigation | Medium | Dev time |
-| LDAP / SSO auth | Low | Phase 2 post-launch |
-| API token server-side proxy | Low | Phase 2 — low risk on LAN |
+| Internal DNS record | **Do this now** | Add A record `hub.treppides.com` → `192.168.0.221` on office DNS/router |
+| OpenProject at `/projects` | High | `~/openproject/docker-compose.yml` already on server |
+| Mobile reader navigation | Medium | Drawer/bottom sheet |
+| LDAP/SSO auth | Low | Phase 2 |
+| API token server-side proxy | Low | Phase 2 |

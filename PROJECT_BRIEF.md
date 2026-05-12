@@ -2,8 +2,9 @@
 > Paste this at the start of a new chat and say "continue the Treppides Hub project"
 
 **Status: LIVE IN PRODUCTION — fully operational**
-**Last session: 2026-05-06 (session 4)**
+**Last session: 2026-05-12 (session 9)**
 **Server: 192.168.0.221 (tech-srv) · User: tech-admin**
+**Live URL: https://hub.treppides.com**
 
 ---
 
@@ -11,7 +12,7 @@
 
 **Name:** Treppides Company Hub
 **Owner:** Andreas Pieri
-**Purpose:** Self-hosted internal employee portal replacing SharePoint. Staff land here daily. Pulls live content from BookStack (wiki/KB backend) and ClickUp (fees dashboard). LAN-only — no external exposure. No domain yet.
+**Purpose:** Self-hosted internal employee portal replacing SharePoint. Staff land here daily. Pulls live content from BookStack (wiki/KB backend) and ClickUp (fees dashboard). LAN-only.
 
 ---
 
@@ -19,16 +20,20 @@
 
 | Feature | Status |
 |---|---|
-| Announcements feed (BookStack) | ✅ Live |
-| Knowledge Base — department books grid | ✅ Live |
-| In-app BookStack reader (PDF preview, chapters) | ✅ Live |
+| Announcements feed — social post style (images/video inline) | ✅ Live |
+| Knowledge Base — department books grid, dedicated full-page | ✅ Live |
+| In-app BookStack reader (PDF preview, chapters, pushState routing) | ✅ Live |
 | Policies & Procedures feed | ✅ Live |
 | Training & Development feed | ✅ Live |
 | Quick links widget (KB, Projects, IT Support) | ✅ Live |
-| New Client UBO Fees dashboard (ClickUp) | ✅ Live |
-| Admin panel (PIN-protected, publish/delete/upload) | ✅ Live |
-| IT Support ticket modal (FormSubmit) | ✅ Live |
-| Live search (BookStack full-text) | ✅ Live |
+| Staff Directory — accordion, search, department filter | ✅ Live |
+| AML Dashboard (ClickUp — new/rejected/disengaged) | ✅ Live |
+| New Client UBO Fees dashboard (chart, drilldown, CSV export) | ✅ Live |
+| Admin panel — PIN, publish with media (photo/video/YouTube), delete | ✅ Live |
+| IT Support ticket modal (FormSubmit → email) | ✅ Live |
+| Live search (BookStack full-text, topbar) | ✅ Live |
+| Projects page — stub ("under development") | ✅ Visible |
+| HTTPS — Sectigo wildcard *.treppides.com | ✅ Live |
 
 ---
 
@@ -36,10 +41,12 @@
 
 - **Frontend:** Vanilla HTML/CSS/JS — zero dependencies, no build step, ES modules
 - **Backend (wiki):** BookStack (PHP/Laravel) in Docker, port 6875, proxied at `/docs/*`
-- **Backend (fees):** FastAPI Python, systemd service, port 8001, proxied at `/api/clickup/*`
-- **Web server:** Nginx on host, port 80
+- **Backend (fees + uploads):** FastAPI Python, systemd `clickup-fees`, port 8001
+  - proxied at `/api/clickup/*` and `/api/upload/*`
+- **Static media:** uploaded images/videos served at `/media/` from `~/treppides-hub/media/`
+- **Web server:** Nginx — HTTPS termination, SPA routing, all proxy blocks
 - **Database:** MariaDB in Docker (BookStack data)
-- **Deployment:** `git push` → live immediately (nginx serves repo dir directly)
+- **Deployment:** `git push` from server → live immediately (nginx serves repo dir directly)
 - **Vendor libs:** Chart.js + datalabels bundled in `/vendor/` (no CDN)
 
 ---
@@ -47,12 +54,16 @@
 ## Infrastructure
 
 ```
-VM: 192.168.0.221 (tech-srv) — Ubuntu Server — 3 devs with SSH access
+VM: 192.168.0.221 (tech-srv) — Ubuntu Server 24.04
 
-nginx (port 80)
-  /               → ~/treppides-hub (this repo)
-  /docs/*         → localhost:6875 (BookStack Docker)
-  /api/clickup/*  → localhost:8001 (ClickUp Fees API systemd service)
+nginx (HTTPS :443)
+  /                → ~/treppides-hub (SPA, try_files → index.html)
+  /docs/*          → localhost:6875 (BookStack Docker)
+  /api/clickup/*   → localhost:8001 (FastAPI)
+  /api/upload/*    → localhost:8001 (FastAPI — media uploads)
+  /media/          → ~/treppides-hub/media/ (static uploaded files)
+  /projects        → localhost:3000 (OpenProject — not yet deployed)
+  http :80         → redirect → HTTPS
 ```
 
 **Services:**
@@ -60,109 +71,109 @@ nginx (port 80)
 - `sudo systemctl start|stop|restart clickup-fees`
 - `cd ~/bookstack && sudo docker compose up -d`
 
-**Fresh VM:** `bash ~/treppides-hub/SETUP.sh`
-
----
-
-## Session Log
-
-### 2026-05-06 (session 4) — Infrastructure fixes, fees dashboard operational
-
-- BookStack API token expired → rotated. New token expires **15/08/2026**.
-- ClickUp Fees API was never persistent — installed as systemd service (`clickup-fees.service`)
-- `localhost` bug: `fees.js` was fetching `localhost:8001` which fails in all non-VM browsers → fixed to relative `/api/clickup/fees` via nginx proxy
-- Chart.js was loading from CDN → bundled locally in `vendor/` (LAN browsers may have no internet)
-- `SETUP.sh` written for full VM provisioning in one command
-
-### 2026-04-07 (session 3) — Admin panel + IT Support modal
-
-- `components/admin.js` — PIN-protected publisher; creates/deletes/uploads to BookStack
-- `components/support.js` — IT Support ticket modal; FormSubmit → email
-- `styles/modals.css` — shared modal styles
-- `api/bookstack.js` — added `createPage`, `deletePage`, `uploadAttachment`
-
-### 2026-04-07 (session 2.5) — Fees dashboard v3
-
-- `components/fees.js` — full-page ClickUp fees dashboard: KPI cards, month tabs, per-UBO/per-company toggle, horizontal bar chart, drill-down table
-- `api/clickup/server.py` — FastAPI backend; fetches all ClickUp tasks, flattens custom fields, 5-min cache
-- `styles/fees.css` — all fees styles
-
-### 2026-04-03 (session 2) — Credential hygiene
-
-- `config.js` gitignored; `config.example.js` committed
-- Hardcoded IPs removed from `reader.js`
-
-### 2026-04-03 (session 1) — Reader + KB
-
-- `components/knowledgebase.js`, `components/reader.js`, `styles/reader.css`
-- Full in-app reader: breadcrumbs, chapters, pushState routing, PDF blob preview
-
 ---
 
 ## File Structure
 
 ```
 treppides-hub/
-├── index.html, main.js           Shell + entry point
-├── config.js                     All config — GITIGNORED, never committed
-├── config.example.js             Template — copy to config.js on new VM
-├── SETUP.sh                      Full VM provisioning script
-├── nginx-treppides-hub.conf      Nginx config (copy to /etc/nginx/sites-enabled/)
-├── clickup-fees.service          systemd service (copy to /etc/systemd/system/)
-├── components/                   All UI components (one file per section)
-│   ├── fees.js                   UBO Fees dashboard
-│   ├── reader.js                 In-app BookStack reader
-│   ├── admin.js                  PIN-protected content admin
-│   ├── support.js                IT Support ticket modal
-│   └── [sidebar, topbar, announcements, knowledgebase, policies, training, quicklinks]
+├── index.html, main.js
+├── config.js                        GITIGNORED — only on server
+├── config.example.js
+├── nginx-treppides-hub.conf         deploy: sudo cp → /etc/nginx/sites-enabled/ + reload
+├── clickup-fees.service
+├── staff.json                       static staff data
+├── media/
+│   ├── images/                      GITIGNORED
+│   └── videos/                      GITIGNORED
+├── components/
+│   ├── shell/    sidebar.js, topbar.js, admin.js, support.js
+│   ├── pages/    aml.js, fees.js, knowledgebase.js, projects.js, reader.js, staff.js
+│   └── widgets/  announcements.js, policies.js, training.js, quicklinks.js
 ├── api/
-│   ├── bookstack.js              11 BookStack API functions
-│   ├── mock.js                   Dev mock data (USE_MOCK=false in production)
-│   └── clickup/
-│       ├── server.py             FastAPI fees backend
-│       ├── .env                  ClickUp token + list ID (GITIGNORED)
-│       └── venv/                 Python venv (GITIGNORED)
-├── styles/                       [theme, base, layout, cards, reader, modals, fees]
-└── vendor/                       chart.umd.min.js + chartjs-plugin-datalabels.min.js
+│   ├── bookstack.js
+│   └── clickup/server.py            FastAPI: fees data + /api/upload/image + /api/upload/video
+├── styles/
+│   ├── theme.css, base.css, layout.css, cards.css, modals.css
+│   ├── pages/    aml.css, fees.css, knowledgebase.css, reader.css, staff.css
+│   └── widgets/  announcements.css
+├── utils/
+│   ├── dom.js    escapeHtml, renderSkeleton, renderError, renderEmpty
+│   └── format.js formatDate, excerptFromHtml
+└── vendor/       Chart.js + datalabels (bundled, no CDN)
 ```
 
 ---
 
 ## config.js Keys
 
-| Key | Value / Notes |
+| Key | Value |
 |---|---|
-| `BASE_URL` | `http://192.168.0.221/docs` |
-| `API_TOKEN_ID` | BookStack token — expires 15/08/2026 |
+| `BASE_URL` | `https://hub.treppides.com/docs` |
+| `API_TOKEN_ID` | BookStack token — **expires 15/08/2026** |
 | `API_TOKEN_SECRET` | In config.js on server |
 | `DEPARTMENTS_SHELF_ID` | `57` |
 | `ANNOUNCEMENTS_BOOK_ID` | `58` |
 | `POLICIES_BOOK_ID` | `3` |
 | `TRAINING_BOOK_ID` | `59` |
-| `CLICKUP_FEES_API` | `/api/clickup/fees` (relative, nginx-proxied) |
+| `CLICKUP_FEES_API` | `/api/clickup/fees` |
 | `ENV_LIVE` | `true` |
-| `SEARCH_ENABLED` | `true` |
 | `ADMIN_PIN` | Set on server |
 | `SUPPORT_EMAIL` | `apieri@treppides.com` |
 
 ---
 
-## Critical Rules for Developers
+## Session Log
 
-1. **Never use `localhost` in frontend code** — browsers on other LAN machines will hit their own localhost, not the VM. Use relative paths (`/api/...`) which nginx proxies correctly.
-2. **config.js is gitignored** — it exists only on the server. Never commit it.
-3. **No build step** — drop files in the repo, push, done. nginx serves directly.
-4. **BookStack token expires** — check expiry date in config.js comments. Rotate in BookStack admin before it expires.
-5. **Chart.js is in vendor/** — do not switch back to CDN. LAN browsers may have no internet.
+### 2026-05-12 (session 9) — Social announcements + media upload infrastructure
+
+- Announcements redesigned as social post feed (LinkedIn/FB style, 10 posts, inline media)
+- Admin panel: media composer — Photo / Video (≤150MB) / YouTube+Vimeo with live previews
+- FastAPI: `/api/upload/image` and `/api/upload/video` endpoints
+- Nginx: `/media/` static block, `/api/upload/` proxy, `client_max_body_size 160m`
+- `window.__hub_announcements.refresh()` exposed; auto-called after admin publish
+- New: `styles/widgets/announcements.css`
+
+### 2026-05-12 (session 8) — File structure refactor
+
+- `components/` split into `shell/`, `pages/`, `widgets/`
+- `styles/` split into `pages/`, `widgets/`
+- All import paths updated — pure structural move, no logic changes
+
+### 2026-05-11 (session 7) — HTTPS, Staff Directory, AML multi-list, Projects stub
+
+- Sectigo wildcard cert deployed, nginx HTTPS live at `hub.treppides.com`
+- Staff Directory built (`staff.js`, `staff.css`, `staff.json`)
+- AML multi-list landing (new/rejected/disengaged)
+- KB, Staff, AML, Projects moved to dedicated full-page views
+- Active nav state via `hub:navchange` events
+
+### 2026-05-06 (sessions 4–6) — Infrastructure, fees dashboard, admin
+
+- FastAPI as systemd service, Chart.js bundled in `vendor/`
+- Admin panel, IT Support modal, Fees dashboard v3 (chart, CSV export)
+
+### 2026-04-03 (sessions 1–3) — Core portal
+
+- Announcements, Policies, Training, KB, In-app Reader, BookStack API, credential hygiene
 
 ---
 
-## Next Features — Priority Order
+## Critical Rules
 
-1. **Treppides logo** — replace SVG globe in sidebar with real logo asset
-2. **OpenProject** — deploy at `192.168.0.221/projects`; update `PROJECTS_URL`
-3. **Mobile reader nav** — reader sidebar hidden on mobile, needs drawer/bottom sheet
-4. **Active nav routing** — sidebar active class should reflect current section
-5. **SSL / HTTPS** — Let's Encrypt once a domain is confirmed
-6. **LDAP/SSO auth** — Phase 2 post-launch
-7. **Credential migration** — server-side proxy so BookStack token never reaches browser
+1. **Never `localhost` in frontend** — use relative paths. Nginx proxies everything.
+2. **`config.js` is gitignored** — only on server. Never commit.
+3. **No build step** — edit, push, hard-refresh. Done.
+4. **BookStack token expires 15/08/2026** — rotate in BookStack admin → API Tokens.
+5. **Chart.js in `vendor/`** — never use CDN.
+6. **SSL private key** — `/etc/nginx/ssl/treppides.key`, chmod 600, never commit.
+7. **`media/` dirs gitignored** — uploaded files live only on server.
+
+---
+
+## Next Features
+
+1. **OpenProject** — deploy at `/projects` (docker-compose at `~/openproject/`)
+2. **Mobile reader navigation** — drawer/bottom sheet
+3. **LDAP/SSO auth** — Phase 2
+4. **API token server-side proxy** — Phase 2

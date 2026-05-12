@@ -10,32 +10,40 @@
 | What | Where |
 |---|---|
 | Full project context, tech stack, rules | [PROJECT_BRIEF.md](PROJECT_BRIEF.md) |
-| Infrastructure, config, troubleshooting | [README.md](README.md) |
 | Current live status of all services | [STATUS.md](STATUS.md) |
 | Full VM provisioning (fresh install) | `bash SETUP.sh` |
 
-**Server:** `ssh tech-admin@192.168.0.221`
-**Hub live at:** https://hub.treppides.com (HTTPS live — DNS record needed on office router/AD DNS)
-**Direct IP:** https://192.168.0.221 (works now, cert warning expected — use hostname after DNS)
-**Repo:** `git@github.com:andreas1612/treppides-hub.git`
+**Server:** `192.168.0.221` · Claude runs directly on the server — no SSH needed
+**Live URL:** https://hub.treppides.com
+**Repo:** `~/treppides-hub` (git, origin = github.com:andreas1612/treppides-hub)
 
 ---
 
-## Last Session — 2026-05-11 (Session 7)
+## Last Session — 2026-05-12 (Session 9)
 
 **What was done:**
-- Copied certs from laptop to server, built cert chain at `/etc/nginx/ssl/treppides_chain.crt`
-- Private key at `/etc/nginx/ssl/treppides.key` — chmod 600, root owned
-- Deployed nginx HTTPS config — HTTP→HTTPS redirect live, security headers set
-- Updated `config.js` BASE_URL/DOCS_URL to `https://hub.treppides.com/docs`
-- Verified: `curl -sk https://192.168.0.221/ | grep "<title>"` returns hub title with valid cert
-- Cert: Sectigo wildcard `*.treppides.com`, valid until 22 Nov 2026
+- Announcements redesigned as social post feed (LinkedIn/FB style)
+  - Inline images (single + grid up to 4), uploaded video, YouTube/Vimeo embeds
+  - 10 posts shown (was 5)
+- Admin panel: media composer added to Publish tab
+  - Photo button → file picker → thumbnail preview grid
+  - Video button → file picker → inline video preview (validates ≤150MB)
+  - YouTube/Vimeo button → URL input → live iframe preview
+  - On publish: uploads media first → gets URLs → embeds in BookStack page HTML
+  - Auto-refreshes announcements feed after publish
+- FastAPI (`clickup-fees`): `/api/upload/image` and `/api/upload/video` endpoints
+- Nginx: `/media/` static block, `/api/upload/` proxy, `client_max_body_size 160m`
+- `styles/widgets/announcements.css` created
+- `media/images/` and `media/videos/` added to `.gitignore`
 
-**HTTPS is fully live. One thing remaining: DNS.**
+**Pending (needs sudo from terminal):**
+```bash
+sudo systemctl restart clickup-fees   # pick up new upload endpoints in server.py
+```
 
 ---
 
-## Priority 1 — DNS Record (5-minute task)
+## Priority 1 — DNS Record (5-minute task, just needs office router access)
 
 Add an A record to the **office router / Active Directory DNS**:
 
@@ -43,78 +51,54 @@ Add an A record to the **office router / Active Directory DNS**:
 |---|---|---|---|
 | A | `hub.treppides.com` | `192.168.0.221` | 300 |
 
-Once added: any LAN browser hitting `https://hub.treppides.com` gets the padlock with no warning.
+Once added: any LAN browser hitting `https://hub.treppides.com` gets the padlock.
 
-**Temporary workaround** (per-PC, while waiting for DNS): add to Windows hosts file `C:\Windows\System32\drivers\etc\hosts` (requires admin):
+**Temporary workaround** (per-PC): add to Windows hosts file `C:\Windows\System32\drivers\etc\hosts`:
 ```
 192.168.0.221   hub.treppides.com
 ```
 
 ---
 
-## Priority 2 — Treppides Logo
-
-Logo assets added to GitHub repo gallery (2 latest images). Check the repo.
-
-To replace the SVG globe placeholder:
-- File: `components/sidebar.js` — `globeSvg()` function (around line 99)
-- Also update `favicon.svg` in repo root
-- Ask Claude to do this once you have the logo file path or paste the SVG/PNG
-
----
-
-## Priority 3 — OpenProject Deployment
+## Priority 2 — OpenProject Deployment
 
 Deploy OpenProject at `https://hub.treppides.com/projects`.
 
-- `docker-compose.yml` already at `~/openproject/` on server
-- nginx proxy block already in `nginx-treppides-hub.conf`
-- Run: `cd ~/openproject && sudo docker compose up -d`
-- Then: `sudo systemctl reload nginx`
+```bash
+cd ~/openproject && sudo docker compose up -d
+sudo systemctl reload nginx   # nginx config already has the /projects proxy block
+```
 
 ---
 
-## Critical Rules — Don't Forget
+## Priority 3 — Test Media Upload (after clickup-fees restart)
 
-1. **Never `localhost` in frontend code** — always relative paths (`/api/...`) or `https://hub.treppides.com`. Nginx proxies everything.
-2. **`config.js` is gitignored** — only exists on the server at `~/treppides-hub/config.js`. Never commit it.
-3. **BookStack token expires 15/08/2026** — rotate early in BookStack admin → avatar → My Account → API Tokens.
-4. **No build step** — edit files, push, done. nginx serves the repo directly. Hard-refresh browser after push.
-5. **Chart.js is in `vendor/`** — do not switch to CDN.
-6. **SSL private key** — lives only at `/etc/nginx/ssl/treppides.key` on server. `chmod 600`. Never email, never commit.
-7. **cert chain order** — STAR cert first, then intermediates in order, then root. Wrong order = SSL error.
-
----
-
-## SSL Certificate Details
-
-| Item | Value |
-|---|---|
-| Issuer | Sectigo (via CA DV R36) |
-| Type | Wildcard `*.treppides.com` |
-| Covers | `hub.treppides.com`, `docs.treppides.com`, any `*.treppides.com` |
-| Does NOT cover | `treppides.com` (bare domain — wildcard needs a subdomain) |
-| Chain files | `treppides_chain.crt` = STAR + 3 intermediates concatenated |
-| Key | `treppides.key` — from `PRIVATE KEY.txt` in TREPPIDES.zip |
-| Laptop copy | `C:\Users\Andreas.Pi\Downloads\treppides-ssl\` — delete private key from here after install |
+1. Open hub, click Admin in sidebar, enter PIN
+2. Select Announcements section
+3. Click Photo → choose an image → verify preview grid shows
+4. Publish → verify it appears in the feed with inline image
+5. Test Video and YouTube paths the same way
 
 ---
 
 ## Service Health Check
 
-Quick manual check before starting work:
 ```bash
 sudo systemctl status nginx clickup-fees --no-pager
 cd ~/bookstack && sudo docker compose ps
-curl -sk https://192.168.0.221/ | grep "<title>"
-curl -sk https://192.168.0.221/api/clickup/fees | python3 -m json.tool | head -5
-```
-
-After DNS record is set (hub.treppides.com → 192.168.0.221):
-```bash
+curl -s http://localhost:8001/health
 curl -s https://hub.treppides.com/ | grep "<title>"
 ```
 
 ---
 
-*Update this file at the end of every session with what was done and what's next.*
+## Critical Rules — Don't Forget
+
+1. **Never `localhost` in frontend** — always relative paths (`/api/...`). Nginx proxies.
+2. **`config.js` is gitignored** — only on server. Never commit.
+3. **No build step** — edit files, `git add -A && git commit && git push`, hard-refresh. Done.
+4. **BookStack token expires 15/08/2026** — rotate in BookStack admin → My Account → API Tokens.
+5. **Chart.js in `vendor/`** — do not use CDN.
+6. **SSL private key** — `/etc/nginx/ssl/treppides.key`, chmod 600, never commit/email.
+7. **`media/` dirs gitignored** — uploaded files live only on server, never in git.
+8. **Always re-read the session MD file** — it contains exact specs; don't rely on memory.
