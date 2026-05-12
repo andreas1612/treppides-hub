@@ -241,6 +241,97 @@
 .kb-back-btn svg { width: 18px; height: 18px; }
 
 /* ============================================================
+   PROJECTS — dedicated full-page view (under development)
+   Same show/hide pattern as kb-active, staff-active, aml-active.
+   ============================================================ */
+#section-projects {
+  display: none;
+  padding: var(--page-gutter, 32px);
+}
+
+.main.projects-active .page-content   { display: none !important; }
+.main.projects-active .reader-overlay { display: none !important; }
+.main.projects-active #section-projects { display: block !important; }
+
+.projects-header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.projects-back-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.projects-back-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+  background: rgba(0, 0, 0, .02);
+}
+.projects-back-btn svg { width: 18px; height: 18px; }
+
+/* Under-development placeholder */
+.projects-under-dev {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 80px 32px;
+  gap: 16px;
+}
+
+.projects-dev-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  background: rgba(79, 142, 247, .1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent, #4f8ef7);
+  margin-bottom: 8px;
+}
+.projects-dev-icon svg { width: 32px; height: 32px; }
+
+.projects-dev-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.projects-dev-msg {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+  max-width: 400px;
+  margin: 0;
+}
+
+.projects-dev-badge {
+  display: inline-block;
+  padding: 4px 14px;
+  border-radius: 20px;
+  background: rgba(79, 142, 247, .12);
+  color: var(--accent, #4f8ef7);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+
+/* ============================================================
    MOBILE — sidebar collapses to top nav bar on < 768px
    ============================================================ */
 .mobile-topbar {

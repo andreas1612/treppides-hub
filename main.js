@@ -17,6 +17,7 @@ import initAdmin         from "./components/admin.js";
 import initSupport       from "./components/support.js";
 import initStaff         from "./components/staff.js";
 import initAml           from "./components/aml.js";
+import initProjects      from "./components/projects.js";
 
 async function boot() {
   // Structural components (no async data needed — run in parallel)
@@ -41,6 +42,10 @@ async function boot() {
   // Knowledge Base must be ready before sidebar clicks fire — sidebar.js
   // calls window.__hub_kb.show(), which knowledgebase.js exposes during init.
   await initKnowledgeBase(CONFIG);
+
+  // Projects must be ready before sidebar clicks fire — sidebar.js
+  // calls window.__hub_projects.show(), which projects.js exposes during init.
+  await initProjects(CONFIG);
 
   // Content sections — initialise in visual page order.
   // Each runs independently; a failure in one does not block others.

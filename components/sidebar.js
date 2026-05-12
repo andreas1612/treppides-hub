@@ -139,9 +139,6 @@ export default async function init(config) {
   const useMock = !CONFIG.ENV_LIVE;
   if (useMock) ensureModal();
 
-  const projHref = useMock ? "#" : config.PROJECTS_URL;
-  const extAttrs = useMock ? "" : 'target="_blank" rel="noopener"';
-
   // ---- Desktop sidebar ----
   const sidebar = document.getElementById("sidebar");
   if (sidebar) {
@@ -168,9 +165,9 @@ export default async function init(config) {
           ${ICONS.person} Staff Directory
         </button>
 
-        <a class="nav-item" id="sb-proj" href="${projHref}" ${extAttrs}>
+        <button class="nav-item nav-btn" id="sb-proj">
           ${ICONS.grid} Projects
-        </a>
+        </button>
 
         <button class="nav-item nav-btn" id="sb-fees">
           ${ICONS.chart} AML Dashboard
@@ -192,10 +189,12 @@ export default async function init(config) {
     // Home link: return to hub, hide all overlay pages
     document.getElementById("sb-home")?.addEventListener("click", e => {
       e.preventDefault();
-      if (window.__hub_fees)  window.__hub_fees.hide();
-      if (window.__hub_aml)   window.__hub_aml.hide();
-      if (window.__hub_staff) window.__hub_staff.hide();
-      if (window.__hub_reader) window.__hub_reader.goHome();
+      if (window.__hub_fees)     window.__hub_fees.hide();
+      if (window.__hub_aml)      window.__hub_aml.hide();
+      if (window.__hub_staff)    window.__hub_staff.hide();
+      if (window.__hub_kb)       window.__hub_kb.hide();
+      if (window.__hub_projects) window.__hub_projects.hide();
+      if (window.__hub_reader)   window.__hub_reader.goHome();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
@@ -211,32 +210,37 @@ export default async function init(config) {
 
     // Staff Directory link: open dedicated staff page view
     document.getElementById("sb-staff")?.addEventListener("click", () => {
-      if (window.__hub_reader) window.__hub_reader.goHome();
-      if (window.__hub_fees)   window.__hub_fees.hide();
-      if (window.__hub_aml)    window.__hub_aml.hide();
-      if (window.__hub_staff)  window.__hub_staff.show();
+      if (window.__hub_reader)   window.__hub_reader.goHome();
+      if (window.__hub_fees)     window.__hub_fees.hide();
+      if (window.__hub_aml)      window.__hub_aml.hide();
+      if (window.__hub_kb)       window.__hub_kb.hide();
+      if (window.__hub_projects) window.__hub_projects.hide();
+      if (window.__hub_staff)    window.__hub_staff.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
     // AML Dashboard: open the landing page (three-card chooser).
     // The actual fees view opens from one of those cards.
     document.getElementById("sb-fees")?.addEventListener("click", () => {
-      if (window.__hub_reader) window.__hub_reader.goHome();
-      if (window.__hub_fees)   window.__hub_fees.hide();
-      if (window.__hub_staff)  window.__hub_staff.hide();
-      if (window.__hub_aml)    window.__hub_aml.show();
+      if (window.__hub_reader)   window.__hub_reader.goHome();
+      if (window.__hub_fees)     window.__hub_fees.hide();
+      if (window.__hub_staff)    window.__hub_staff.hide();
+      if (window.__hub_kb)       window.__hub_kb.hide();
+      if (window.__hub_projects) window.__hub_projects.hide();
+      if (window.__hub_aml)      window.__hub_aml.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
-    if (useMock) {
-      document.getElementById("sb-proj")?.addEventListener("click", e => {
-        e.preventDefault();
-        showModal(
-          "Project Management",
-          "The project management tool is currently being configured. It will be available at projects.treppides.com once the server environment is provisioned."
-        );
-      });
-    }
+    // Projects: open dedicated projects page (under development)
+    document.getElementById("sb-proj")?.addEventListener("click", () => {
+      if (window.__hub_reader)   window.__hub_reader.goHome();
+      if (window.__hub_fees)     window.__hub_fees.hide();
+      if (window.__hub_aml)      window.__hub_aml.hide();
+      if (window.__hub_staff)    window.__hub_staff.hide();
+      if (window.__hub_kb)       window.__hub_kb.hide();
+      if (window.__hub_projects) window.__hub_projects.show();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
   }
 
   // ---- Mobile top bar + nav drawer ----
@@ -267,9 +271,9 @@ export default async function init(config) {
         <button class="nav-item nav-btn" id="mb-staff">
           ${ICONS.person} Staff Directory
         </button>
-        <a class="nav-item" id="mb-proj" href="${projHref}" ${extAttrs}>
+        <button class="nav-item nav-btn" id="mb-proj">
           ${ICONS.grid} Projects
-        </a>
+        </button>
         <button class="nav-item nav-btn" id="mb-fees">
           ${ICONS.chart} AML Dashboard
         </button>
@@ -286,10 +290,12 @@ export default async function init(config) {
     document.getElementById("mb-home")?.addEventListener("click", e => {
       e.preventDefault();
       document.getElementById("mobile-nav")?.classList.remove("open");
-      if (window.__hub_fees)  window.__hub_fees.hide();
-      if (window.__hub_aml)   window.__hub_aml.hide();
-      if (window.__hub_staff) window.__hub_staff.hide();
-      if (window.__hub_reader) window.__hub_reader.goHome();
+      if (window.__hub_fees)     window.__hub_fees.hide();
+      if (window.__hub_aml)      window.__hub_aml.hide();
+      if (window.__hub_staff)    window.__hub_staff.hide();
+      if (window.__hub_kb)       window.__hub_kb.hide();
+      if (window.__hub_projects) window.__hub_projects.hide();
+      if (window.__hub_reader)   window.__hub_reader.goHome();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
@@ -305,33 +311,38 @@ export default async function init(config) {
 
     document.getElementById("mb-staff")?.addEventListener("click", () => {
       document.getElementById("mobile-nav")?.classList.remove("open");
-      if (window.__hub_reader) window.__hub_reader.goHome();
-      if (window.__hub_fees)   window.__hub_fees.hide();
-      if (window.__hub_aml)    window.__hub_aml.hide();
-      if (window.__hub_staff)  window.__hub_staff.show();
+      if (window.__hub_reader)   window.__hub_reader.goHome();
+      if (window.__hub_fees)     window.__hub_fees.hide();
+      if (window.__hub_aml)      window.__hub_aml.hide();
+      if (window.__hub_kb)       window.__hub_kb.hide();
+      if (window.__hub_projects) window.__hub_projects.hide();
+      if (window.__hub_staff)    window.__hub_staff.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
     // Mobile AML Dashboard link
-    document.getElementById("mb-fees")?.addEventListener("click", e => {
-      e.preventDefault();
+    document.getElementById("mb-fees")?.addEventListener("click", () => {
       document.getElementById("mobile-nav")?.classList.remove("open");
-      if (window.__hub_reader) window.__hub_reader.goHome();
-      if (window.__hub_fees)   window.__hub_fees.hide();
-      if (window.__hub_staff)  window.__hub_staff.hide();
-      if (window.__hub_aml)    window.__hub_aml.show();
+      if (window.__hub_reader)   window.__hub_reader.goHome();
+      if (window.__hub_fees)     window.__hub_fees.hide();
+      if (window.__hub_staff)    window.__hub_staff.hide();
+      if (window.__hub_kb)       window.__hub_kb.hide();
+      if (window.__hub_projects) window.__hub_projects.hide();
+      if (window.__hub_aml)      window.__hub_aml.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
-    if (useMock) {
-      document.getElementById("mb-proj")?.addEventListener("click", e => {
-        e.preventDefault();
-        showModal(
-          "Project Management",
-          "The project management tool is currently being configured. It will be available at projects.treppides.com once the server environment is provisioned."
-        );
-      });
-    }
+    // Mobile Projects link
+    document.getElementById("mb-proj")?.addEventListener("click", () => {
+      document.getElementById("mobile-nav")?.classList.remove("open");
+      if (window.__hub_reader)   window.__hub_reader.goHome();
+      if (window.__hub_fees)     window.__hub_fees.hide();
+      if (window.__hub_aml)      window.__hub_aml.hide();
+      if (window.__hub_staff)    window.__hub_staff.hide();
+      if (window.__hub_kb)       window.__hub_kb.hide();
+      if (window.__hub_projects) window.__hub_projects.show();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
 
     document.getElementById("mb-support")?.addEventListener("click", () => {
       document.getElementById("mobile-nav")?.classList.remove("open");
@@ -347,11 +358,12 @@ export default async function init(config) {
   // ---- Active nav state ----
   function setActiveNav(section) {
     const map = {
-      home:  ["sb-home",  "mb-home"],
-      kb:    ["sb-kb",    "mb-kb"],
-      staff: ["sb-staff", "mb-staff"],
-      aml:   ["sb-fees",  "mb-fees"],   // landing → highlight AML Dashboard
-      fees:  ["sb-fees",  "mb-fees"],   // dashboard view → same highlight
+      home:     ["sb-home",  "mb-home"],
+      kb:       ["sb-kb",    "mb-kb"],
+      staff:    ["sb-staff", "mb-staff"],
+      projects: ["sb-proj",  "mb-proj"],
+      aml:      ["sb-fees",  "mb-fees"],   // landing → highlight AML Dashboard
+      fees:     ["sb-fees",  "mb-fees"],   // dashboard view → same highlight
     };
     ["sb-home","sb-kb","sb-staff","sb-proj","sb-fees","mb-home","mb-kb","mb-staff","mb-proj","mb-fees"].forEach(id => {
       document.getElementById(id)?.classList.remove("active");

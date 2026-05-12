@@ -1,6 +1,6 @@
 # STATUS — Treppides Hub
 
-**Last updated: 2026-05-11 (session 6)**
+**Last updated: 2026-05-11 (session 7)**
 **→ Start every session from [NEXT_SESSION.md](NEXT_SESSION.md)**
 
 ---
@@ -40,10 +40,10 @@
 | Item | Status | Notes |
 |---|---|---|
 | SSL certificate | ✅ Received | Sectigo wildcard `*.treppides.com` — in `TREPPIDES.zip` on laptop |
-| Cert chain built | ⏳ Pending | See NEXT_SESSION.md — scp certs → server, build chain |
-| nginx HTTPS config | ✅ Written | `nginx-treppides-hub.conf` updated — deploy once certs are on server |
+| Cert chain built | ✅ Done | `/etc/nginx/ssl/treppides_chain.crt` — valid until 22 Nov 2026 |
+| nginx HTTPS config | ✅ Live | Deployed to `/etc/nginx/sites-enabled/treppides-hub` |
 | Internal DNS record | ⏳ Pending | `hub.treppides.com` → `192.168.0.221` — add to office DNS/router |
-| config.js BASE_URL | ⏳ Pending | Update to `https://hub.treppides.com/docs` after DNS is live |
+| config.js BASE_URL | ✅ Done | Updated to `https://hub.treppides.com/docs` |
 
 ---
 
@@ -97,7 +97,7 @@ Repo copy: `nginx-treppides-hub.conf` — edit this, then `sudo cp` and `sudo sy
 
 | Feature | Priority | Blocked on |
 |---|---|---|
-| HTTPS live on server | **Critical** | Cert install + internal DNS record |
+| HTTPS live on server | **DNS only** | Add A record: hub.treppides.com → 192.168.0.221 on office DNS/router |
 | Real Treppides logo in sidebar | High | Logo asset — check GitHub gallery (2 latest additions) |
 | OpenProject at `/projects` | High | Docker setup on VM |
 | Mobile reader navigation | Medium | Dev time |

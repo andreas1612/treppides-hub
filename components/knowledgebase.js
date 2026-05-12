@@ -19,7 +19,7 @@ const BACK_BTN_ID = "kb-back-btn";
 function showKbPage() {
   const main = document.querySelector(".main");
   if (!main) return;
-  main.classList.remove("fees-active", "aml-active", "staff-active");
+  main.classList.remove("fees-active", "aml-active", "staff-active", "projects-active");
   main.classList.add("kb-active");
   document.dispatchEvent(new CustomEvent("hub:navchange", { detail: { section: "kb" } }));
 }
