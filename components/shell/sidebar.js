@@ -127,6 +127,20 @@ const ICONS = {
              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
              <circle cx="12" cy="7" r="4"/>
            </svg>`,
+
+  calculator: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="4" y="2" width="16" height="20" rx="2"/>
+                <line x1="8" y1="6" x2="16" y2="6"/>
+                <line x1="8" y1="10" x2="10" y2="10"/>
+                <line x1="12" y1="10" x2="14" y2="10"/>
+                <line x1="16" y1="10" x2="16" y2="10"/>
+                <line x1="8" y1="14" x2="10" y2="14"/>
+                <line x1="12" y1="14" x2="14" y2="14"/>
+                <line x1="16" y1="14" x2="16" y2="14"/>
+                <line x1="8" y1="18" x2="10" y2="18"/>
+                <line x1="12" y1="18" x2="16" y2="18"/>
+              </svg>`,
 };
 
 // ---- Component ------------------------------------------------
@@ -173,6 +187,10 @@ export default async function init(config) {
           ${ICONS.chart} AML Dashboard
         </button>
 
+        <button class="nav-item nav-btn" id="sb-valuation">
+          ${ICONS.calculator} Valuation Tool
+        </button>
+
         <div class="nav-label" style="margin-top:12px;">Support</div>
 
         <button class="nav-item nav-btn" id="sb-support">
@@ -189,45 +207,50 @@ export default async function init(config) {
     // Home link: return to hub, hide all overlay pages
     document.getElementById("sb-home")?.addEventListener("click", e => {
       e.preventDefault();
-      if (window.__hub_fees)     window.__hub_fees.hide();
-      if (window.__hub_aml)      window.__hub_aml.hide();
-      if (window.__hub_staff)    window.__hub_staff.hide();
-      if (window.__hub_kb)       window.__hub_kb.hide();
-      if (window.__hub_projects) window.__hub_projects.hide();
-      if (window.__hub_reader)   window.__hub_reader.goHome();
+      if (window.__hub_fees)      window.__hub_fees.hide();
+      if (window.__hub_aml)       window.__hub_aml.hide();
+      if (window.__hub_staff)     window.__hub_staff.hide();
+      if (window.__hub_kb)        window.__hub_kb.hide();
+      if (window.__hub_projects)  window.__hub_projects.hide();
+      if (window.__hub_valuation) window.__hub_valuation.hide();
+      if (window.__hub_reader)    window.__hub_reader.goHome();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
     // KB link: open dedicated Knowledge Base page view
     document.getElementById("sb-kb")?.addEventListener("click", () => {
-      if (window.__hub_reader) window.__hub_reader.goHome();
-      if (window.__hub_fees)   window.__hub_fees.hide();
-      if (window.__hub_aml)    window.__hub_aml.hide();
-      if (window.__hub_staff)  window.__hub_staff.hide();
-      if (window.__hub_kb)     window.__hub_kb.show();
+      if (window.__hub_reader)    window.__hub_reader.goHome();
+      if (window.__hub_fees)      window.__hub_fees.hide();
+      if (window.__hub_aml)       window.__hub_aml.hide();
+      if (window.__hub_staff)     window.__hub_staff.hide();
+      if (window.__hub_projects)  window.__hub_projects.hide();
+      if (window.__hub_valuation) window.__hub_valuation.hide();
+      if (window.__hub_kb)        window.__hub_kb.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
     // Staff Directory link: open dedicated staff page view
     document.getElementById("sb-staff")?.addEventListener("click", () => {
-      if (window.__hub_reader)   window.__hub_reader.goHome();
-      if (window.__hub_fees)     window.__hub_fees.hide();
-      if (window.__hub_aml)      window.__hub_aml.hide();
-      if (window.__hub_kb)       window.__hub_kb.hide();
-      if (window.__hub_projects) window.__hub_projects.hide();
-      if (window.__hub_staff)    window.__hub_staff.show();
+      if (window.__hub_reader)    window.__hub_reader.goHome();
+      if (window.__hub_fees)      window.__hub_fees.hide();
+      if (window.__hub_aml)       window.__hub_aml.hide();
+      if (window.__hub_kb)        window.__hub_kb.hide();
+      if (window.__hub_projects)  window.__hub_projects.hide();
+      if (window.__hub_valuation) window.__hub_valuation.hide();
+      if (window.__hub_staff)     window.__hub_staff.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
     // AML Dashboard: open the landing page (three-card chooser).
     // The actual fees view opens from one of those cards.
     document.getElementById("sb-fees")?.addEventListener("click", () => {
-      if (window.__hub_reader)   window.__hub_reader.goHome();
-      if (window.__hub_fees)     window.__hub_fees.hide();
-      if (window.__hub_staff)    window.__hub_staff.hide();
-      if (window.__hub_kb)       window.__hub_kb.hide();
-      if (window.__hub_projects) window.__hub_projects.hide();
-      if (window.__hub_aml)      window.__hub_aml.show();
+      if (window.__hub_reader)    window.__hub_reader.goHome();
+      if (window.__hub_fees)      window.__hub_fees.hide();
+      if (window.__hub_staff)     window.__hub_staff.hide();
+      if (window.__hub_kb)        window.__hub_kb.hide();
+      if (window.__hub_projects)  window.__hub_projects.hide();
+      if (window.__hub_valuation) window.__hub_valuation.hide();
+      if (window.__hub_aml)       window.__hub_aml.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
@@ -238,7 +261,20 @@ export default async function init(config) {
       if (window.__hub_aml)      window.__hub_aml.hide();
       if (window.__hub_staff)    window.__hub_staff.hide();
       if (window.__hub_kb)       window.__hub_kb.hide();
+      if (window.__hub_valuation) window.__hub_valuation.hide();
       if (window.__hub_projects) window.__hub_projects.show();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+
+    // Valuation Tool: open dedicated full-page valuation report builder
+    document.getElementById("sb-valuation")?.addEventListener("click", () => {
+      if (window.__hub_reader)    window.__hub_reader.goHome();
+      if (window.__hub_fees)      window.__hub_fees.hide();
+      if (window.__hub_aml)       window.__hub_aml.hide();
+      if (window.__hub_staff)     window.__hub_staff.hide();
+      if (window.__hub_kb)        window.__hub_kb.hide();
+      if (window.__hub_projects)  window.__hub_projects.hide();
+      if (window.__hub_valuation) window.__hub_valuation.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
   }
@@ -277,6 +313,9 @@ export default async function init(config) {
         <button class="nav-item nav-btn" id="mb-fees">
           ${ICONS.chart} AML Dashboard
         </button>
+        <button class="nav-item nav-btn" id="mb-valuation">
+          ${ICONS.calculator} Valuation Tool
+        </button>
         <button class="nav-item nav-btn" id="mb-support">
           ${ICONS.phone} IT Support
         </button>
@@ -290,57 +329,76 @@ export default async function init(config) {
     document.getElementById("mb-home")?.addEventListener("click", e => {
       e.preventDefault();
       document.getElementById("mobile-nav")?.classList.remove("open");
-      if (window.__hub_fees)     window.__hub_fees.hide();
-      if (window.__hub_aml)      window.__hub_aml.hide();
-      if (window.__hub_staff)    window.__hub_staff.hide();
-      if (window.__hub_kb)       window.__hub_kb.hide();
-      if (window.__hub_projects) window.__hub_projects.hide();
-      if (window.__hub_reader)   window.__hub_reader.goHome();
+      if (window.__hub_fees)      window.__hub_fees.hide();
+      if (window.__hub_aml)       window.__hub_aml.hide();
+      if (window.__hub_staff)     window.__hub_staff.hide();
+      if (window.__hub_kb)        window.__hub_kb.hide();
+      if (window.__hub_projects)  window.__hub_projects.hide();
+      if (window.__hub_valuation) window.__hub_valuation.hide();
+      if (window.__hub_reader)    window.__hub_reader.goHome();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
     document.getElementById("mb-kb")?.addEventListener("click", () => {
       document.getElementById("mobile-nav")?.classList.remove("open");
-      if (window.__hub_reader) window.__hub_reader.goHome();
-      if (window.__hub_fees)   window.__hub_fees.hide();
-      if (window.__hub_aml)    window.__hub_aml.hide();
-      if (window.__hub_staff)  window.__hub_staff.hide();
-      if (window.__hub_kb)     window.__hub_kb.show();
+      if (window.__hub_reader)    window.__hub_reader.goHome();
+      if (window.__hub_fees)      window.__hub_fees.hide();
+      if (window.__hub_aml)       window.__hub_aml.hide();
+      if (window.__hub_staff)     window.__hub_staff.hide();
+      if (window.__hub_projects)  window.__hub_projects.hide();
+      if (window.__hub_valuation) window.__hub_valuation.hide();
+      if (window.__hub_kb)        window.__hub_kb.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
     document.getElementById("mb-staff")?.addEventListener("click", () => {
       document.getElementById("mobile-nav")?.classList.remove("open");
-      if (window.__hub_reader)   window.__hub_reader.goHome();
-      if (window.__hub_fees)     window.__hub_fees.hide();
-      if (window.__hub_aml)      window.__hub_aml.hide();
-      if (window.__hub_kb)       window.__hub_kb.hide();
-      if (window.__hub_projects) window.__hub_projects.hide();
-      if (window.__hub_staff)    window.__hub_staff.show();
+      if (window.__hub_reader)    window.__hub_reader.goHome();
+      if (window.__hub_fees)      window.__hub_fees.hide();
+      if (window.__hub_aml)       window.__hub_aml.hide();
+      if (window.__hub_kb)        window.__hub_kb.hide();
+      if (window.__hub_projects)  window.__hub_projects.hide();
+      if (window.__hub_valuation) window.__hub_valuation.hide();
+      if (window.__hub_staff)     window.__hub_staff.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
     // Mobile AML Dashboard link
     document.getElementById("mb-fees")?.addEventListener("click", () => {
       document.getElementById("mobile-nav")?.classList.remove("open");
-      if (window.__hub_reader)   window.__hub_reader.goHome();
-      if (window.__hub_fees)     window.__hub_fees.hide();
-      if (window.__hub_staff)    window.__hub_staff.hide();
-      if (window.__hub_kb)       window.__hub_kb.hide();
-      if (window.__hub_projects) window.__hub_projects.hide();
-      if (window.__hub_aml)      window.__hub_aml.show();
+      if (window.__hub_reader)    window.__hub_reader.goHome();
+      if (window.__hub_fees)      window.__hub_fees.hide();
+      if (window.__hub_staff)     window.__hub_staff.hide();
+      if (window.__hub_kb)        window.__hub_kb.hide();
+      if (window.__hub_projects)  window.__hub_projects.hide();
+      if (window.__hub_valuation) window.__hub_valuation.hide();
+      if (window.__hub_aml)       window.__hub_aml.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
     // Mobile Projects link
     document.getElementById("mb-proj")?.addEventListener("click", () => {
       document.getElementById("mobile-nav")?.classList.remove("open");
-      if (window.__hub_reader)   window.__hub_reader.goHome();
-      if (window.__hub_fees)     window.__hub_fees.hide();
-      if (window.__hub_aml)      window.__hub_aml.hide();
-      if (window.__hub_staff)    window.__hub_staff.hide();
-      if (window.__hub_kb)       window.__hub_kb.hide();
-      if (window.__hub_projects) window.__hub_projects.show();
+      if (window.__hub_reader)    window.__hub_reader.goHome();
+      if (window.__hub_fees)      window.__hub_fees.hide();
+      if (window.__hub_aml)       window.__hub_aml.hide();
+      if (window.__hub_staff)     window.__hub_staff.hide();
+      if (window.__hub_kb)        window.__hub_kb.hide();
+      if (window.__hub_valuation) window.__hub_valuation.hide();
+      if (window.__hub_projects)  window.__hub_projects.show();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+
+    // Mobile Valuation Tool link
+    document.getElementById("mb-valuation")?.addEventListener("click", () => {
+      document.getElementById("mobile-nav")?.classList.remove("open");
+      if (window.__hub_reader)    window.__hub_reader.goHome();
+      if (window.__hub_fees)      window.__hub_fees.hide();
+      if (window.__hub_aml)       window.__hub_aml.hide();
+      if (window.__hub_staff)     window.__hub_staff.hide();
+      if (window.__hub_kb)        window.__hub_kb.hide();
+      if (window.__hub_projects)  window.__hub_projects.hide();
+      if (window.__hub_valuation) window.__hub_valuation.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
@@ -358,14 +416,18 @@ export default async function init(config) {
   // ---- Active nav state ----
   function setActiveNav(section) {
     const map = {
-      home:     ["sb-home",  "mb-home"],
-      kb:       ["sb-kb",    "mb-kb"],
-      staff:    ["sb-staff", "mb-staff"],
-      projects: ["sb-proj",  "mb-proj"],
-      aml:      ["sb-fees",  "mb-fees"],   // landing → highlight AML Dashboard
-      fees:     ["sb-fees",  "mb-fees"],   // dashboard view → same highlight
+      home:      ["sb-home",      "mb-home"],
+      kb:        ["sb-kb",        "mb-kb"],
+      staff:     ["sb-staff",     "mb-staff"],
+      projects:  ["sb-proj",      "mb-proj"],
+      aml:       ["sb-fees",      "mb-fees"],     // landing → highlight AML Dashboard
+      fees:      ["sb-fees",      "mb-fees"],     // dashboard view → same highlight
+      valuation: ["sb-valuation", "mb-valuation"],
     };
-    ["sb-home","sb-kb","sb-staff","sb-proj","sb-fees","mb-home","mb-kb","mb-staff","mb-proj","mb-fees"].forEach(id => {
+    [
+      "sb-home","sb-kb","sb-staff","sb-proj","sb-fees","sb-valuation",
+      "mb-home","mb-kb","mb-staff","mb-proj","mb-fees","mb-valuation",
+    ].forEach(id => {
       document.getElementById(id)?.classList.remove("active");
     });
     (map[section] || map.home).forEach(id => {

@@ -279,6 +279,48 @@
 }
 .projects-back-btn svg { width: 18px; height: 18px; }
 
+/* ============================================================
+   VALUATION TOOL — dedicated full-page view
+   Auditor-facing report builder (ported from standalone Valtrix app).
+   Same show/hide pattern as kb-active / staff-active / aml-active.
+   ============================================================ */
+#section-valuation {
+  display: none;
+  padding: var(--page-gutter, 32px);
+}
+
+.main.valuation-active .page-content     { display: none !important; }
+.main.valuation-active .reader-overlay   { display: none !important; }
+.main.valuation-active #section-valuation { display: block !important; }
+
+.valuation-header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.valuation-back-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+  flex-shrink: 0;
+}
+.valuation-back-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+  background: rgba(0, 0, 0, .02);
+}
+.valuation-back-btn svg { width: 18px; height: 18px; }
+
 /* Under-development placeholder */
 .projects-under-dev {
   display: flex;

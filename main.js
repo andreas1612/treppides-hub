@@ -18,6 +18,7 @@ import initSupport       from "./components/shell/support.js";
 import initStaff         from "./components/pages/staff.js";
 import initAml           from "./components/pages/aml.js";
 import initProjects      from "./components/pages/projects.js";
+import initValuation     from "./components/pages/valuation.js";
 
 async function boot() {
   // Structural components (no async data needed — run in parallel)
@@ -46,6 +47,10 @@ async function boot() {
   // Projects must be ready before sidebar clicks fire — sidebar.js
   // calls window.__hub_projects.show(), which projects.js exposes during init.
   await initProjects(CONFIG);
+
+  // Valuation Tool must be ready before sidebar clicks fire — sidebar.js
+  // calls window.__hub_valuation.show(), which valuation.js exposes during init.
+  await initValuation(CONFIG);
 
   // Content sections — initialise in visual page order.
   // Each runs independently; a failure in one does not block others.

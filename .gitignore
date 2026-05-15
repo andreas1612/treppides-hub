@@ -10,6 +10,8 @@ api/clickup/_explore.py
 # Python bytecode and virtualenv
 api/clickup/__pycache__/
 api/clickup/venv/
+api/valuation/__pycache__/
+api/valuation/venv/
 
 # Raw data files
 staff.xlsx
