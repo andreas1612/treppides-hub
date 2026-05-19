@@ -345,12 +345,20 @@ const SHELL_HTML = `
                                       <label for="investmentsShare">Investments Share <span title="Share of profit from investments / associates (e.g., equity-method income from JVs). Entered for the base year; subsequent years scale with the projection growth rate." style="cursor:help; border-bottom: 1px dotted #ccc;">ℹ️</span></label>
                                       <input type="number" id="investmentsShare" name="investmentsShare" step="0.01" placeholder="e.g. 25000.00">
                                   </div>
+                                  <div class="input-group">
+                                      <label id="summaryCashLabel" for="totalCash">Cash as at 31/12/2024</label>
+                                      <input type="number" id="totalCash" name="totalCash" step="0.01" placeholder="0.00">
+                                  </div>
+                                  <div class="input-group">
+                                      <label id="summaryDebtLabel" for="totalDebt">Debt 31/12/2024</label>
+                                      <input type="number" id="totalDebt" name="totalDebt" step="0.01" placeholder="0.00">
+                                  </div>
                               </div>
                           </div>
                       </details>
-      
+
                       </div>
-      
+
                       <div class="tab-content tab-content--input" id="tab-2">
                       <div class="tab-banner tab-banner--input">
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
@@ -612,7 +620,30 @@ const SHELL_HTML = `
                           <!-- Section C: Sensitivity Analysis -->
                           <div class="accordion-item expanded" style="padding: 1.5rem; overflow-x: auto;">
                               <h2 style="color: var(--text-primary); margin-bottom: 1rem; font-size: 1.25rem;">Section C: Sensitivity Analysis</h2>
-                              
+
+                              <!-- Sensitivity step controls (drive the ± offsets used in the two tables below) -->
+                              <div class="sensitivity-controls" style="display: flex; flex-wrap: wrap; gap: 1.25rem; align-items: end; margin-bottom: 1.25rem; padding: 0.75rem 1rem; background-color: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
+                                  <div class="input-group" style="flex: 0 0 160px;">
+                                      <label for="sensGrowthStep" title="The growth-rate sensitivity table uses base ± this step.">Growth ± step (%)</label>
+                                      <input type="number" id="sensGrowthStep" value="3.00" min="0" step="0.25">
+                                  </div>
+                                  <div class="input-group" style="flex: 0 0 160px;">
+                                      <label for="sensDiscountStep" title="The discount-rate sensitivity table uses base ± this step.">Discount ± step (%)</label>
+                                      <input type="number" id="sensDiscountStep" value="3.00" min="0" step="0.25">
+                                  </div>
+                                  <div class="input-group" style="flex: 0 0 130px;">
+                                      <label for="sensFcfLower" title="Lower FCF multiplier applied to all projected free cash flows.">FCF lower (%)</label>
+                                      <input type="number" id="sensFcfLower" value="90" min="1" step="1">
+                                  </div>
+                                  <div class="input-group" style="flex: 0 0 130px;">
+                                      <label for="sensFcfUpper" title="Upper FCF multiplier applied to all projected free cash flows.">FCF upper (%)</label>
+                                      <input type="number" id="sensFcfUpper" value="110" min="1" step="1">
+                                  </div>
+                                  <div style="font-size: 0.75rem; color: var(--text-muted); flex: 1; min-width: 200px; line-height: 1.4;">
+                                      Centre cells use the base WACC, base perpetual growth and 100% FCF. The summary range averages all nine scenarios per dimension.
+                                  </div>
+                              </div>
+
                               <div style="display: flex; gap: 2rem; flex-wrap: wrap;">
                                   <div style="flex: 1; min-width: 400px;">
                                       <h3 style="color: var(--accent-primary); margin-bottom: 0.5rem; font-size: 1rem;">Sensitivity analysis 1 - Growth rate</h3>
@@ -620,25 +651,25 @@ const SHELL_HTML = `
                                           <thead>
                                               <tr style="border-bottom: 1px solid var(--border-color);">
                                                   <th style="text-align: left; padding: 0.5rem;">Growth Rate</th>
-                                                  <th style="padding: 0.5rem; text-align: center;">90% FCF</th>
+                                                  <th id="sensGrowthColLower" style="padding: 0.5rem; text-align: center;">90% FCF</th>
                                                   <th style="padding: 0.5rem; text-align: center;">100% FCF</th>
-                                                  <th style="padding: 0.5rem; text-align: center;">110% FCF</th>
+                                                  <th id="sensGrowthColUpper" style="padding: 0.5rem; text-align: center;">110% FCF</th>
                                               </tr>
                                           </thead>
                                           <tbody id="sensGrowthBody">
                                           </tbody>
                                       </table>
                                   </div>
-      
+
                                   <div style="flex: 1; min-width: 400px;">
                                       <h3 style="color: var(--accent-primary); margin-bottom: 0.5rem; font-size: 1rem;">Sensitivity analysis 2 - Discount rate</h3>
                                       <table style="width: 100%; border-collapse: collapse; text-align: right;" class="sensitivity-table">
                                           <thead>
                                               <tr style="border-bottom: 1px solid var(--border-color);">
                                                   <th style="text-align: left; padding: 0.5rem;">Discount Rate</th>
-                                                  <th style="padding: 0.5rem; text-align: center;">90% FCF</th>
+                                                  <th id="sensDiscountColLower" style="padding: 0.5rem; text-align: center;">90% FCF</th>
                                                   <th style="padding: 0.5rem; text-align: center;">100% FCF</th>
-                                                  <th style="padding: 0.5rem; text-align: center;">110% FCF</th>
+                                                  <th id="sensDiscountColUpper" style="padding: 0.5rem; text-align: center;">110% FCF</th>
                                               </tr>
                                           </thead>
                                           <tbody id="sensDiscountBody">
@@ -718,9 +749,9 @@ const SHELL_HTML = `
                                       </table>
                                   </div>
       
-                                  <!-- Right Card: 100% EV Value range -->
+                                  <!-- Right Card: 100% Enterprise Value range -->
                                   <div class="summary-card">
-                                      <div class="summary-card-header">100% EV Value range</div>
+                                      <div class="summary-card-header">100% Enterprise Value range</div>
                                       <table class="summary-table">
                                           <thead>
                                               <tr>
@@ -739,15 +770,6 @@ const SHELL_HTML = `
                                               <!-- Rendered via JS -->
                                           </tbody>
                                       </table>
-                                      <!-- Cash & Debt inputs using the tool's native ledger-row style -->
-                                      <div class="ledger-row" style="border-top: 2px solid var(--border-color);">
-                                          <label id="summaryCashLabel" for="totalCash">Cash as at 31/12/2024</label>
-                                          <input type="number" id="totalCash" name="totalCash" step="0.01" placeholder="0.00">
-                                      </div>
-                                      <div class="ledger-row">
-                                          <label id="summaryDebtLabel" for="totalDebt">Debt 31/12/2024</label>
-                                          <input type="number" id="totalDebt" name="totalDebt" step="0.01" placeholder="0.00">
-                                      </div>
                                   </div>
       
                               </div>
@@ -808,6 +830,21 @@ function bootValuation() {
             window.scrollTo({ top: 0, behavior: 'smooth' });
         });
     });
+
+    // Currency display helpers — symbol-first (e.g. "€1,234,567") instead of
+    // code/name ("EUR 1,234,567"). jsPDF's default font lacks unicode glyphs,
+    // so the PDF path keeps ISO codes via getCurrencyCodeForPdf().
+    const CURRENCY_SYMBOLS = {
+        EUR: '€', USD: '$', GBP: '£', JPY: '¥', CNY: '¥',
+        CHF: 'CHF ', AUD: 'A$', CAD: 'C$', NZD: 'NZ$',
+        SEK: 'kr ', NOK: 'kr ', DKK: 'kr ',
+        SGD: 'S$', HKD: 'HK$', INR: '₹', KRW: '₩', ZAR: 'R ',
+        TRY: '₺', RUB: '₽', BRL: 'R$', MXN: 'Mex$',
+    };
+    const getCurrencySymbol = (code) => {
+        if (!code || code === '--') return '';
+        return CURRENCY_SYMBOLS[code] || `${code} `;
+    };
 
     // Accordion Logic
     const accordionHeaders = document.querySelectorAll('.accordion-header');
@@ -1687,14 +1724,31 @@ function bootValuation() {
         const discTbody = document.getElementById('sensDiscountBody');
         if (!growthTbody || !discTbody) return { s1Ev: 0, s2Ev: 0 };
 
-        const fcfMults = [0.9, 1.0, 1.1];
+        // Read user-controlled step + FCF bounds; fall back to defaults if blank/invalid.
+        const readNum = (id, fallback) => {
+            const raw = parseFloat(document.getElementById(id)?.value);
+            return (isFinite(raw) && raw > 0) ? raw : fallback;
+        };
+        const growthStep = readNum('sensGrowthStep', 3.00) / 100;
+        const discountStep = readNum('sensDiscountStep', 3.00) / 100;
+        const fcfLowerPct = readNum('sensFcfLower', 90);
+        const fcfUpperPct = readNum('sensFcfUpper', 110);
+        const fcfMults = [fcfLowerPct / 100, 1.0, fcfUpperPct / 100];
+
+        // Sync column headers so labels track the user's bounds.
+        const setText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+        setText('sensGrowthColLower', `${fcfLowerPct}% FCF`);
+        setText('sensGrowthColUpper', `${fcfUpperPct}% FCF`);
+        setText('sensDiscountColLower', `${fcfLowerPct}% FCF`);
+        setText('sensDiscountColUpper', `${fcfUpperPct}% FCF`);
+
         const fmt = (v) => v == null ? 'N/A' : Math.round(v).toLocaleString('en-US');
         const fmtPct = (v) => (v * 100).toFixed(2) + '%';
 
         // Sensitivity 1 — Growth rate table
         const gEvs = [];
         let gHtml = '';
-        const gRates = [baseGrowth - 0.03, baseGrowth, baseGrowth + 0.03];
+        const gRates = [baseGrowth - growthStep, baseGrowth, baseGrowth + growthStep];
         gRates.forEach(g => {
             gHtml += `<tr><td style="text-align: left; padding: 0.5rem; font-weight: bold;">${fmtPct(g)}</td>`;
             fcfMults.forEach(m => {
@@ -1712,7 +1766,7 @@ function bootValuation() {
         // Sensitivity 2 — Discount rate table
         const dEvs = [];
         let dHtml = '';
-        const dRates = [baseWacc - 0.03, baseWacc, baseWacc + 0.03];
+        const dRates = [baseWacc - discountStep, baseWacc, baseWacc + discountStep];
         dRates.forEach(w => {
             dHtml += `<tr><td style="text-align: left; padding: 0.5rem; font-weight: bold;">${fmtPct(w)}</td>`;
             fcfMults.forEach(m => {
@@ -1746,13 +1800,16 @@ function bootValuation() {
 
         const currencyEl = document.getElementById('currency');
         const currCode = (currencyEl && currencyEl.value) ? currencyEl.value : '--';
+        const currSymbol = getCurrencySymbol(currCode);
         const dateStr = `31/12/${baseYear}`;
 
-        // Update dynamic header cells
+        // Update dynamic header cells — show the symbol (€, $, …) under each
+        // sensitivity column, falling back to the code if no symbol mapping.
         const setEl = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
         setEl('summaryEquityDateLabel', dateStr);
         setEl('summaryEvDateLabel', dateStr);
-        ['summaryEquityCurr1', 'summaryEquityCurr2', 'summaryEvCurr1', 'summaryEvCurr2'].forEach(id => setEl(id, currCode));
+        const headerCurrLabel = currCode === '--' ? '--' : (currSymbol.trim() || currCode);
+        ['summaryEquityCurr1', 'summaryEquityCurr2', 'summaryEvCurr1', 'summaryEvCurr2'].forEach(id => setEl(id, headerCurrLabel));
 
         // Update tfoot Cash / Debt labels with current base year
         setEl('summaryCashLabel', `Cash as at ${dateStr}`);
@@ -1772,7 +1829,7 @@ function bootValuation() {
                 </tr>
                 <tr class="summary-average-row">
                     <td>Average Equity Value</td>
-                    <td colspan="2">${currCode !== '--' ? currCode + ' ' : ''}${fmt(avgEquity)}<div class="calc-detail">${eqAvgDetail}</div></td>
+                    <td colspan="2">${currSymbol}${fmt(avgEquity)}<div class="calc-detail">${eqAvgDetail}</div></td>
                 </tr>
             `;
         }
@@ -1785,13 +1842,13 @@ function bootValuation() {
         if (evTbody) {
             evTbody.innerHTML = `
                 <tr>
-                    <td>EV Value</td>
+                    <td>Enterprise Value</td>
                     <td>${fmt(s1Ev)}<div class="calc-detail">${evDetail1}</div></td>
                     <td>${fmt(s2Ev)}<div class="calc-detail">${evDetail2}</div></td>
                 </tr>
                 <tr class="summary-average-row">
-                    <td>Average EV</td>
-                    <td colspan="2">${currCode !== '--' ? currCode + ' ' : ''}${fmt(avgEv)}<div class="calc-detail">${evAvgDetail}</div></td>
+                    <td>Average Enterprise Value</td>
+                    <td colspan="2">${currSymbol}${fmt(avgEv)}<div class="calc-detail">${evAvgDetail}</div></td>
                 </tr>
             `;
         }
@@ -1831,8 +1888,7 @@ function bootValuation() {
         const posPct = (v) => axisRange > 0 ? ((v - axis.min) / axisRange) * 100 : 50;
 
         const formatAxisVal = (v, code, step) => {
-            const symbols = { EUR: '€', USD: '$', GBP: '£', JPY: '¥', CHF: 'CHF ', AUD: 'A$', CAD: 'C$' };
-            const prefix = symbols[code] || (code && code !== '--' ? code + ' ' : '');
+            const prefix = getCurrencySymbol(code);
             const absV = Math.abs(v);
             let denom = 1, suffix = '';
             if (absV >= 1e9 || step >= 1e9) { denom = 1e9; suffix = 'B'; }
@@ -1885,7 +1941,7 @@ function bootValuation() {
     };
 
     // Initialize DCF Input Listeners
-    const dcfInputs = ['dcfCrp', 'debtWeight', 'averageInterestPaid', 'perpetualGrowthRate', 'totalCash', 'totalDebt'];
+    const dcfInputs = ['dcfCrp', 'debtWeight', 'averageInterestPaid', 'perpetualGrowthRate', 'totalCash', 'totalDebt', 'sensGrowthStep', 'sensDiscountStep', 'sensFcfLower', 'sensFcfUpper'];
     dcfInputs.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.addEventListener('input', () => {
@@ -2327,7 +2383,7 @@ function bootValuation() {
             return `The Ultimate Beneficial Owners (hereafter "UBOs") of the Company ${verb} ${names} and ${holds} ${pcts} of its shares respectively.`;
         };
 
-        const scopeP1 = `The objective of this valuation is to appraise the 100% of the Equity Value (hereafter the "EV") of ${companyName} (hereafter the "Company") as at ${valuationDateLong}, which will facilitate the Company and its management to their internal and fund related decisions.`;
+        const scopeP1 = `The objective of this valuation is to appraise the 100% of the Equity Value (hereafter the "EqV") of ${companyName} (hereafter the "Company") as at ${valuationDateLong}, which will facilitate the Company and its management to their internal and fund related decisions.`;
         const scopeP2 = `Our mandate included conducting an independent 100% Equity Value of the Company.`;
         const scopeP3 = `The Valuation Compact Report (hereafter the "Report") was drafted by placing reliance on the information and assumptions provided by the management, current market data, a set of other assumptions provided by management and the valuation model results.`;
         const scopeP4 = `Our work and report extent are limited by the engagement purpose which is the preparation of the Report.`;
@@ -2366,7 +2422,7 @@ function bootValuation() {
         const methodology = getFieldVal('valuationMethodology') || 'Equity value';
         const valuationTypeLabel =
             methodology === 'IP Value' ? 'IP valuation' :
-            methodology === 'Enterprise value' ? 'EV valuation' :
+            methodology === 'Enterprise value' ? 'Enterprise valuation' :
             'Equity valuation';
 
         // Pull Sensitivity 1 / Sensitivity 2 equity values from the rendered summary table.
@@ -2386,7 +2442,12 @@ function bootValuation() {
             }
         }
 
-        const sec2Paragraph = `Based on the management representation and taking into account the assumptions provided in relation to the projections, the final ${valuationTypeLabel} of the Company, as at ${valuationDateLong}, ranges between ${currencyCode}${s1EquityStr} (Sensitivity 1) and ${currencyCode}${s2EquityStr} (Sensitivity 2) . This considers the Discounted Cash Flow approach.`;
+        // PDF uses ISO code + space (e.g. "EUR 1,234,567") not the Unicode
+        // symbol, because jsPDF's default Helvetica font does not render
+        // glyphs like €/£/¥/₹. Switching to a Unicode font (~200 KB) is the
+        // only way to use symbols here.
+        const pdfCurrPrefix = currencyCode ? `${currencyCode} ` : '';
+        const sec2Paragraph = `Based on the management representation and taking into account the assumptions provided in relation to the projections, the final ${valuationTypeLabel} of the Company, as at ${valuationDateLong}, ranges between ${pdfCurrPrefix}${s1EquityStr} (Sensitivity 1) and ${pdfCurrPrefix}${s2EquityStr} (Sensitivity 2). This considers the Discounted Cash Flow approach.`;
 
         y = drawTwoCol(
             [
