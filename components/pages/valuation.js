@@ -120,14 +120,44 @@ const SHELL_HTML = `
       <form id="valuationForm" novalidate>
                       
                       <div class="tab-navigation">
-                          <button type="button" class="tab-btn active" data-target="tab-1">Project Setup</button>
-                          <button type="button" class="tab-btn" data-target="tab-2">Income Statement</button>
-                          <button type="button" class="tab-btn" data-target="tab-3">Cash Flow</button>
-                          <button type="button" class="tab-btn" data-target="tab-4">DCF & Sensitivity</button>
-                          <button type="button" class="tab-btn" data-target="tab-5">Valuation Summary & Range</button>
+                          <div class="tab-group tab-group--inputs" role="group" aria-label="Inputs">
+                              <span class="tab-group-label">Inputs</span>
+                              <div class="tab-group-buttons">
+                                  <button type="button" class="tab-btn tab-btn--input active" data-target="tab-1">
+                                      <svg class="tab-btn-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                                      <span>Project Setup</span>
+                                  </button>
+                                  <button type="button" class="tab-btn tab-btn--input" data-target="tab-2">
+                                      <svg class="tab-btn-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                                      <span>Income Statement</span>
+                                  </button>
+                              </div>
+                          </div>
+                          <div class="tab-group-divider" aria-hidden="true"></div>
+                          <div class="tab-group tab-group--results" role="group" aria-label="Results">
+                              <span class="tab-group-label">Results</span>
+                              <div class="tab-group-buttons">
+                                  <button type="button" class="tab-btn tab-btn--result" data-target="tab-3">
+                                      <svg class="tab-btn-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="8" y1="10" x2="16" y2="10"></line><line x1="8" y1="14" x2="12" y2="14"></line></svg>
+                                      <span>Cash Flow</span>
+                                  </button>
+                                  <button type="button" class="tab-btn tab-btn--result" data-target="tab-4">
+                                      <svg class="tab-btn-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+                                      <span>DCF &amp; Sensitivity</span>
+                                  </button>
+                                  <button type="button" class="tab-btn tab-btn--result" data-target="tab-5">
+                                      <svg class="tab-btn-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                      <span>Valuation Summary &amp; Range</span>
+                                  </button>
+                              </div>
+                          </div>
                       </div>
       
-                      <div class="tab-content active" id="tab-1">
+                      <div class="tab-content tab-content--input active" id="tab-1">
+                      <div class="tab-banner tab-banner--input">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                          <span>Enter your assumptions here &mdash; results update automatically in the Cash Flow, DCF and Summary tabs.</span>
+                      </div>
                       <!-- Section 1: Company Overview -->
                       <details class="accordion-item native-details" open>
                           <summary class="accordion-header">
@@ -321,7 +351,11 @@ const SHELL_HTML = `
       
                       </div>
       
-                      <div class="tab-content" id="tab-2">
+                      <div class="tab-content tab-content--input" id="tab-2">
+                      <div class="tab-banner tab-banner--input">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                          <span>Enter the historical income statement. Projected results flow into the Cash Flow, DCF and Summary tabs.</span>
+                      </div>
                       <div class="calc-toggle-bar">
                           <button type="button" class="calc-toggle" data-calc-toggle>
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="8" y1="10" x2="16" y2="10"></line><line x1="8" y1="14" x2="12" y2="14"></line></svg>
@@ -425,7 +459,11 @@ const SHELL_HTML = `
       
                       </div>
       
-                      <div class="tab-content" id="tab-3">
+                      <div class="tab-content tab-content--result" id="tab-3">
+                      <div class="tab-banner tab-banner--result">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                          <span>Calculated from your inputs in <a href="#" data-jump-tab="tab-1">Project Setup</a> &amp; <a href="#" data-jump-tab="tab-2">Income Statement</a>.</span>
+                      </div>
                       <!-- Section 8: Cash Flow Projections -->
                       <details class="accordion-item native-details" open>
                           <summary class="accordion-header">
@@ -456,7 +494,11 @@ const SHELL_HTML = `
                       </details>
                       </div>
       
-                      <div class="tab-content" id="tab-4">
+                      <div class="tab-content tab-content--result" id="tab-4">
+                          <div class="tab-banner tab-banner--result">
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                              <span>Calculated from your inputs in <a href="#" data-jump-tab="tab-1">Project Setup</a> &amp; <a href="#" data-jump-tab="tab-2">Income Statement</a>. A few assumptions on this tab (CRP, Debt Weight, Perpetual Growth) remain editable.</span>
+                          </div>
                           <div class="calc-toggle-bar">
                               <button type="button" class="calc-toggle" data-calc-toggle>
                                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="8" y1="10" x2="16" y2="10"></line><line x1="8" y1="14" x2="12" y2="14"></line></svg>
@@ -607,7 +649,11 @@ const SHELL_HTML = `
                           </div>
                       </div>
       
-                      <div class="tab-content" id="tab-5">
+                      <div class="tab-content tab-content--result" id="tab-5">
+                          <div class="tab-banner tab-banner--result">
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                              <span>Final summary &mdash; calculated end-to-end from your inputs. Edit values in <a href="#" data-jump-tab="tab-1">Project Setup</a> or <a href="#" data-jump-tab="tab-2">Income Statement</a> to update.</span>
+                          </div>
                           <div class="calc-toggle-bar">
                               <button type="button" class="calc-toggle" data-calc-toggle>
                                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="8" y1="10" x2="16" y2="10"></line><line x1="8" y1="14" x2="12" y2="14"></line></svg>
@@ -739,24 +785,29 @@ function bootValuation() {
     const tabBtns = document.querySelectorAll('.tab-btn');
     const tabContents = document.querySelectorAll('.tab-content');
 
+    const activateTab = (targetId) => {
+        if (!targetId) return;
+        tabBtns.forEach(b => b.classList.remove('active'));
+        tabContents.forEach(c => c.classList.remove('active'));
+        const targetBtn = document.querySelector(`.tab-btn[data-target="${targetId}"]`);
+        if (targetBtn) targetBtn.classList.add('active');
+        const targetContent = document.getElementById(targetId);
+        if (targetContent) targetContent.classList.add('active');
+    };
+
     if (tabBtns.length > 0 && tabContents.length > 0) {
         tabBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const targetId = btn.getAttribute('data-target');
-
-                // Remove active classes
-                tabBtns.forEach(b => b.classList.remove('active'));
-                tabContents.forEach(c => c.classList.remove('active'));
-
-                // Add active class to clicked tab and its content
-                btn.classList.add('active');
-                const targetContent = document.getElementById(targetId);
-                if (targetContent) {
-                    targetContent.classList.add('active');
-                }
-            });
+            btn.addEventListener('click', () => activateTab(btn.getAttribute('data-target')));
         });
     }
+
+    document.querySelectorAll('[data-jump-tab]').forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            activateTab(link.getAttribute('data-jump-tab'));
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    });
 
     // Accordion Logic
     const accordionHeaders = document.querySelectorAll('.accordion-header');

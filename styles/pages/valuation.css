@@ -399,26 +399,71 @@
   box-shadow: none;
 }
 
-/* Tab navigation */
+/* Tab navigation — grouped Inputs vs Results */
 #section-valuation .tab-navigation {
   display: flex;
-  gap: 0.5rem;
+  align-items: flex-end;
+  gap: 1rem;
   margin-bottom: 1.5rem;
   border-bottom: 2px solid var(--border-color);
   padding-bottom: 0;
+  flex-wrap: wrap;
+}
+
+#section-valuation .tab-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+#section-valuation .tab-group-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 0 0.5rem;
+}
+
+#section-valuation .tab-group--inputs .tab-group-label {
+  color: var(--accent-primary);
+}
+
+#section-valuation .tab-group--results .tab-group-label {
+  color: #94A3B8;
+}
+
+#section-valuation .tab-group-buttons {
+  display: flex;
+  gap: 0.25rem;
+}
+
+#section-valuation .tab-group-divider {
+  width: 1px;
+  align-self: stretch;
+  background-color: var(--border-color);
+  margin: 0 0.25rem;
 }
 
 #section-valuation .tab-btn {
-  padding: 0.75rem 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.75rem 1.25rem;
   background-color: transparent;
   border: none;
   border-bottom: 2px solid transparent;
   color: var(--text-secondary);
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 500;
   cursor: pointer;
   transition: var(--transition);
   margin-bottom: -2px;
+}
+
+#section-valuation .tab-btn-icon {
+  flex-shrink: 0;
+  opacity: 0.7;
 }
 
 #section-valuation .tab-btn:hover {
@@ -427,10 +472,88 @@
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
 }
 
+#section-valuation .tab-btn:hover .tab-btn-icon {
+  opacity: 1;
+}
+
 #section-valuation .tab-btn.active {
+  font-weight: 600;
+}
+
+#section-valuation .tab-btn.active .tab-btn-icon {
+  opacity: 1;
+}
+
+/* Role-based active colours */
+#section-valuation .tab-btn--input.active {
   color: var(--accent-primary);
   border-bottom-color: var(--accent-primary);
+}
+
+#section-valuation .tab-btn--result.active {
+  color: #94A3B8;
+  border-bottom-color: #94A3B8;
+}
+
+@media (max-width: 720px) {
+  #section-valuation .tab-navigation {
+    gap: 0.5rem;
+  }
+  #section-valuation .tab-group-divider {
+    display: none;
+  }
+  #section-valuation .tab-btn {
+    padding: 0.6rem 0.9rem;
+    font-size: 0.85rem;
+  }
+}
+
+/* Tab role banners */
+#section-valuation .tab-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.7rem 1rem;
+  margin-bottom: 1.25rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  line-height: 1.4;
+  border: 1px solid transparent;
+}
+
+#section-valuation .tab-banner svg {
+  flex-shrink: 0;
+}
+
+#section-valuation .tab-banner--input {
+  background-color: rgba(196, 214, 0, 0.08);
+  border-color: rgba(196, 214, 0, 0.3);
+  color: var(--text-primary);
+}
+
+#section-valuation .tab-banner--input svg {
+  color: var(--accent-primary);
+}
+
+#section-valuation .tab-banner--result {
+  background-color: rgba(148, 163, 184, 0.08);
+  border-color: rgba(148, 163, 184, 0.3);
+  color: var(--text-secondary);
+}
+
+#section-valuation .tab-banner--result svg {
+  color: #94A3B8;
+}
+
+#section-valuation .tab-banner a {
+  color: var(--accent-primary);
+  text-decoration: none;
   font-weight: 600;
+  border-bottom: 1px dotted currentColor;
+}
+
+#section-valuation .tab-banner a:hover {
+  color: var(--accent-primary-hover);
 }
 
 #section-valuation .tab-content {
@@ -580,4 +703,72 @@
 #section-valuation table td[style*="text-align: left"] .calc-detail,
 #section-valuation .summary-table td:first-child .calc-detail {
   text-align: left;
+}
+
+/* ----------------------------------------------------------------------
+   Editable vs calculated fields — systematic visual differentiation.
+   - Editable: white/main background, visible border, accent on focus.
+   - Calculated (readonly/disabled): surface background, no border,
+     muted text, "not-allowed" cursor on hover.
+   Applies across all tabs; readonly inputs already exist on tab-4 too.
+---------------------------------------------------------------------- */
+#section-valuation input:not([type="file"]):not([type="date"]):not([readonly]):not([disabled]),
+#section-valuation select:not([readonly]):not([disabled]),
+#section-valuation textarea:not([readonly]):not([disabled]) {
+  background-color: var(--bg-main);
+  border: 1px solid var(--border-color);
+}
+
+#section-valuation input[readonly],
+#section-valuation input[disabled],
+#section-valuation select[disabled],
+#section-valuation textarea[readonly] {
+  background-color: var(--bg-surface);
+  border-color: transparent;
+  color: var(--text-secondary);
+  cursor: not-allowed;
+  font-variant-numeric: tabular-nums;
+}
+
+#section-valuation input[readonly]:hover,
+#section-valuation input[disabled]:hover {
+  border-color: transparent;
+}
+
+#section-valuation input[readonly]:focus,
+#section-valuation input[disabled]:focus {
+  box-shadow: none;
+  border-color: transparent;
+}
+
+/* Preserve emphatic styling for total-row inputs which are intentionally
+   transparent regardless of readonly state. */
+#section-valuation .ledger-row.total-row input[readonly],
+#section-valuation .ledger-row.final-total-row input[readonly] {
+  background-color: transparent;
+  color: var(--accent-primary);
+}
+
+/* Subtle "= calculated" affordance on readonly numeric fields */
+#section-valuation .input-group input[readonly] + .calc-detail::before,
+#section-valuation .input-group input[disabled] + .calc-detail::before {
+  content: "= ";
+  opacity: 0.6;
+}
+
+/* Calculated table cells (rendered by JS without inputs). Treat ledger
+   total rows as calculated; sensitivity & summary tables are entirely
+   calculated. */
+#section-valuation .sensitivity-table tbody td,
+#section-valuation #cfProjectionsBody td,
+#section-valuation #dcfModelBody td {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+#section-valuation .sensitivity-table tbody td:first-child,
+#section-valuation #cfProjectionsBody td:first-child,
+#section-valuation #dcfModelBody td:first-child {
+  color: var(--text-primary);
+  font-weight: 500;
 }
