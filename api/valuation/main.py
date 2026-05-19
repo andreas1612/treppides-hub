@@ -27,6 +27,7 @@ from build_database import (
     TaxRatesReference,
     ContinentAverages,
     ReportMeta,
+    ExchangeRate,
 )
 
 app = FastAPI(title="Valuation Reference API", version="1.0.0")
@@ -120,6 +121,24 @@ def get_tax_rate_reference(country_name: str, db: Session = Depends(get_db)):
     }
 
 
+@router.get("/reference/country/{country_name}")
+def get_country_reference(country_name: str, db: Session = Depends(get_db)):
+    """Per-country risk metrics from Damodaran's Rates2 sheet.
+    Used to auto-populate Country Risk Premium and per-country Equity Risk
+    Premium on the valuation form when an operating country is selected."""
+    record = db.query(Rates2Reference).filter(Rates2Reference.country == country_name).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="Country not found")
+    return {
+        "country_name": record.country,
+        "continent": record.continents,
+        "moodys_rating": record.moodys_rating,
+        "adj_default_spread": record.adj_default_spread,
+        "equity_risk_premium": record.equity_risk_premium,
+        "country_risk_premium": record.country_risk_premium,
+    }
+
+
 @router.get("/reference/industry/{industry_name}")
 def get_industry_reference(industry_name: str, db: Session = Depends(get_db)):
     r1 = db.query(Rates1Reference).filter(Rates1Reference.industry_name == industry_name).first()
@@ -148,6 +167,32 @@ def get_currency_reference(currency_name: str, db: Session = Depends(get_db)):
         "govt_bond_rate": record.govt_bond_rate_12_31_22,
         "risk_free_rate": record.risk_free_rate,
         "default_spread": record.default_spread_based_on_rating,
+    }
+
+
+@router.get("/reference/fx/{currency_name}")
+def get_fx_rate(currency_name: str, date: str | None = None, db: Session = Depends(get_db)):
+    """Historical USD-to-currency rate. `date` should be YYYY-MM-DD (typically
+    the valuation date). Behaviour:
+      - If an exact-date row exists, return it.
+      - Otherwise return the most recent row dated on or before `date`.
+      - If `date` is omitted, return the most recent row available.
+    The returned `rate_per_usd` means: 1 USD = rate_per_usd × {currency}."""
+    query = db.query(ExchangeRate).filter(ExchangeRate.currency_name == currency_name)
+    if date:
+        # Try exact match first, then nearest-prior
+        exact = query.filter(ExchangeRate.as_of_date == date).first()
+        record = exact or query.filter(ExchangeRate.as_of_date <= date).order_by(ExchangeRate.as_of_date.desc()).first()
+    else:
+        record = query.order_by(ExchangeRate.as_of_date.desc()).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="Exchange rate not found for currency/date")
+    return {
+        "currency_name": record.currency_name,
+        "as_of_date": record.as_of_date,
+        "rate_per_usd": record.rate_per_usd,
+        "source": record.source,
+        "exact_match": bool(date and record.as_of_date == date),
     }
 
 

@@ -11,6 +11,7 @@ from build_database import (
     TaxRatesReference,
     ContinentAverages,
     ReportMeta,
+    ExchangeRate,
 )
 
 engine = create_engine('sqlite:///valuation_reference.db', connect_args={"check_same_thread": False})
@@ -192,6 +193,39 @@ def seed_rates4(file_path):
     finally:
         session.close()
 
+def seed_exchange_rates(file_path):
+    """Load historical FX rates (currency per 1 USD) from a CSV. Currency names
+    must match the dropdown names in Rates4.csv (e.g. 'Euro', 'British Pound')
+    so frontend lookups resolve. Idempotent: re-running merges by (currency,
+    date) composite key."""
+    print(f"Seeding {file_path} to ExchangeRate...")
+    if not Path(file_path).exists():
+        print(f"  (skipped — {file_path} not present)")
+        return
+    df = pd.read_csv(file_path)
+    session = Session()
+    try:
+        for _, row in df.iterrows():
+            curr = row.get('Currency')
+            date = row.get('As Of Date')
+            rate = clean_numeric(row.get('Rate Per USD'))
+            if pd.isna(curr) or pd.isna(date) or rate is None:
+                continue
+            record = ExchangeRate(
+                currency_name=str(curr).strip(),
+                as_of_date=str(date).strip(),
+                rate_per_usd=float(rate),
+                source=str(row.get('Source', '') or '').strip() or None,
+            )
+            session.merge(record)
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        raise e
+    finally:
+        session.close()
+
+
 def seed_tax_rates(file_path):
     print(f"Seeding {file_path} to TaxRatesReference...")
     df = pd.read_csv(file_path, encoding='latin1')
@@ -226,6 +260,7 @@ if __name__ == "__main__":
     seed_rates3(here / 'Rates3.csv')
     seed_rates4(here / 'Rates4.csv')
     seed_tax_rates(here / 'Tax Rates.csv')
+    seed_exchange_rates(here / 'ExchangeRates.csv')
 
     # Default report metadata so the PDF has a sensible Damodaran edition string
     # even before update_damodaran.py is ever run. Overwritten by that script

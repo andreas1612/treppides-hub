@@ -66,3 +66,14 @@ class ReportMeta(Base):
     __tablename__ = 'report_meta'
     key = Column(String, primary_key=True, index=True)
     value = Column(String)
+
+
+class ExchangeRate(Base):
+    """Historical FX rates expressed as <currency> per 1 USD (USD = 1.0).
+    Composite key on (currency_name, as_of_date) so callers can look up the
+    rate that matches a specific valuation date. `as_of_date` is YYYY-MM-DD."""
+    __tablename__ = 'exchange_rates'
+    currency_name = Column(String, primary_key=True, index=True)
+    as_of_date = Column(String, primary_key=True, index=True)
+    rate_per_usd = Column(Float, nullable=False)
+    source = Column(String)

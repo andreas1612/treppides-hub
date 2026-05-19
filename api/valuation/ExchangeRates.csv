@@ -1,0 +1,16 @@
+Currency,As Of Date,Rate Per USD,Source
+Euro,2024-12-31,0.9627,example - REPLACE with verified ECB rate
+Euro,2023-12-31,0.9050,example - REPLACE with verified ECB rate
+Euro,2022-12-31,0.9357,example - REPLACE with verified ECB rate
+British Pound,2024-12-31,0.7986,example - REPLACE with verified ECB rate
+British Pound,2023-12-31,0.7836,example - REPLACE with verified ECB rate
+British Pound,2022-12-31,0.8296,example - REPLACE with verified ECB rate
+Japanese Yen,2024-12-31,157.20,example - REPLACE with verified ECB rate
+Japanese Yen,2023-12-31,141.83,example - REPLACE with verified ECB rate
+Swiss Franc,2024-12-31,0.9087,example - REPLACE with verified ECB rate
+Swiss Franc,2023-12-31,0.8412,example - REPLACE with verified ECB rate
+Canadian $,2024-12-31,1.4389,example - REPLACE with verified ECB rate
+Australian $,2024-12-31,1.6133,example - REPLACE with verified ECB rate
+US $,2024-12-31,1.0000,identity
+US $,2023-12-31,1.0000,identity
+US $,2022-12-31,1.0000,identity

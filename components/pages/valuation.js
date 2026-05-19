@@ -238,8 +238,9 @@ const SHELL_HTML = `
                                       <input type="number" id="baseYear" name="baseYear" min="1990" max="2100" placeholder="e.g. 2024">
                                   </div>
                                   <div class="input-group">
-                                      <label for="eurUsdRate">EURUSD exchange rate as at 31 Dec 2024</label>
-                                      <input type="number" id="eurUsdRate" name="eurUsdRate" step="0.0001" placeholder="e.g. 1.0500">
+                                      <label for="eurUsdRate">Exchange rate to USD <span title="Auto-populated from the valuation date + selected currency when reference data is available. Editable — overwrite if you have a more authoritative rate. The value is read as: 1 USD = rate × {currency}." style="cursor:help; border-bottom: 1px dotted #ccc;">ℹ️</span></label>
+                                      <input type="number" id="eurUsdRate" name="eurUsdRate" step="0.0001" placeholder="e.g. 0.9627">
+                                      <div class="calc-detail" id="usdRateHint" style="display: none; font-size: 0.72rem; color: var(--text-muted); margin-top: 0.25rem;"></div>
                                   </div>
                                   <div class="input-group full-width">
                                       <label for="valuationScope">Scope of Valuation</label>
@@ -529,7 +530,7 @@ const SHELL_HTML = `
                                           <input type="number" id="dcfErp" readonly>
                                       </div>
                                       <div class="input-group">
-                                          <label>Country Risk Premium (%)</label>
+                                          <label>Country Risk Premium (%) <span title="Auto-populated from Damodaran's per-country data when an operating country is selected. Editable — adjust if company-specific risk warrants." style="cursor:help; border-bottom: 1px dotted #ccc;">ℹ️</span></label>
                                           <input type="number" id="dcfCrp" value="0.00" step="0.01">
                                       </div>
                                       <div class="input-group">
@@ -1099,9 +1100,15 @@ function bootValuation() {
             const val = e.target.value;
             if (!val) return;
             try {
-                const res = await fetch(`${API_BASE}/reference/tax-rate/${encodeURIComponent(val)}`);
-                if (res.ok) {
-                    referenceDataState.country = await res.json();
+                // Two parallel lookups: statutory tax rate + country risk metrics
+                // (CRP, per-country ERP, default spread). Both feed Tab 1.
+                const [taxRes, countryRes] = await Promise.all([
+                    fetch(`${API_BASE}/reference/tax-rate/${encodeURIComponent(val)}`),
+                    fetch(`${API_BASE}/reference/country/${encodeURIComponent(val)}`),
+                ]);
+
+                if (taxRes.ok) {
+                    referenceDataState.country = await taxRes.json();
                     console.log('Country Reference Data Loaded:', referenceDataState.country);
                     if (referenceDataState.country.statutory_tax_rate != null) {
                         document.getElementById('statutoryTaxRate').value = (referenceDataState.country.statutory_tax_rate * 100).toFixed(2);
@@ -1109,13 +1116,74 @@ function bootValuation() {
                         document.getElementById('statutoryTaxRate').value = "";
                     }
                     updateDcfTaxRate();
-                    if (typeof calculatePlProjections === 'function') calculatePlProjections();
                 } else {
                     referenceDataState.country = null;
                 }
+
+                // Per-country CRP + ERP from Damodaran's Rates2 sheet. ERP here
+                // is per-country, more precise than the continent average set by
+                // the continent dropdown — let it overwrite. Field stays editable
+                // so auditors can adjust for company-specific risk.
+                if (countryRes.ok) {
+                    const countryRisk = await countryRes.json();
+                    referenceDataState.countryRisk = countryRisk;
+                    if (countryRisk.country_risk_premium != null) {
+                        const crpVal = (countryRisk.country_risk_premium * 100).toFixed(2);
+                        const dcfCrp = document.getElementById('dcfCrp');
+                        if (dcfCrp) dcfCrp.value = crpVal;
+                    }
+                    if (countryRisk.equity_risk_premium != null) {
+                        const erpVal = (countryRisk.equity_risk_premium * 100).toFixed(2);
+                        const erpEl = document.getElementById('erp');
+                        if (erpEl) erpEl.value = erpVal;
+                        const dcfErpEl = document.getElementById('dcfErp');
+                        if (dcfErpEl) dcfErpEl.value = erpVal;
+                    }
+                }
+
+                if (typeof calculatePlProjections === 'function') calculatePlProjections();
             } catch (err) { console.error('API Fetch Error:', err); }
         });
     }
+
+    // Auto-fetch FX rate (currency → USD) keyed on the valuation date. Called
+    // when either currency or valuation date changes. Field stays editable so
+    // an auditor can overwrite with a more authoritative rate.
+    const fetchAndApplyFxRate = async () => {
+        const currency = document.getElementById('currency')?.value;
+        const valuationDate = document.getElementById('valuationDate')?.value;
+        const fxInput = document.getElementById('eurUsdRate');
+        const hintEl = document.getElementById('usdRateHint');
+        if (!currency || !fxInput) return;
+
+        // USD reporting currency: rate is identity, no fetch needed.
+        if (currency === 'US $' || currency === 'USD') {
+            fxInput.value = '1.0000';
+            if (hintEl) { hintEl.textContent = 'Reporting in USD — no conversion needed.'; hintEl.style.display = 'block'; }
+            return;
+        }
+
+        try {
+            const qs = valuationDate ? `?date=${encodeURIComponent(valuationDate)}` : '';
+            const res = await fetch(`${API_BASE}/reference/fx/${encodeURIComponent(currency)}${qs}`);
+            if (!res.ok) {
+                if (hintEl) { hintEl.textContent = 'No reference rate on file — please enter manually.'; hintEl.style.display = 'block'; }
+                return;
+            }
+            const data = await res.json();
+            fxInput.value = Number(data.rate_per_usd).toFixed(4);
+            if (hintEl) {
+                const matchNote = data.exact_match ? 'exact match' : 'nearest prior date';
+                const sourceNote = data.source ? ` · ${data.source}` : '';
+                hintEl.textContent = `${currency} per 1 USD on ${data.as_of_date} (${matchNote})${sourceNote}`;
+                hintEl.style.display = 'block';
+            }
+            if (typeof calculatePlProjections === 'function') calculatePlProjections();
+        } catch (err) {
+            console.error('FX Fetch Error:', err);
+            if (hintEl) { hintEl.textContent = 'Could not load reference rate — please enter manually.'; hintEl.style.display = 'block'; }
+        }
+    };
 
     if (currencySelect) {
         currencySelect.addEventListener('change', async (e) => {
@@ -1140,6 +1208,8 @@ function bootValuation() {
                     referenceDataState.currency = null;
                 }
             } catch (err) { console.error('API Fetch Error:', err); }
+            // Refresh FX after currency change (and any time the date changes too)
+            fetchAndApplyFxRate();
         });
     }
 
@@ -1167,6 +1237,8 @@ function bootValuation() {
             if (isNaN(y)) return;
             baseYearInput.value = y - 1;
             if (typeof calculatePlProjections === 'function') calculatePlProjections();
+            // Refresh FX so it tracks the new valuation date
+            fetchAndApplyFxRate();
         });
     }
 
@@ -1479,18 +1551,18 @@ function bootValuation() {
         const getVal = (id) => parseFloat(document.getElementById(id).value) || 0;
         
         // --- 0. Auto-calculate DLOM and SSP based on USD Revenue ---
-        const getUsdRevenue = (projRevenue2025) => {
-            const eurUsdInput = document.getElementById('eurUsdRate');
-            let eurUsdRate = eurUsdInput && eurUsdInput.value ? parseFloat(eurUsdInput.value) : 1.0;
-            if (isNaN(eurUsdRate)) eurUsdRate = 1.0;
-
+        // Rate semantics: 1 USD = rate_per_usd × {currency}. So to convert a
+        // local-currency amount into USD we divide. USD itself short-circuits.
+        const getUsdRevenue = (projRevenue) => {
             const currencyInput = document.getElementById('currency');
             const currency = currencyInput ? currencyInput.value : '';
-
-            if (currency === 'EUR') {
-                return projRevenue2025 * eurUsdRate;
+            if (!currency || currency === 'US $' || currency === 'USD') {
+                return projRevenue;
             }
-            return projRevenue2025; // Default to USD equivalent
+            const fxInput = document.getElementById('eurUsdRate');
+            const rate = fxInput && fxInput.value ? parseFloat(fxInput.value) : NaN;
+            if (!isFinite(rate) || rate <= 0) return projRevenue; // missing rate → assume already-USD
+            return projRevenue / rate;
         };
 
         const getDlom = (usdRevenue) => {
