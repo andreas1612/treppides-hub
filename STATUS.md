@@ -1,6 +1,6 @@
 # STATUS — Treppides Hub
 
-**Last updated: 2026-05-12 (session 10)**
+**Last updated: 2026-05-20 (session 12)**
 **→ Start every session from [NEXT_SESSION.md](NEXT_SESSION.md)**
 
 ---
@@ -13,6 +13,7 @@
 | **BookStack** | ✅ Running | Docker `bookstack` | |
 | **MariaDB** | ✅ Running | Docker `bookstack_db` | |
 | **ClickUp Fees + Upload API** | ✅ Running | systemd `clickup-fees` (port 8001) | Serves AML data + media upload endpoints |
+| **Valuation Reference API** | ✅ Running | systemd `valuation-api` (port 8002) | Damodaran + tax + FX reference data for the valuation tool |
 
 ---
 
@@ -32,6 +33,7 @@
 | Admin Panel | ✅ Live | BookStack API + upload API | PIN-protected, photo/video/YouTube media composer |
 | IT Support Modal | ✅ Live | FormSubmit → email | → apieri@treppides.com |
 | Search | ✅ Live | BookStack full-text | Topbar, 400ms debounce |
+| Valuation Tool | ✅ Live | FastAPI + SQLite (Damodaran) | DCF builder, country/industry/currency reference auto-fill, historical FX (2015–2025 year-end, 43 ccys), PDF report |
 | Projects | ⏳ Stub | — | "Under development" placeholder |
 
 ---
@@ -57,6 +59,7 @@
 | `/docs/*` | `localhost:6875` | BookStack Docker |
 | `/api/clickup/*` | `localhost:8001` | FastAPI fees data |
 | `/api/upload/*` | `localhost:8001` | FastAPI media upload |
+| `/api/valuation/*` | `localhost:8002` | FastAPI valuation reference data |
 | `/media/` | `~/treppides-hub/media/` | Static uploaded files, 7d cache |
 | `/projects` | `localhost:3000` | OpenProject (not deployed yet) |
 
@@ -69,6 +72,8 @@
 | BookStack API token | **15/08/2026** | BookStack admin → My Account → API Tokens → rotate → update config.js |
 | ClickUp API token | Never | Regenerate in ClickUp settings if revoked |
 | SSL cert (*.treppides.com) | **22/11/2026** | Re-issue from Sectigo |
+| Damodaran reference data | Annual (Jan) | Run `python update_damodaran.py` on the server after each January release |
+| FX rates (year-end) | Annual (Jan) | Run `python fetch_exchange_rates.py --end <year>` after year-end |
 
 ---
 
@@ -81,6 +86,8 @@
 | 3 | Info | `--brand-green` CSS vars defined but unused — reserved |
 | 4 | Medium | BookStack token plaintext in config.js — mitigated: gitignored, LAN-only |
 | 5 | Low | Projects sidebar link → stub page only |
+| 6 | Low | Valuation FX field silent when date falls back to nearest-prior row (no UI hint) |
+| 7 | Low | Croatian Kuna has no FX data after 2022 (currency retired) — no UI message |
 
 ---
 

@@ -17,3 +17,6 @@ api/valuation/venv/
 staff.xlsx
 media/images/
 media/videos/
+
+# Claude Code local settings (per-machine)
+.claude/
