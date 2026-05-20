@@ -33,7 +33,7 @@
 | Admin Panel | ✅ Live | BookStack API + upload API | PIN-protected, photo/video/YouTube media composer |
 | IT Support Modal | ✅ Live | FormSubmit → email | → apieri@treppides.com |
 | Search | ✅ Live | BookStack full-text | Topbar, 400ms debounce |
-| Valuation Tool | ✅ Live | FastAPI + SQLite (Damodaran) | DCF builder, country/industry/currency reference auto-fill, historical FX (2015–2025 year-end, 43 ccys), PDF report |
+| Valuation Tool | ✅ Live | FastAPI + SQLite (Damodaran) | DCF builder, country/industry/currency reference auto-fill, historical FX (2015–2025 year-end, 43 ccys), continent-average fallback when country not in Rates2, PDF report |
 | Projects | ⏳ Stub | — | "Under development" placeholder |
 
 ---
@@ -88,6 +88,8 @@
 | 5 | Low | Projects sidebar link → stub page only |
 | 6 | Low | Valuation FX field silent when date falls back to nearest-prior row (no UI hint) |
 | 7 | Low | Croatian Kuna has no FX data after 2022 (currency retired) — no UI message |
+| 8 | Info | Perpetual Growth Rate is hardcoded 5.67% and not linked to Revenue Growth Override — design parked for next session |
+| 9 | Info | Source Excel workbook's "Country Risk Free Premium" cell reads col 5 of Damodaran Rates2 = ERP (mislabel); hub correctly reads col 6 = CRP. Side-by-side QA against the workbook will show that single cell disagreeing — hub is right. |
 
 ---
 

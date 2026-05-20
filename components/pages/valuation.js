@@ -1124,20 +1124,67 @@ function bootValuation() {
                 // is per-country, more precise than the continent average set by
                 // the continent dropdown — let it overwrite. Field stays editable
                 // so auditors can adjust for company-specific risk.
-                if (countryRes.ok) {
-                    const countryRisk = await countryRes.json();
-                    referenceDataState.countryRisk = countryRisk;
-                    if (countryRisk.country_risk_premium != null) {
-                        const crpVal = (countryRisk.country_risk_premium * 100).toFixed(2);
+                //
+                // Mirrors the source workbook's CRP formula:
+                //   =IFERROR(VLOOKUP(country, Table14, n, 0),
+                //            AVERAGEIF(References!B:B, continent, References!F:F))
+                // If the country isn't in Damodaran's Rates2 table, fall back to
+                // the user-selected continent's average CRP/ERP from
+                // ContinentAverages. Excel uses col 5 (= ERP, mis-labelled
+                // "Country Risk Premium" in the workbook); we deliberately read
+                // country_risk_premium here, which is the *correct* concept.
+                const setCrpErp = (crp, erp, sourceLabel) => {
+                    if (crp != null) {
                         const dcfCrp = document.getElementById('dcfCrp');
-                        if (dcfCrp) dcfCrp.value = crpVal;
+                        if (dcfCrp) dcfCrp.value = (crp * 100).toFixed(2);
                     }
-                    if (countryRisk.equity_risk_premium != null) {
-                        const erpVal = (countryRisk.equity_risk_premium * 100).toFixed(2);
+                    if (erp != null) {
+                        const erpVal = (erp * 100).toFixed(2);
                         const erpEl = document.getElementById('erp');
                         if (erpEl) erpEl.value = erpVal;
                         const dcfErpEl = document.getElementById('dcfErp');
                         if (dcfErpEl) dcfErpEl.value = erpVal;
+                    }
+                    referenceDataState.countryRiskSource = sourceLabel;
+                };
+
+                if (countryRes.ok) {
+                    const countryRisk = await countryRes.json();
+                    referenceDataState.countryRisk = countryRisk;
+                    setCrpErp(
+                        countryRisk.country_risk_premium,
+                        countryRisk.equity_risk_premium,
+                        `Damodaran Rates2 (${val})`,
+                    );
+                } else if (countryRes.status === 404) {
+                    // Country not in Damodaran's table — average the continent.
+                    // Use whatever continent the user picked on the Tab 1 dropdown;
+                    // if none picked yet, the fallback silently skips and the
+                    // existing field values (likely from the continent dropdown
+                    // itself) stand.
+                    const continentEl = document.getElementById('continent');
+                    const continent = continentEl ? continentEl.value : '';
+                    if (continent) {
+                        try {
+                            const contRes = await fetch(`${API_BASE}/reference/continent/${encodeURIComponent(continent)}`);
+                            if (contRes.ok) {
+                                const contAvg = await contRes.json();
+                                referenceDataState.countryRisk = {
+                                    country_name: val,
+                                    country_risk_premium: contAvg.country_risk_premium,
+                                    equity_risk_premium: contAvg.equity_risk_premium,
+                                    fallback: true,
+                                };
+                                setCrpErp(
+                                    contAvg.country_risk_premium,
+                                    contAvg.equity_risk_premium,
+                                    `${continent} average (fallback — ${val} not in Rates2)`,
+                                );
+                                console.log(`CRP/ERP fallback: ${val} not in Rates2, using ${continent} averages`);
+                            }
+                        } catch (fbErr) {
+                            console.warn('Continent-average fallback failed:', fbErr);
+                        }
                     }
                 }
 

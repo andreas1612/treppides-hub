@@ -90,6 +90,10 @@ edits rather than another full re-port from Valtrix.
 
 Antigravity wouldn't open this morning. Verified all seven files from
 yesterday's session were on disk and unmodified before continuing.
+Yesterday's diff turned out to be already committed as
+[`3453c6d`](https://github.com/andreas1612/treppides-hub/commit/3453c6d)
+("valuation: per-country CRP/ERP from DB; historical FX rates with
+auto-fetch") — nothing on disk needed re-saving.
 
 ### Real FX data — sourced, scripted, ingested
 
@@ -180,6 +184,57 @@ data with `exact_match: true`.
 
 ---
 
+### Country Risk Premium — continent-average fallback (matches Excel)
+
+The source Excel workbook this tool was ported from uses the formula:
+
+```
+=IFERROR(
+    VLOOKUP('Report Input tab'!C12, Table14[#All], 5, 0),
+    AVERAGEIF(References!B:B, 'Report Input tab'!C10, References!F:F)
+)
+```
+
+In English: "Look up the picked country in Damodaran's Rates2 table; if
+the country isn't there, fall back to the average of all countries on
+the user-selected continent."
+
+Our port did the primary lookup ([valuation.js:1127](components/pages/valuation.js#L1127))
+but had no fallback — picking a country missing from Damodaran's table
+(e.g. small jurisdictions, micro-states) left the CRP/ERP fields stale.
+
+Fix in [valuation.js:1123-1184](components/pages/valuation.js#L1123-L1184):
+factored CRP+ERP writes into a `setCrpErp(crp, erp, sourceLabel)` helper.
+When `/reference/country/{name}` returns 404, the handler now reads the
+user's continent dropdown and fetches `/reference/continent/{continent}`
+— that endpoint already exposes the `ContinentAverages` table populated
+at seed time. Writes the same fields, tags the source in
+`referenceDataState.countryRiskSource` ("Damodaran Rates2 (…)" vs.
+"Western Europe average (fallback — … not in Rates2)") for future UI
+surfacing.
+
+If no continent is picked yet, the fallback silently skips so the
+existing field values (typically the ones the continent dropdown just
+wrote) stand untouched. No new endpoint, no schema change.
+
+#### ⚠️ Excel mistake to keep in mind
+
+Column 5 of `Table14[#All]` in the source workbook **is the Equity Risk
+Premium, not the Country Risk Premium**. Our Rates2 schema lays out
+columns as: `country, continents, moodys_rating, adj_default_spread,
+equity_risk_premium (5), country_risk_premium (6)`. The Excel cell is
+*labelled* "Country Risk Free Premium" but the VLOOKUP returns ERP. The
+authoring auditor likely meant CRP and wired the wrong column index.
+
+We deliberately read `country_risk_premium` from our endpoint — the
+**correct** concept under that label. If you ever compare numbers
+side-by-side with the Excel workbook for the same country, expect the
+"Country Risk Free Premium" cell to disagree with our `dcfCrp` field
+— ours is right, the workbook is reading the wrong column. Worth a
+note to whoever maintains the spreadsheet.
+
+---
+
 ## Files changed in this session
 
 Day 1 was already committed yesterday as
@@ -195,6 +250,7 @@ Today's diff on top of that:
 A  api/valuation/fetch_exchange_rates.py        (new — 152 lines)
 M  api/valuation/ExchangeRates.csv              (16 placeholder rows → 470 real)
 M  api/valuation/valuation_reference.db         (re-seeded against new CSV)
+M  components/pages/valuation.js                (CRP/ERP continent-average fallback)
 M  STATUS.md                                    (refresh — see below)
 A  SESSION_12.md                                (this file)
 M  .gitignore                                   (ignore .claude/ local settings)
@@ -211,8 +267,9 @@ cd treppides-hub
 git add api/valuation/fetch_exchange_rates.py \
         api/valuation/ExchangeRates.csv \
         api/valuation/valuation_reference.db \
+        components/pages/valuation.js \
         STATUS.md SESSION_12.md .gitignore
-git commit -m "valuation: real year-end FX rates (43 currencies × 11 years, Frankfurter)"
+git commit -m "valuation: real year-end FX + CRP/ERP continent-average fallback"
 git push
 ```
 
@@ -280,6 +337,19 @@ From a colleague's browser:
    - `sudo systemctl restart clickup-fees` to pick up media-upload endpoints.
    - Verify AML breakdown field names (`rejection_reason` /
      `disengaged_reason`) against actual ClickUp keys after server pull.
+7. **Perpetual growth ↔ revenue growth override link** — design
+   conversation parked for next session. Today's perpetual growth rate
+   is a free-standing hardcoded `5.67` ([valuation.js:587](components/pages/valuation.js#L587))
+   with no relationship to the projection growth rate. Need to decide
+   the auto-fill rule (min(override, risk_free_rate) is the candidate),
+   whether the field stays editable, and whether to warn on large
+   deltas between explicit-period growth and terminal growth.
+8. **Excel workbook discrepancy** — the source spreadsheet's
+   "Country Risk Free Premium" cell uses `VLOOKUP(..., 5, 0)` which
+   returns Equity Risk Premium, not Country Risk Premium. Our port
+   uses the correct concept (column 6, `country_risk_premium`). If
+   the spreadsheet ever gets compared side-by-side with the hub
+   output for QA, expect a per-country mismatch on that cell.
 
 ---
 
