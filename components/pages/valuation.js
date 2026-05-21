@@ -1087,6 +1087,10 @@ function bootValuation() {
                         const companyBetaEl = document.getElementById('companyBeta');
                         if (companyBetaEl) companyBetaEl.value = "";
                     }
+                    const perpetualEl = document.getElementById('perpetualGrowthRate');
+                    if (perpetualEl && referenceDataState.industry.exp_revenue_growth_5yr != null) {
+                        perpetualEl.value = (referenceDataState.industry.exp_revenue_growth_5yr / 5 * 100).toFixed(2);
+                    }
                     if (typeof calculatePlProjections === 'function') calculatePlProjections();
                 } else {
                     referenceDataState.industry = null;

@@ -153,6 +153,7 @@ def get_industry_reference(industry_name: str, db: Session = Depends(get_db)):
         "effective_tax_rate": r1.effective_tax_rate if r1 else None,
         "hist_revenue_cagr": r3.cagr_in_revenues_last_5_years if r3 else None,
         "exp_revenue_growth_2yr": r3.expected_growth_in_revenues_next_2_years if r3 else None,
+        "exp_revenue_growth_5yr": r3.expected_growth_in_revenues_next_5_years if r3 else None,
         "exp_eps_growth_5yr": r3.expected_growth_in_eps_next_5_years if r3 else None,
     }
 
