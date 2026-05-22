@@ -584,7 +584,7 @@ const SHELL_HTML = `
                                       </div>
                                       <div class="input-group" style="margin-top: 1rem;">
                                           <label>Perpetual Growth Rate (%)</label>
-                                          <input type="number" id="perpetualGrowthRate" value="5.67" step="0.01">
+                                          <input type="number" id="perpetualGrowthRate" step="0.01" placeholder="Select industry to auto-fill">
                                       </div>
                                       <div class="input-group">
                                           <label>Discount for Lack of Marketability (DLOM) (%)</label>
