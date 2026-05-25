@@ -309,9 +309,9 @@ Data shape:
 }
 ```
 
-ClickUp credentials in `api/clickup/.env`:
+ClickUp credentials in `api/clickup/.env` (gitignored, server-only):
 - `CLICKUP_API_TOKEN` — personal token starting with `pk_`
-- `CLICKUP_LIST_ID` — `901215683313`
+- `CLICKUP_LIST_ID` — the New Client Fees list ID (find in the ClickUp URL)
 
 ---
 

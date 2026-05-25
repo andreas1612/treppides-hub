@@ -18,6 +18,10 @@ api/valuation/venv/
 # noise and pull conflicts every refresh.
 api/valuation/valuation_reference.db
 
+# Local operational runbook — kept out of git because it contains exact
+# server commands and is for the maintainer's reference, not the repo.
+DATABASE_INSTRUCTIONS.md
+
 # Raw data files
 staff.xlsx
 media/images/
