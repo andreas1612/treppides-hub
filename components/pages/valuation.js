@@ -117,6 +117,11 @@ const SHELL_HTML = `
     </div>
 
     <div class="form-container">
+      <div id="draftRestoreBanner" style="display: none; padding: 0.75rem 1rem; margin-bottom: 1rem; background: var(--bg-surface, #f5f7fa); border: 1px solid var(--border-color, #d0d7de); border-left: 4px solid var(--brand-blue, #2f6feb); border-radius: var(--radius-sm, 6px); align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+        <span style="flex: 1; min-width: 200px;">You have an unsaved draft from <span id="draftRestoreTimestamp">(unknown)</span>. Restore it?</span>
+        <button type="button" class="btn btn-primary btn-sm" id="draftRestoreBtn">Restore draft</button>
+        <button type="button" class="btn btn-secondary btn-sm" id="draftDismissBtn">Discard draft</button>
+      </div>
       <form id="valuationForm" novalidate>
                       
                       <div class="tab-navigation">
@@ -786,7 +791,10 @@ const SHELL_HTML = `
       
                       <!-- Action Bar -->
                       <div class="form-actions">
-                          <button type="button" class="btn btn-secondary">Discard</button>
+                          <button type="button" class="btn btn-secondary" id="discardBtn">Discard</button>
+                          <button type="button" class="btn btn-secondary" id="importJsonBtn" title="Load a previously exported .json snapshot">Import JSON</button>
+                          <input type="file" id="importJsonInput" accept="application/json,.json" style="display:none">
+                          <button type="button" class="btn btn-secondary" id="exportJsonBtn" title="Save current form + outputs as a .json snapshot">Export JSON</button>
                           <button type="button" class="btn btn-primary" id="exportPdfBtn">Export PDF</button>
                       </div>
       
@@ -3025,4 +3033,380 @@ function bootValuation() {
         valuationForm.addEventListener('submit', (e) => e.preventDefault());
     }
 
+    // ============================================================
+    // Session persistence — auto-save draft + JSON export/import
+    // ============================================================
+    // Auto-save writes the whole form to localStorage on every change so a
+    // tab close doesn't lose work. Export/Import buttons produce a portable
+    // .json snapshot the auditor can store next to the PDF report. The JSON
+    // snapshot is the audit-trail artifact; localStorage is recoverable
+    // scratch state. Snapshot format is versioned (snapshotVersion) so the
+    // import path can evolve without breaking older files.
+
+    const DRAFT_KEY = 'treppides:valuation:draft:v1';
+    const SNAPSHOT_VERSION = 1;
+
+    // Output table IDs we capture into the JSON snapshot so the file is a
+    // point-in-time record of what the form showed — auditors don't want
+    // re-imported snapshots to silently recompute against a newer Damodaran
+    // edition. On import we restore innerHTML for these.
+    const OUTPUT_TABLE_IDS = [
+        'plProjectionsBody',
+        'cfProjectionsBody',
+        'dcfModelBody',
+        'sensGrowthBody',
+        'sensDiscountBody',
+        'summaryEquityTableBody',
+        'summaryEvTableBody',
+    ];
+
+    // Display-only spans/labels updated by calculations that we want to
+    // round-trip in the snapshot.
+    const OUTPUT_TEXT_IDS = [
+        'summaryCashLabel', 'summaryDebtLabel',
+        'summaryEquityDateLabel', 'summaryEvDateLabel',
+        'summaryEquityCurr1', 'summaryEquityCurr2',
+        'summaryEvCurr1', 'summaryEvCurr2',
+        'dcfFinalValuation',
+    ];
+
+    const formEl = document.getElementById('valuationForm');
+
+    // Pull every named form field — input/select/textarea — into a flat
+    // {id: value} object. Multi-value fields (shareholders[] arrays) are
+    // grouped into a sibling `shareholders` array on the snapshot.
+    const serializeForm = () => {
+        const inputs = {};
+        if (!formEl) return { inputs, shareholders: [] };
+
+        // Single-value fields (those with an id). Skip the file input —
+        // can't round-trip a File via JSON, and the cover image is
+        // displayed via a data URL preview anyway.
+        formEl.querySelectorAll('input[id], select[id], textarea[id]').forEach(el => {
+            if (el.type === 'file') return;
+            if (el.id === 'importJsonInput') return;
+            if (el.type === 'checkbox' || el.type === 'radio') {
+                inputs[el.id] = el.checked;
+            } else {
+                inputs[el.id] = el.value;
+            }
+        });
+
+        // Dynamic shareholders list — two parallel arrays by name.
+        const shareholderNames = Array.from(formEl.querySelectorAll('input[name="shareholders[]"]')).map(i => i.value);
+        const shareholderPcts = Array.from(formEl.querySelectorAll('input[name="shareholderPct[]"]')).map(i => i.value);
+        const shareholders = shareholderNames.map((name, i) => ({
+            name,
+            pct: shareholderPcts[i] || '',
+        })).filter(s => s.name || s.pct);
+
+        // Cover image preview — captured as data URL if present so a saved
+        // draft restores the visible thumbnail (the underlying File is lost
+        // on JSON round-trip; that's an accepted limitation).
+        const imagePreview = document.getElementById('imagePreview');
+        const coverImageDataUrl = (imagePreview && imagePreview.src && imagePreview.src.startsWith('data:'))
+            ? imagePreview.src
+            : null;
+
+        return { inputs, shareholders, coverImageDataUrl };
+    };
+
+    const captureOutputs = () => {
+        const tables = {};
+        OUTPUT_TABLE_IDS.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) tables[id] = el.innerHTML;
+        });
+        const texts = {};
+        OUTPUT_TEXT_IDS.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) texts[id] = el.innerHTML;
+        });
+        return { tables, texts };
+    };
+
+    const buildSnapshot = () => {
+        const { inputs, shareholders, coverImageDataUrl } = serializeForm();
+        return {
+            meta: {
+                snapshotVersion: SNAPSHOT_VERSION,
+                savedAt: new Date().toISOString(),
+                appName: 'Treppides Hub — Valuation Tool',
+                damodaranEditionId: selectedEdition || null,
+                damodaranEditionLabel: damodaranEdition || null,
+            },
+            inputs,
+            shareholders,
+            coverImageDataUrl,
+            referenceDataState: JSON.parse(JSON.stringify(referenceDataState)),
+            outputs: captureOutputs(),
+        };
+    };
+
+    // Apply a snapshot back to the form. Strategy: set the edition first
+    // (so the dropdowns reload against the right edition), wait one tick,
+    // then write field values, then fire change events on the linked
+    // dropdowns so reference-data lookups re-run, then restore the captured
+    // outputs (which overwrite anything the change handlers just rendered
+    // — important for the audit-trail snapshot guarantee).
+    const applySnapshot = async (snapshot) => {
+        if (!snapshot || !snapshot.inputs) {
+            alert('That file does not look like a valid valuation snapshot.');
+            return false;
+        }
+        if (snapshot.meta && snapshot.meta.snapshotVersion > SNAPSHOT_VERSION) {
+            const proceed = confirm(`This snapshot was saved by a newer version (v${snapshot.meta.snapshotVersion}) than this page supports (v${SNAPSHOT_VERSION}). Try to import anyway?`);
+            if (!proceed) return false;
+        }
+
+        // 1. Edition first — sets selectedEdition + reloads the dropdowns.
+        const targetEd = snapshot.meta && snapshot.meta.damodaranEditionId;
+        const editionSelect = document.getElementById('damodaranEdition');
+        if (targetEd && editionSelect) {
+            const opt = Array.from(editionSelect.options).find(o => o.value === targetEd);
+            if (opt) {
+                editionSelect.value = targetEd;
+                editionSelect.dispatchEvent(new Event('change'));
+                // Give the change handler one tick to repopulate dependent dropdowns.
+                await new Promise(r => setTimeout(r, 250));
+            }
+        }
+
+        // 2. Restore reference-data state so any computed downstream logic
+        // (e.g. updateDcfTaxRate) has the right inputs even before fields fire.
+        if (snapshot.referenceDataState) {
+            Object.assign(referenceDataState, snapshot.referenceDataState);
+        }
+
+        // 3. Restore shareholders — wipe existing rows except the first, add new ones.
+        const shareholdersContainer = document.getElementById('shareholdersContainer');
+        if (shareholdersContainer && Array.isArray(snapshot.shareholders)) {
+            shareholdersContainer.innerHTML = '';
+            (snapshot.shareholders.length ? snapshot.shareholders : [{ name: '', pct: '' }]).forEach((s, idx) => {
+                const row = document.createElement('div');
+                row.className = 'dynamic-list-item';
+                if (idx > 0) row.style.marginTop = '8px';
+                row.style.display = 'grid';
+                row.style.gridTemplateColumns = '2fr 1fr';
+                row.style.gap = '0.5rem';
+                row.innerHTML = `<input type="text" name="shareholders[]" placeholder="Enter shareholder name" value="${(s.name || '').replace(/"/g, '&quot;')}"><input type="number" name="shareholderPct[]" placeholder="% share" min="0" max="100" step="0.01" value="${(s.pct || '').toString().replace(/"/g, '&quot;')}">`;
+                shareholdersContainer.appendChild(row);
+            });
+        }
+
+        // 4. Write field values. Fire input + change so listeners (calc
+        // recomputes, dropdown-cascade fetches) wake up.
+        Object.entries(snapshot.inputs).forEach(([id, value]) => {
+            const el = document.getElementById(id);
+            if (!el || el.type === 'file') return;
+            if (el.type === 'checkbox' || el.type === 'radio') {
+                el.checked = !!value;
+            } else {
+                el.value = value == null ? '' : value;
+            }
+        });
+
+        // Fire change on dropdowns that have reference-data side effects.
+        // Order matters for downstream auto-fill (continent → country → industry).
+        const cascadeOrder = ['currency', 'continent', 'operatingCountry', 'industry'];
+        for (const id of cascadeOrder) {
+            const el = document.getElementById(id);
+            if (el && el.value) {
+                el.dispatchEvent(new Event('change'));
+                await new Promise(r => setTimeout(r, 100));
+            }
+        }
+
+        // Cover image — restore the preview thumbnail if the snapshot has one.
+        if (snapshot.coverImageDataUrl) {
+            const imagePreview = document.getElementById('imagePreview');
+            const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+            if (imagePreview && imagePreviewContainer) {
+                imagePreview.src = snapshot.coverImageDataUrl;
+                imagePreviewContainer.style.display = 'block';
+            }
+        }
+
+        // 5. Restore captured outputs LAST so any auto-recompute triggered
+        // by the change events above is overwritten with the snapshot's
+        // exact point-in-time state. This is the audit-trail guarantee:
+        // re-importing yesterday's snapshot shows yesterday's numbers,
+        // even if Damodaran data has changed since.
+        if (snapshot.outputs) {
+            Object.entries(snapshot.outputs.tables || {}).forEach(([id, html]) => {
+                const el = document.getElementById(id);
+                if (el) el.innerHTML = html;
+            });
+            Object.entries(snapshot.outputs.texts || {}).forEach(([id, html]) => {
+                const el = document.getElementById(id);
+                if (el) el.innerHTML = html;
+            });
+        }
+
+        return true;
+    };
+
+    // ---- Auto-save to localStorage (debounced) ----
+    let saveTimer = null;
+    const SAVE_DEBOUNCE_MS = 500;
+    let lastDraftJson = null;
+
+    const scheduleSave = () => {
+        if (saveTimer) clearTimeout(saveTimer);
+        saveTimer = setTimeout(() => {
+            try {
+                const snapshot = buildSnapshot();
+                const json = JSON.stringify(snapshot);
+                // Skip writing if nothing changed since last save (cuts down on noise).
+                if (json === lastDraftJson) return;
+                localStorage.setItem(DRAFT_KEY, json);
+                lastDraftJson = json;
+            } catch (err) {
+                // QuotaExceededError is the only realistic failure here
+                // (cover image data URLs can push the snapshot past 5 MB).
+                console.warn('Draft auto-save failed:', err);
+            }
+        }, SAVE_DEBOUNCE_MS);
+    };
+
+    const clearDraft = () => {
+        try { localStorage.removeItem(DRAFT_KEY); } catch (_) {}
+        lastDraftJson = null;
+    };
+
+    // Bind to every input/change event on the form. delegated listener
+    // catches dynamically-added shareholder rows too.
+    if (formEl) {
+        formEl.addEventListener('input', scheduleSave);
+        formEl.addEventListener('change', scheduleSave);
+    }
+
+    // ---- Restore-draft banner ----
+    // On boot, if a draft exists in localStorage, surface a banner asking
+    // the user whether to restore it. We deliberately do NOT auto-restore
+    // — surprising the user with stale state from an old session is worse
+    // than asking.
+    const draftRestoreBanner = document.getElementById('draftRestoreBanner');
+    const draftRestoreBtn = document.getElementById('draftRestoreBtn');
+    const draftDismissBtn = document.getElementById('draftDismissBtn');
+    const draftTimestampEl = document.getElementById('draftRestoreTimestamp');
+
+    const checkForDraft = () => {
+        let raw = null;
+        try { raw = localStorage.getItem(DRAFT_KEY); } catch (_) { return; }
+        if (!raw) return;
+        try {
+            const snapshot = JSON.parse(raw);
+            const ts = snapshot.meta && snapshot.meta.savedAt;
+            if (draftTimestampEl && ts) {
+                const d = new Date(ts);
+                draftTimestampEl.textContent = isNaN(d) ? ts : d.toLocaleString();
+            }
+            if (draftRestoreBanner) draftRestoreBanner.style.display = 'flex';
+        } catch (err) {
+            console.warn('Could not parse stored draft, discarding:', err);
+            clearDraft();
+        }
+    };
+
+    if (draftRestoreBtn) {
+        draftRestoreBtn.addEventListener('click', async () => {
+            let raw = null;
+            try { raw = localStorage.getItem(DRAFT_KEY); } catch (_) {}
+            if (!raw) {
+                if (draftRestoreBanner) draftRestoreBanner.style.display = 'none';
+                return;
+            }
+            try {
+                const snapshot = JSON.parse(raw);
+                await applySnapshot(snapshot);
+            } catch (err) {
+                console.error('Could not restore draft:', err);
+                alert('Could not restore draft — file may be corrupted. Clearing it.');
+                clearDraft();
+            }
+            if (draftRestoreBanner) draftRestoreBanner.style.display = 'none';
+        });
+    }
+    if (draftDismissBtn) {
+        draftDismissBtn.addEventListener('click', () => {
+            clearDraft();
+            if (draftRestoreBanner) draftRestoreBanner.style.display = 'none';
+        });
+    }
+
+    // ---- Export / Import buttons ----
+    const exportJsonBtn = document.getElementById('exportJsonBtn');
+    const importJsonBtn = document.getElementById('importJsonBtn');
+    const importJsonInput = document.getElementById('importJsonInput');
+    const discardBtn = document.getElementById('discardBtn');
+
+    const slugify = (s) => (s || '').replace(/[^a-z0-9]+/gi, '_').replace(/^_+|_+$/g, '');
+
+    if (exportJsonBtn) {
+        exportJsonBtn.addEventListener('click', () => {
+            const snapshot = buildSnapshot();
+            const companyName = document.getElementById('companyName')?.value || 'Valuation';
+            const valDate = document.getElementById('valuationDate')?.value || '';
+            const filename = `${slugify(companyName) || 'Valuation'}${valDate ? '_' + valDate : ''}_snapshot.json`;
+            const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            // Give the download a moment to start before revoking.
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        });
+    }
+
+    if (importJsonBtn && importJsonInput) {
+        importJsonBtn.addEventListener('click', () => importJsonInput.click());
+        importJsonInput.addEventListener('change', async (e) => {
+            const file = e.target.files && e.target.files[0];
+            if (!file) return;
+            try {
+                const text = await file.text();
+                const snapshot = JSON.parse(text);
+                const ok = await applySnapshot(snapshot);
+                if (ok) {
+                    // Save the imported state as the current draft so a
+                    // tab close doesn't lose it.
+                    scheduleSave();
+                }
+            } catch (err) {
+                console.error('Import failed:', err);
+                alert('Could not read that file as a valuation snapshot. See console for details.');
+            } finally {
+                // Reset the input so picking the same file again re-fires the change event.
+                importJsonInput.value = '';
+            }
+        });
+    }
+
+    if (discardBtn) {
+        discardBtn.addEventListener('click', () => {
+            const proceed = confirm('Discard all form inputs and clear the saved draft? This cannot be undone.');
+            if (!proceed) return;
+            clearDraft();
+            if (formEl) formEl.reset();
+            // Wipe captured outputs too so the page is visibly clean.
+            OUTPUT_TABLE_IDS.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.innerHTML = '';
+            });
+            // Hide the cover image preview.
+            const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+            if (imagePreviewContainer) imagePreviewContainer.style.display = 'none';
+            // Trigger a recalc so any base values reset cleanly.
+            if (typeof calculatePlProjections === 'function') {
+                try { calculatePlProjections(); } catch (_) {}
+            }
+        });
+    }
+
+    // Boot — check for a draft once everything else is wired.
+    checkForDraft();
 }

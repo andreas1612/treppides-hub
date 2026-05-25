@@ -1,6 +1,6 @@
 # STATUS — Treppides Hub
 
-**Last updated: 2026-05-25 (session 13)**
+**Last updated: 2026-05-25 (session 14)**
 **→ Start every session from [NEXT_SESSION.md](NEXT_SESSION.md)**
 
 ---
@@ -33,7 +33,7 @@
 | Admin Panel | ✅ Live | BookStack API + upload API | PIN-protected, photo/video/YouTube media composer |
 | IT Support Modal | ✅ Live | FormSubmit → email | → apieri@treppides.com |
 | Search | ✅ Live | BookStack full-text | Topbar, 400ms debounce |
-| Valuation Tool | ✅ Live | FastAPI + SQLite (Damodaran) | DCF builder; **historical Damodaran archive 2008-2026** with edition picker; country/industry/currency reference auto-fill; historical FX (2015–2025 year-end, 43 ccys); continent-average fallback; PDF report |
+| Valuation Tool | ✅ Live | FastAPI + SQLite (Damodaran) | DCF builder; **historical Damodaran archive 2008-2026** with edition picker; country/industry/currency reference auto-fill; historical FX (2015–2025 year-end, 43 ccys); continent-average fallback; **draft auto-save + JSON export/import** (audit-trail snapshot); PDF report |
 | Projects | ⏳ Stub | — | "Under development" placeholder |
 
 ---
