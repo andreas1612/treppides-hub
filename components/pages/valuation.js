@@ -1018,10 +1018,12 @@ function bootValuation() {
                 return;
             }
 
-            // Editions come newest-first from the API.
+            // Only show editions with full data coverage (2020-01 onward).
+            const MIN_EDITION = '2020-01';
+            const selectable = editions.filter(ed => ed.edition_id >= MIN_EDITION);
             if (editionSelect) {
                 editionSelect.innerHTML = '';
-                editions.forEach(ed => {
+                selectable.forEach(ed => {
                     const opt = document.createElement('option');
                     opt.value = ed.edition_id;
                     opt.textContent = formatEditionLabel(ed) + (ed.edition_id === latest ? ' (latest)' : '');

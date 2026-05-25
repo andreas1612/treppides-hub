@@ -183,6 +183,48 @@ A  SESSION_13.md                          (this file)
 
 ---
 
+## Server bootstrap (2026-05-25)
+
+Ran the full bootstrap sequence on the server:
+
+1. `git pull` — fast-forward to 73a112a, `valuation_reference.db` removed from
+   working tree.
+2. `pip install -r requirements.txt` — all deps already satisfied.
+3. `seed_database.py` — baseline 2024-01 seeded from bundled CSVs.
+4. `backfill_damodaran.py` — fetched 63 (year, dataset) combinations from the
+   Damodaran archive. **Actual coverage vs expected:**
+   - `rates2` (countries/CRP): **all 17 years** (2008-2024) parsed cleanly.
+   - `continent_averages`: rebuilt from rates2, all 17 years.
+   - `rates1` (industry betas): 2018-2023 only (2014-2017 failed —
+     "Worksheet named 'Industry Averages' not found").
+   - `rates3` (growth rates): 2020-2023 only (2008-2019 failed — same
+     worksheet-name issue).
+   - `tax` (country tax rates): **zero archive years parsed** — the archived
+     workbooks have industry-level columns, not the expected `country` column.
+   - `rates4` (currency risk-free): 2024 only (as expected — not archived).
+5. `update_damodaran.py` — fetched current live workbooks, detected edition
+   as **January 2025** (not 2026 as anticipated). Ingested as `2025-01` with
+   all four datasets.
+6. `systemctl restart valuation-api` — active and running.
+7. API verification — `/editions` lists 18 editions (2008-01 through 2025-01),
+   `/reference/country/Germany` returns different CRP/ERP for different editions.
+
+### Post-bootstrap fixes
+
+- **Countries dropdown empty for non-baseline editions.** The
+  `/dropdowns/countries` endpoint was querying `TaxRatesReference` (only
+  seeded for 2024-01) instead of `Rates2Reference` (available for all 18
+  editions). Fixed in `main.py` line 150: query now uses `Rates2Reference`.
+
+- **Edition picker limited to 2020-01 onward.** Full cross-dataset coverage
+  (rates1 + rates2 + rates3 + continent_averages) only exists from 2020.
+  Showing 2008-2019 editions was misleading — industries and growth data
+  would be missing. Added `MIN_EDITION = '2020-01'` filter in
+  `valuation.js` so the dropdown only presents 2020-01 through 2025-01
+  (6 editions).
+
+---
+
 ## Open items / follow-ups
 
 1. **Currency-specific risk-free rates pre-2024.** Damodaran didn't
@@ -198,11 +240,10 @@ A  SESSION_13.md                          (this file)
    ingest a `YYYY-07` edition. Going forward, running the script twice a
    year captures both. Backfilled history is January-only.
 
-3. **2025 edition isn't archived yet.** The current live URL points to
-   the latest edition (2026-01 in May 2026). If a user picks "January
-   2025" today they won't find it. We could backfill 2025 manually if
-   someone has the workbook on disk, or wait for it to appear at
-   `/archives/`.
+3. **Live URL currently reports January 2025.** As of 2026-05-25 the live
+   workbooks at `/datasets/` report "January 2025", not January 2026.
+   Damodaran may not have refreshed for 2026 yet. Re-run
+   `update_damodaran.py` once the 2026 edition appears.
 
 4. **PDF audit-trail.** The PDF report still uses `damodaranEdition` for
    its prose footer. Confirmed it reflects the selected edition's label

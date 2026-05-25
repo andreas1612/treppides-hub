@@ -147,9 +147,9 @@ def get_continents(edition: str | None = Query(None), db: Session = Depends(get_
 def get_countries(edition: str | None = Query(None), db: Session = Depends(get_db)):
     ed = resolve_edition(db, edition)
     rows = (
-        db.query(TaxRatesReference.country)
-        .filter(TaxRatesReference.edition == ed)
-        .order_by(TaxRatesReference.country)
+        db.query(Rates2Reference.country)
+        .filter(Rates2Reference.edition == ed)
+        .order_by(Rates2Reference.country)
         .all()
     )
     return [r[0] for r in rows]
