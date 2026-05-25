@@ -13,6 +13,11 @@ api/clickup/venv/
 api/valuation/__pycache__/
 api/valuation/venv/
 
+# Built reference database — rebuilt on the server via seed_database.py +
+# backfill_damodaran.py + update_damodaran.py. Committing it caused diff
+# noise and pull conflicts every refresh.
+api/valuation/valuation_reference.db
+
 # Raw data files
 staff.xlsx
 media/images/

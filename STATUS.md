@@ -1,6 +1,6 @@
 # STATUS — Treppides Hub
 
-**Last updated: 2026-05-20 (session 12)**
+**Last updated: 2026-05-25 (session 13)**
 **→ Start every session from [NEXT_SESSION.md](NEXT_SESSION.md)**
 
 ---
@@ -33,7 +33,7 @@
 | Admin Panel | ✅ Live | BookStack API + upload API | PIN-protected, photo/video/YouTube media composer |
 | IT Support Modal | ✅ Live | FormSubmit → email | → apieri@treppides.com |
 | Search | ✅ Live | BookStack full-text | Topbar, 400ms debounce |
-| Valuation Tool | ✅ Live | FastAPI + SQLite (Damodaran) | DCF builder, country/industry/currency reference auto-fill, historical FX (2015–2025 year-end, 43 ccys), continent-average fallback when country not in Rates2, PDF report |
+| Valuation Tool | ✅ Live | FastAPI + SQLite (Damodaran) | DCF builder; **historical Damodaran archive 2008-2026** with edition picker; country/industry/currency reference auto-fill; historical FX (2015–2025 year-end, 43 ccys); continent-average fallback; PDF report |
 | Projects | ⏳ Stub | — | "Under development" placeholder |
 
 ---
@@ -72,7 +72,7 @@
 | BookStack API token | **15/08/2026** | BookStack admin → My Account → API Tokens → rotate → update config.js |
 | ClickUp API token | Never | Regenerate in ClickUp settings if revoked |
 | SSL cert (*.treppides.com) | **22/11/2026** | Re-issue from Sectigo |
-| Damodaran reference data | Annual (Jan) | Run `python update_damodaran.py` on the server after each January release |
+| Damodaran reference data | Annual (Jan) + optional July | `cd ~/treppides-hub/api/valuation && venv/bin/python update_damodaran.py && sudo systemctl restart valuation-api` — appends a new edition, does not wipe history |
 | FX rates (year-end) | Annual (Jan) | Run `python fetch_exchange_rates.py --end <year>` after year-end |
 
 ---
@@ -90,6 +90,9 @@
 | 7 | Low | Croatian Kuna has no FX data after 2022 (currency retired) — no UI message |
 | 8 | Info | Perpetual Growth Rate is hardcoded 5.67% and not linked to Revenue Growth Override — design parked for next session |
 | 9 | Info | Source Excel workbook's "Country Risk Free Premium" cell reads col 5 of Damodaran Rates2 = ERP (mislabel); hub correctly reads col 6 = CRP. Side-by-side QA against the workbook will show that single cell disagreeing — hub is right. |
+| 10 | Info | Pre-2024 editions have no Rates4 (currency risk-free) data — Damodaran didn't archive it. UI surfaces an inline note when this happens; auditor enters the risk-free rate manually. |
+| 11 | Low | Industry betas (Rates1) only backfilled to 2014 — pre-2014 archive is US-only with a different schema. Selecting a 2008-2013 edition leaves industry-driven fields empty. |
+| 12 | Low | Switching editions doesn't clear the currently-selected country/industry/currency, even if the chosen edition has fewer entries. Dropdowns reload but the stale selection remains visible. |
 
 ---
 

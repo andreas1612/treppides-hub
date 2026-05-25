@@ -1,9 +1,23 @@
+"""
+Bootstrap seed for valuation_reference.db.
+
+Loads the CSVs bundled with the repo as the *baseline* edition (January 2024).
+After this runs, call:
+  - backfill_damodaran.py    to ingest historical editions 2008-2024 from his archive
+  - update_damodaran.py      to append the current edition from the live URLs
+
+valuation_reference.db is NOT tracked in git (see .gitignore). It is rebuilt
+on the server from these scripts during deploy.
+"""
+
+import datetime as dt
 import pandas as pd
 from pathlib import Path
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from build_database import (
     Base,
+    Edition,
     Rates1Reference,
     Rates2Reference,
     Rates3Reference,
@@ -13,6 +27,13 @@ from build_database import (
     ReportMeta,
     ExchangeRate,
 )
+
+# The CSVs shipped in this directory are the January 2024 Damodaran edition.
+# That column "Govt Bond Rate 12/31/22" in Rates4.csv is the giveaway —
+# it's a year-end-2022 reference rate, which Damodaran published in his
+# January 2024 release.
+BUNDLED_EDITION_ID = "2024-01"
+BUNDLED_EDITION_LABEL = "January 2024"
 
 engine = create_engine('sqlite:///valuation_reference.db', connect_args={"check_same_thread": False})
 Session = sessionmaker(bind=engine)
@@ -64,17 +85,18 @@ def clean_numeric(val):
             return None
     return float(val) if val is not None else None
 
-def seed_rates1(file_path):
-    print(f"Seeding {file_path} to Rates1Reference...")
+def seed_rates1(file_path, edition=BUNDLED_EDITION_ID):
+    print(f"Seeding {file_path} to Rates1Reference (edition {edition})...")
     df = pd.read_csv(file_path)
     session = Session()
     try:
         for _, row in df.iterrows():
             ind = row.get('Industry Name')
             if pd.isna(ind): continue
-            
+
             record = Rates1Reference(
                 industry_name=str(ind).strip(),
+                edition=edition,
                 number_of_firms=clean_numeric(row.get('Number of firms')),
                 beta=clean_numeric(row.get('Beta ')),
                 d_e_ratio=clean_numeric(row.get('D/E Ratio')),
@@ -99,18 +121,18 @@ def seed_rates1(file_path):
     finally:
         session.close()
 
-def seed_rates2(file_path):
-    print(f"Seeding {file_path} to Rates2Reference and processing ContinentAverages...")
+def seed_rates2(file_path, edition=BUNDLED_EDITION_ID):
+    print(f"Seeding {file_path} to Rates2Reference + ContinentAverages (edition {edition})...")
     df = pd.read_csv(file_path)
     session = Session()
     try:
-        # Seed 1-to-1 table
         for _, row in df.iterrows():
             country = row.get('Country')
             if pd.isna(country): continue
-            
+
             record = Rates2Reference(
                 country=str(country).strip(),
+                edition=edition,
                 continents=clean_data(row.get('Continents')),
                 moodys_rating=str(row.get("Moody's rating", "")),
                 adj_default_spread=clean_numeric(row.get('Adj. Default Spread')),
@@ -119,18 +141,18 @@ def seed_rates2(file_path):
             )
             session.merge(record)
         session.commit()
-        
-        # Calculate Continent Averages
+
         df['ERP_Clean'] = df['Equity Risk Premium'].apply(clean_numeric)
         df['CRP_Clean'] = df['Country Risk Premium'].apply(clean_numeric)
-        
+
         averages = df.groupby('Continents')[['ERP_Clean', 'CRP_Clean']].mean().reset_index()
         for _, row in averages.iterrows():
             cont = row['Continents']
             if pd.isna(cont): continue
-            
+
             avg_rec = ContinentAverages(
                 continent_name=str(cont).strip(),
+                edition=edition,
                 average_equity_risk_premium=float(row['ERP_Clean']) if pd.notna(row['ERP_Clean']) else None,
                 average_country_risk_premium=float(row['CRP_Clean']) if pd.notna(row['CRP_Clean']) else None
             )
@@ -142,17 +164,18 @@ def seed_rates2(file_path):
     finally:
         session.close()
 
-def seed_rates3(file_path):
-    print(f"Seeding {file_path} to Rates3Reference...")
+def seed_rates3(file_path, edition=BUNDLED_EDITION_ID):
+    print(f"Seeding {file_path} to Rates3Reference (edition {edition})...")
     df = pd.read_csv(file_path)
     session = Session()
     try:
         for _, row in df.iterrows():
             ind = row.get('Industry Name')
             if pd.isna(ind): continue
-            
+
             record = Rates3Reference(
                 industry_name=str(ind).strip(),
+                edition=edition,
                 number_of_firms=clean_numeric(row.get('Number of Firms')),
                 cagr_in_net_income_last_5_years=clean_numeric(row.get('CAGR in Net Income- Last 5 years')),
                 cagr_in_revenues_last_5_years=clean_numeric(row.get('CAGR in Revenues- Last 5 years')),
@@ -168,17 +191,18 @@ def seed_rates3(file_path):
     finally:
         session.close()
 
-def seed_rates4(file_path):
-    print(f"Seeding {file_path} to Rates4Reference...")
+def seed_rates4(file_path, edition=BUNDLED_EDITION_ID):
+    print(f"Seeding {file_path} to Rates4Reference (edition {edition})...")
     df = pd.read_csv(file_path)
     session = Session()
     try:
         for _, row in df.iterrows():
             curr = row.get('Currency')
             if pd.isna(curr): continue
-            
+
             record = Rates4Reference(
                 currency=str(curr).strip(),
+                edition=edition,
                 govt_bond_rate_12_31_22=clean_numeric(row.get('Govt Bond Rate 12/31/22')),
                 bond_rating_moodys=str(row.get("Bond Rating (Moody's)", "")),
                 riskfree_rate=clean_numeric(row.get('Riskfree Rate')),
@@ -194,10 +218,9 @@ def seed_rates4(file_path):
         session.close()
 
 def seed_exchange_rates(file_path):
-    """Load historical FX rates (currency per 1 USD) from a CSV. Currency names
-    must match the dropdown names in Rates4.csv (e.g. 'Euro', 'British Pound')
-    so frontend lookups resolve. Idempotent: re-running merges by (currency,
-    date) composite key."""
+    """Load historical FX rates (currency per 1 USD) from a CSV. Not tied to a
+    Damodaran edition — same dataset is used regardless of which edition the
+    user selects in the UI."""
     print(f"Seeding {file_path} to ExchangeRate...")
     if not Path(file_path).exists():
         print(f"  (skipped — {file_path} not present)")
@@ -226,17 +249,18 @@ def seed_exchange_rates(file_path):
         session.close()
 
 
-def seed_tax_rates(file_path):
-    print(f"Seeding {file_path} to TaxRatesReference...")
+def seed_tax_rates(file_path, edition=BUNDLED_EDITION_ID):
+    print(f"Seeding {file_path} to TaxRatesReference (edition {edition})...")
     df = pd.read_csv(file_path, encoding='latin1')
     session = Session()
     try:
         for _, row in df.iterrows():
             country = row.get('Country')
             if pd.isna(country): continue
-            
+
             record = TaxRatesReference(
                 country=str(country).strip(),
+                edition=edition,
                 corporate_tax_rate=clean_numeric(row.get('Corporate Tax Rate'))
             )
             session.merge(record)
@@ -247,13 +271,31 @@ def seed_tax_rates(file_path):
     finally:
         session.close()
 
+
+def register_edition(edition_id, label, source, notes=None):
+    """Upsert a row into the editions catalog."""
+    session = Session()
+    try:
+        session.merge(Edition(
+            edition_id=edition_id,
+            label=label,
+            published_date=edition_id,
+            ingested_at=dt.datetime.utcnow().isoformat(timespec="seconds") + "Z",
+            source=source,
+            notes=notes,
+        ))
+        session.commit()
+    finally:
+        session.close()
+
+
 if __name__ == "__main__":
     here = Path(__file__).parent
 
     print("Dropping all existing tables and recreating them...")
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
-    print("Tables created. Commencing data ingestion...")
+    print(f"Tables created. Seeding bundled CSVs as edition '{BUNDLED_EDITION_ID}' ({BUNDLED_EDITION_LABEL}).")
 
     seed_rates1(here / 'Rates1.csv')
     seed_rates2(here / 'Rates2.csv')
@@ -262,14 +304,24 @@ if __name__ == "__main__":
     seed_tax_rates(here / 'Tax Rates.csv')
     seed_exchange_rates(here / 'ExchangeRates.csv')
 
-    # Default report metadata so the PDF has a sensible Damodaran edition string
-    # even before update_damodaran.py is ever run. Overwritten by that script
-    # when the live datasets are refreshed.
+    register_edition(
+        BUNDLED_EDITION_ID,
+        BUNDLED_EDITION_LABEL,
+        source="bundled-csv",
+        notes="Baseline edition seeded from CSVs shipped in this directory.",
+    )
+
+    # Default pointer for the "latest" edition. Will be overwritten by
+    # update_damodaran.py when a newer edition lands.
     session = Session()
     try:
-        session.merge(ReportMeta(key='damodaran_edition', value='January 2024'))
+        session.merge(ReportMeta(key='damodaran_edition', value=BUNDLED_EDITION_LABEL))
+        session.merge(ReportMeta(key='damodaran_latest_edition_id', value=BUNDLED_EDITION_ID))
         session.commit()
     finally:
         session.close()
 
-    print("Database seeding completed successfully.")
+    print("Baseline seed complete.")
+    print("Next steps:")
+    print("  python backfill_damodaran.py    # ingest historical editions 2008-2024")
+    print("  python update_damodaran.py      # append current edition from live URLs")

@@ -1,23 +1,22 @@
 """
-Refresh the local valuation_reference.db with the latest Damodaran datasets.
+Refresh the local valuation_reference.db with the LATEST Damodaran edition.
 
-Damodaran publishes his datasets at pages.stern.nyu.edu/~adamodar/.
-He refreshes them in early January (annual) and sometimes in early July (mid-year).
-Run this script after each refresh.
+Damodaran publishes annually (January) and sometimes mid-year (July) at
+pages.stern.nyu.edu/~adamodar/pc/datasets/. This script pulls those live URLs,
+detects the edition string from the workbook ("Month YYYY"), and appends the
+data to the historical archive under a new `edition_id` of 'YYYY-MM'.
+
+Unlike the older single-edition flavour, this script DOES NOT wipe earlier
+data. Each ingest is keyed by edition and merged into the per-edition slice.
 
 Usage:
-    python update_damodaran.py              # fetch + parse + commit
-    python update_damodaran.py --dry-run    # fetch + parse, print summary, do NOT touch DB
+    python update_damodaran.py              # fetch + detect + append
+    python update_damodaran.py --dry-run    # fetch + detect + print, no DB writes
+    python update_damodaran.py --force      # re-ingest even if edition already in catalog
+    python update_damodaran.py --edition 2026-07
+                                            # override auto-detection (last resort)
 
-Dependencies (in addition to what seed_database.py already needs):
-    pip install xlrd openpyxl       # both — Damodaran mixes .xls and .xlsx
-    # requests is optional; the script falls back to urllib if it's missing.
-
-IMPORTANT — verify the URLs and column names below match Damodaran's current
-publications. He occasionally renames files and tweaks column headers between
-editions. If the script aborts with "missing column" or "could not fetch", open
-his Current Data page (https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datacurrent.html),
-find the right file, and update the DATASET_SOURCES dict below.
+Dependencies (in addition to seed_database.py's): xlrd, openpyxl.
 """
 
 import argparse
@@ -34,6 +33,7 @@ from sqlalchemy.orm import sessionmaker
 
 from build_database import (
     Base,
+    Edition,
     Rates1Reference,
     Rates2Reference,
     Rates3Reference,
@@ -44,17 +44,12 @@ from build_database import (
 from seed_database import clean_numeric, clean_data
 
 
-# ---- Damodaran source configuration ----------------------------------------
-# Each entry: { url, sheet, skiprows, model, mapping }
-# `skiprows` = number of header/metadata rows above the actual column header row.
-# `mapping` = field_name -> list of candidate column-name substrings (ordered).
-# The script picks the first column whose name (case-insensitive, trimmed)
-# contains ALL substrings in any candidate group. More-specific mappings are
-# resolved first so e.g. "Unlevered beta" claims its column before plain "Beta".
+CURRENT_BASE = "https://pages.stern.nyu.edu/~adamodar/pc/datasets"
+
 
 DATASET_SOURCES = {
     "rates1": {
-        "url": "https://pages.stern.nyu.edu/~adamodar/pc/datasets/betaGlobal.xls",
+        "url": f"{CURRENT_BASE}/betaGlobal.xls",
         "sheet": "Industry Averages",
         "skiprows": 9,
         "model": Rates1Reference,
@@ -74,7 +69,7 @@ DATASET_SOURCES = {
         },
     },
     "rates2": {
-        "url": "https://pages.stern.nyu.edu/~adamodar/pc/datasets/ctryprem.xls",
+        "url": f"{CURRENT_BASE}/ctryprem.xls",
         "sheet": "Regional breakdown",
         "skiprows": 0,
         "model": Rates2Reference,
@@ -87,10 +82,10 @@ DATASET_SOURCES = {
             "equity_risk_premium":    [["total", "equity", "risk"], ["equity", "risk", "premium"]],
             "country_risk_premium":   [["country", "risk", "premium"]],
         },
-        "continent_averages": True,   # also rebuild ContinentAverages from this data
+        "continent_averages": True,
     },
     "rates3": {
-        "url": "https://pages.stern.nyu.edu/~adamodar/pc/datasets/histgr.xls",
+        "url": f"{CURRENT_BASE}/histgr.xls",
         "sheet": "Industry Averages",
         "skiprows": 7,
         "model": Rates3Reference,
@@ -106,8 +101,7 @@ DATASET_SOURCES = {
         },
     },
     "rates4": {
-        "url": "https://pages.stern.nyu.edu/~adamodar/pc/datasets/currencyriskfree.xls",
-        # Currency data lives on the LAST sheet; -1 is resolved at read time.
+        "url": f"{CURRENT_BASE}/currencyriskfree.xls",
         "sheet": -1,
         "skiprows": 0,
         "model": Rates4Reference,
@@ -127,15 +121,22 @@ DATE_PATTERN = re.compile(
     r"(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})",
     re.IGNORECASE,
 )
+MONTH_NUM = {
+    "january": "01", "february": "02", "march": "03", "april": "04",
+    "may": "05", "june": "06", "july": "07", "august": "08",
+    "september": "09", "october": "10", "november": "11", "december": "12",
+}
 
+STRING_FIELDS = {
+    "industry_name", "country", "currency", "continents",
+    "moodys_rating", "bond_rating_moodys",
+}
 
-# ---- Helpers ---------------------------------------------------------------
 
 def fetch_bytes(url):
-    """Download a URL and return raw bytes. Uses requests if available, else urllib."""
     try:
         import requests  # type: ignore
-        resp = requests.get(url, timeout=30)
+        resp = requests.get(url, timeout=30, headers={"User-Agent": "valtrix-update/1.0"})
         resp.raise_for_status()
         return resp.content
     except ImportError:
@@ -144,7 +145,7 @@ def fetch_bytes(url):
             return r.read()
 
 
-def detect_edition_date(content):
+def detect_edition_string(content):
     """Find a 'Month YYYY' string in the first ~10 rows of the first sheet."""
     try:
         df = pd.read_excel(io.BytesIO(content), sheet_name=0, header=None, nrows=10)
@@ -159,14 +160,23 @@ def detect_edition_date(content):
     return None
 
 
+def edition_label_to_id(label):
+    """'January 2024' -> '2024-01'"""
+    if not label:
+        return None
+    parts = label.strip().split()
+    if len(parts) != 2:
+        return None
+    month, year = parts
+    mm = MONTH_NUM.get(month.lower())
+    if not mm or not year.isdigit():
+        return None
+    return f"{year}-{mm}"
+
+
 def map_columns(df, mapping):
-    """Return {field_name: column_name}, resolving more-specific mappings first."""
     available = list(df.columns)
-    # Sort by the longest candidate keyword group descending — more specific wins.
-    ordered = sorted(
-        mapping.items(),
-        key=lambda kv: -max(len(group) for group in kv[1]),
-    )
+    ordered = sorted(mapping.items(), key=lambda kv: -max(len(g) for g in kv[1]))
     result = {}
     for field, candidate_groups in ordered:
         for group in candidate_groups:
@@ -174,7 +184,7 @@ def map_columns(df, mapping):
             match = None
             for col in available:
                 norm = str(col).strip().lower()
-                if all(needle in norm for needle in needles):
+                if all(n in norm for n in needles):
                     match = col
                     break
             if match is not None:
@@ -185,14 +195,11 @@ def map_columns(df, mapping):
 
 
 def parse_dataset(content, cfg):
-    """Read an Excel byte stream into rows of {field_name: cleaned value}."""
     sheet = cfg["sheet"]
-    # Resolve negative sheet indexes (e.g. -1 = last sheet) by listing the workbook.
     if isinstance(sheet, int) and sheet < 0:
         with pd.ExcelFile(io.BytesIO(content)) as xls:
             sheet = xls.sheet_names[sheet]
     df = pd.read_excel(io.BytesIO(content), sheet_name=sheet, skiprows=cfg["skiprows"])
-    # Drop fully-empty rows; coerce column names to strings.
     df.columns = [str(c) for c in df.columns]
     df = df.dropna(how="all")
 
@@ -212,23 +219,19 @@ def parse_dataset(content, cfg):
             if pd.isna(val):
                 record[field] = None
                 continue
-            # Strings (country/industry/currency names, ratings) stay as strings;
-            # everything else goes through clean_numeric.
-            if field in ("industry_name", "country", "currency", "continents", "moodys_rating", "bond_rating_moodys"):
+            if field in STRING_FIELDS:
                 record[field] = clean_data(val) if not isinstance(val, (int, float)) else val
                 if isinstance(record[field], str):
                     record[field] = record[field].strip()
             else:
                 record[field] = clean_numeric(val)
-        # Skip rows where the key field is empty
         if not record.get(cfg["key_field"]):
             continue
         rows.append(record)
     return col_map, missing, rows
 
 
-def rebuild_continent_averages(rates2_rows):
-    """Compute mean ERP/CRP per continent from the parsed Rates2 rows."""
+def compute_continent_averages(rates2_rows):
     bucket = {}
     for r in rates2_rows:
         cont = r.get("continents")
@@ -251,23 +254,24 @@ def rebuild_continent_averages(rates2_rows):
     return out
 
 
-# ---- Main ------------------------------------------------------------------
-
 def main():
-    parser = argparse.ArgumentParser(description="Refresh local DB from Damodaran's datasets.")
-    parser.add_argument("--dry-run", action="store_true",
-                        help="Fetch + parse + print summary, but do not write to DB.")
-    parser.add_argument("--db", default="sqlite:///valuation_reference.db",
-                        help="SQLAlchemy DB URL (default: sqlite:///valuation_reference.db).")
+    parser = argparse.ArgumentParser(description="Append current Damodaran edition to the archive.")
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--force", action="store_true",
+                        help="Re-ingest even if this edition is already in the catalog.")
+    parser.add_argument("--edition", default=None,
+                        help="Override auto-detected edition id (format YYYY-MM).")
+    parser.add_argument("--db", default="sqlite:///valuation_reference.db")
     args = parser.parse_args()
 
     here = Path(__file__).parent
-    print(f"Working directory: {here}")
-    print(f"Dry run: {args.dry_run}")
+    print(f"Working dir: {here}")
+    print(f"Dry run    : {args.dry_run}")
     print()
 
     parsed = {}
-    edition_date = None
+    edition_label = None
+    edition_id = args.edition
 
     for name, cfg in DATASET_SOURCES.items():
         print(f"[{name}] fetching {cfg['url']}")
@@ -275,34 +279,35 @@ def main():
             content = fetch_bytes(cfg["url"])
         except Exception as e:
             print(f"  ! FETCH FAILED: {e}")
-            print("  Aborting — refusing to write a partial dataset.")
+            print("  Aborting — refusing to write a partial edition.")
             sys.exit(1)
         print(f"  downloaded {len(content):,} bytes")
 
-        if edition_date is None:
-            edition_date = detect_edition_date(content)
+        if edition_label is None:
+            edition_label = detect_edition_string(content)
 
         try:
             col_map, missing, rows = parse_dataset(content, cfg)
         except Exception as e:
             print(f"  ! PARSE FAILED: {e}")
-            print(f"  Hint: verify sheet={cfg['sheet']!r}, skiprows={cfg['skiprows']}")
             sys.exit(1)
 
-        print(f"  parsed {len(rows)} rows; matched {len(col_map)} columns; missing fields: {missing or 'none'}")
-        if rows:
-            sample = rows[0]
-            sample_preview = {k: sample[k] for k in list(sample)[:4]}
-            print(f"  sample: {sample_preview}")
-
+        print(f"  parsed {len(rows)} rows; matched {len(col_map)} cols; missing: {missing or 'none'}")
         parsed[name] = rows
         print()
 
-    print(f"Detected Damodaran edition: {edition_date or '(none — could not auto-detect)'}")
+    if not edition_id:
+        edition_id = edition_label_to_id(edition_label)
+    if not edition_id:
+        print("! Could not determine edition id. Re-run with --edition YYYY-MM.")
+        sys.exit(2)
+
+    print(f"Detected edition : {edition_label or '(unknown)'}")
+    print(f"Edition id       : {edition_id}")
     print()
 
     if args.dry_run:
-        print("Dry run — DB untouched. Re-run without --dry-run to commit.")
+        print("Dry run — DB untouched.")
         return
 
     engine = create_engine(args.db, connect_args={"check_same_thread": False})
@@ -310,27 +315,53 @@ def main():
     Session = sessionmaker(bind=engine)
     session = Session()
 
+    existing = session.query(Edition).filter(Edition.edition_id == edition_id).first()
+    if existing and not args.force:
+        print(f"Edition {edition_id} already ingested at {existing.ingested_at}. "
+              f"Use --force to overwrite.")
+        session.close()
+        return
+
     try:
         for name, cfg in DATASET_SOURCES.items():
             Model = cfg["model"]
-            session.query(Model).delete()
+            # Replace this (edition, dataset) slice — leaves all other editions untouched.
+            session.query(Model).filter(Model.edition == edition_id).delete()
             for row in parsed[name]:
-                session.merge(Model(**row))
-            print(f"[{name}] wrote {len(parsed[name])} rows to {Model.__tablename__}")
+                session.merge(Model(edition=edition_id, **row))
+            print(f"[{name}] wrote {len(parsed[name])} rows for edition {edition_id}")
 
         if "rates2" in parsed and DATASET_SOURCES["rates2"].get("continent_averages"):
-            session.query(ContinentAverages).delete()
-            for row in rebuild_continent_averages(parsed["rates2"]):
-                session.merge(ContinentAverages(**row))
-            print(f"[rates2] rebuilt continent_averages")
+            session.query(ContinentAverages).filter(
+                ContinentAverages.edition == edition_id
+            ).delete()
+            for c in compute_continent_averages(parsed["rates2"]):
+                session.merge(ContinentAverages(edition=edition_id, **c))
+            print(f"[rates2] rebuilt continent_averages for edition {edition_id}")
 
-        if edition_date:
-            session.merge(ReportMeta(key="damodaran_edition", value=edition_date))
-        session.merge(ReportMeta(key="damodaran_last_fetched", value=dt.datetime.utcnow().isoformat(timespec="seconds") + "Z"))
+        session.merge(Edition(
+            edition_id=edition_id,
+            label=edition_label or edition_id,
+            published_date=edition_id,
+            ingested_at=dt.datetime.utcnow().isoformat(timespec="seconds") + "Z",
+            source="current",
+            notes="Fetched from live datasets URL.",
+        ))
+
+        # Update the 'latest edition' pointer iff this is the newest we've ingested.
+        all_eds = sorted({e.edition_id for e in session.query(Edition).all()})
+        latest = all_eds[-1] if all_eds else edition_id
+        if latest == edition_id:
+            session.merge(ReportMeta(key="damodaran_edition", value=edition_label or edition_id))
+            session.merge(ReportMeta(key="damodaran_latest_edition_id", value=edition_id))
+        session.merge(ReportMeta(
+            key="damodaran_last_fetched",
+            value=dt.datetime.utcnow().isoformat(timespec="seconds") + "Z",
+        ))
 
         session.commit()
         print()
-        print(f"Done. Damodaran edition recorded as: {edition_date or '(unchanged)'}")
+        print(f"Done. Edition {edition_id} ingested. Latest edition pointer: {latest}")
     except Exception as e:
         session.rollback()
         print(f"! WRITE FAILED, rolled back: {e}")

@@ -238,6 +238,13 @@ const SHELL_HTML = `
                                       <input type="number" id="baseYear" name="baseYear" min="1990" max="2100" placeholder="e.g. 2024">
                                   </div>
                                   <div class="input-group">
+                                      <label for="damodaranEdition">Reference data as of <span title="Damodaran publishes industry betas, country risk premiums and growth data each January. Pick the edition that matches your valuation date. Defaults to the latest available." style="cursor:help; border-bottom: 1px dotted #ccc;">ℹ️</span></label>
+                                      <select id="damodaranEdition" name="damodaranEdition">
+                                          <option value="" selected>Loading editions...</option>
+                                      </select>
+                                      <div class="calc-detail" id="editionHint" style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.25rem;"></div>
+                                  </div>
+                                  <div class="input-group">
                                       <label for="eurUsdRate">Exchange rate to USD <span title="Auto-populated from the valuation date + selected currency when reference data is available. Editable — overwrite if you have a more authoritative rate. The value is read as: 1 USD = rate × {currency}." style="cursor:help; border-bottom: 1px dotted #ccc;">ℹ️</span></label>
                                       <input type="number" id="eurUsdRate" name="eurUsdRate" step="0.0001" placeholder="e.g. 0.9627">
                                       <div class="calc-detail" id="usdRateHint" style="display: none; font-size: 0.72rem; color: var(--text-muted); margin-top: 0.25rem;"></div>
@@ -799,6 +806,16 @@ function bootValuation() {
     // Relative path so it works on LAN browsers regardless of host.
     const API_BASE = '/api/valuation';
 
+    // Currently-selected Damodaran edition. Set by populateEditions() once the
+    // /editions endpoint returns; defaults to whatever the server reports as
+    // latest. Every reference-data fetch appends ?edition=<this> so the form
+    // is consistent within a session.
+    let selectedEdition = null;
+    const withEdition = (url) => {
+        if (!selectedEdition) return url;
+        return url + (url.includes('?') ? '&' : '?') + `edition=${encodeURIComponent(selectedEdition)}`;
+    };
+
     const getBaseYear = () => {
         const val = parseInt(document.getElementById('baseYear')?.value);
         return (!isNaN(val) && val >= 1990 && val <= 2100) ? val : new Date().getFullYear() - 1;
@@ -959,35 +976,105 @@ function bootValuation() {
     };
 
     const fetchDropdowns = async () => {
-        if (continentSelect) populateDropdown(`${API_BASE}/dropdowns/continents`, continentSelect, 'Select a continent...');
+        if (continentSelect) populateDropdown(withEdition(`${API_BASE}/dropdowns/continents`), continentSelect, 'Select a continent...');
         if (operatingCountrySelect) {
-            await populateDropdown(`${API_BASE}/dropdowns/countries`, operatingCountrySelect, 'Select a country...');
+            await populateDropdown(withEdition(`${API_BASE}/dropdowns/countries`), operatingCountrySelect, 'Select a country...');
             // Copy options to incorporation country
             if (incCountrySelect) {
                 incCountrySelect.innerHTML = operatingCountrySelect.innerHTML;
                 incCountrySelect.disabled = false;
             }
         }
-        if (industryInput) populateDropdown(`${API_BASE}/dropdowns/industries`, industryInput, 'Select an industry...');
-        if (currencySelect) populateDropdown(`${API_BASE}/dropdowns/currencies`, currencySelect, 'Select a currency...');
+        if (industryInput) populateDropdown(withEdition(`${API_BASE}/dropdowns/industries`), industryInput, 'Select an industry...');
+        if (currencySelect) populateDropdown(withEdition(`${API_BASE}/dropdowns/currencies`), currencySelect, 'Select a currency...');
     };
 
-    fetchDropdowns();
-
     // Damodaran edition (e.g. "January 2024") used in Section III prose.
-    // Loaded from /api/meta/damodaran-edition which reads from the ReportMeta table
-    // populated by update_damodaran.py. Falls back to a default if the call fails.
+    // Updated whenever the user picks a different edition from the dropdown.
     let damodaranEdition = 'January 2024';
-    (async () => {
+
+    // --- Edition picker -------------------------------------------------
+    // Populates the 'Reference data as of' dropdown from /editions, then
+    // kicks off the rest of the dropdown fetches scoped to the selected
+    // (initially latest) edition. Changing the picker re-fetches everything
+    // and clears any auto-populated reference fields.
+    const editionSelect = document.getElementById('damodaranEdition');
+    const editionHint = document.getElementById('editionHint');
+
+    const formatEditionLabel = (ed) => ed.label || ed.edition_id;
+
+    const initEditionPicker = async () => {
         try {
-            const res = await fetch(`${API_BASE}/meta/damodaran-edition`);
-            if (res.ok) {
-                const data = await res.json();
-                if (data && data.edition) damodaranEdition = data.edition;
+            const res = await fetch(`${API_BASE}/editions`);
+            if (!res.ok) throw new Error('failed to fetch editions');
+            const data = await res.json();
+            const editions = (data && data.editions) || [];
+            const latest = data && data.latest;
+
+            if (!editions.length) {
+                if (editionSelect) {
+                    editionSelect.innerHTML = '<option value="" disabled selected>No editions available</option>';
+                }
+                return;
+            }
+
+            // Editions come newest-first from the API.
+            if (editionSelect) {
+                editionSelect.innerHTML = '';
+                editions.forEach(ed => {
+                    const opt = document.createElement('option');
+                    opt.value = ed.edition_id;
+                    opt.textContent = formatEditionLabel(ed) + (ed.edition_id === latest ? ' (latest)' : '');
+                    if (ed.edition_id === latest) opt.selected = true;
+                    editionSelect.appendChild(opt);
+                });
+                editionSelect.disabled = false;
+            }
+
+            selectedEdition = latest || editions[0].edition_id;
+            const chosen = editions.find(e => e.edition_id === selectedEdition);
+            if (chosen) damodaranEdition = chosen.label || damodaranEdition;
+            if (editionHint && chosen) {
+                editionHint.textContent = `Source: ${chosen.source || 'archive'}${chosen.notes ? ' — ' + chosen.notes : ''}`;
             }
         } catch (err) {
-            console.warn('Damodaran edition meta unavailable, using default:', err);
+            console.warn('Edition list unavailable, falling back to server default:', err);
+            // Leave selectedEdition null — server will resolve to latest.
         }
+    };
+
+    const onEditionChange = async () => {
+        if (!editionSelect) return;
+        selectedEdition = editionSelect.value || null;
+
+        // Update the prose-friendly label and hint
+        try {
+            const res = await fetch(`${API_BASE}/editions/${encodeURIComponent(selectedEdition)}`);
+            if (res.ok) {
+                const ed = await res.json();
+                damodaranEdition = ed.label || damodaranEdition;
+                if (editionHint) {
+                    editionHint.textContent = `Source: ${ed.source || 'archive'}${ed.notes ? ' — ' + ed.notes : ''}`;
+                }
+            }
+        } catch (err) {
+            console.warn('Could not fetch edition details:', err);
+        }
+
+        // Re-fetch every edition-scoped dropdown. The user may need to re-pick
+        // continent / country / industry / currency if the chosen edition has
+        // a different roster (older editions have fewer entries).
+        await fetchDropdowns();
+    };
+
+    if (editionSelect) {
+        editionSelect.addEventListener('change', onEditionChange);
+    }
+
+    // Boot order: pick the edition first, then load dropdowns scoped to it.
+    (async () => {
+        await initEditionPicker();
+        await fetchDropdowns();
     })();
 
     // Dynamic Currency Label Logic for Capital Expenditure
@@ -1007,7 +1094,7 @@ function bootValuation() {
             const val = e.target.value;
             if (!val) return;
             try {
-                const res = await fetch(`${API_BASE}/reference/continent/${encodeURIComponent(val)}`);
+                const res = await fetch(withEdition(`${API_BASE}/reference/continent/${encodeURIComponent(val)}`));
                 if (res.ok) {
                     const data = await res.json();
                     if (data.equity_risk_premium != null) {
@@ -1069,7 +1156,7 @@ function bootValuation() {
             const val = e.target.value;
             if (!val) return;
             try {
-                const res = await fetch(`${API_BASE}/reference/industry/${encodeURIComponent(val)}`);
+                const res = await fetch(withEdition(`${API_BASE}/reference/industry/${encodeURIComponent(val)}`));
                 if (res.ok) {
                     referenceDataState.industry = await res.json();
                     console.log('Industry Reference Data Loaded:', referenceDataState.industry);
@@ -1107,8 +1194,8 @@ function bootValuation() {
                 // Two parallel lookups: statutory tax rate + country risk metrics
                 // (CRP, per-country ERP, default spread). Both feed Tab 1.
                 const [taxRes, countryRes] = await Promise.all([
-                    fetch(`${API_BASE}/reference/tax-rate/${encodeURIComponent(val)}`),
-                    fetch(`${API_BASE}/reference/country/${encodeURIComponent(val)}`),
+                    fetch(withEdition(`${API_BASE}/reference/tax-rate/${encodeURIComponent(val)}`)),
+                    fetch(withEdition(`${API_BASE}/reference/country/${encodeURIComponent(val)}`)),
                 ]);
 
                 if (taxRes.ok) {
@@ -1170,7 +1257,7 @@ function bootValuation() {
                     const continent = continentEl ? continentEl.value : '';
                     if (continent) {
                         try {
-                            const contRes = await fetch(`${API_BASE}/reference/continent/${encodeURIComponent(continent)}`);
+                            const contRes = await fetch(withEdition(`${API_BASE}/reference/continent/${encodeURIComponent(continent)}`));
                             if (contRes.ok) {
                                 const contAvg = await contRes.json();
                                 referenceDataState.countryRisk = {
@@ -1241,7 +1328,7 @@ function bootValuation() {
             const val = e.target.value;
             if (!val) return;
             try {
-                const res = await fetch(`${API_BASE}/reference/currency/${encodeURIComponent(val)}`);
+                const res = await fetch(withEdition(`${API_BASE}/reference/currency/${encodeURIComponent(val)}`));
                 if (res.ok) {
                     referenceDataState.currency = await res.json();
                     console.log('Currency Reference Data Loaded:', referenceDataState.currency);
@@ -1256,7 +1343,14 @@ function bootValuation() {
                     }
                     if (typeof calculatePlProjections === 'function') calculatePlProjections();
                 } else {
+                    // Currency table is only populated for editions 2024-01+.
+                    // For older editions the 404 here is expected — clear fields
+                    // so the user knows to enter manually.
                     referenceDataState.currency = null;
+                    if (res.status === 404 && selectedEdition && selectedEdition < '2024-01') {
+                        const hint = document.getElementById('editionHint');
+                        if (hint) hint.textContent = `Note: currency-specific risk-free rates are not available for ${damodaranEdition} — enter Risk-free Rate manually.`;
+                    }
                 }
             } catch (err) { console.error('API Fetch Error:', err); }
             // Refresh FX after currency change (and any time the date changes too)
