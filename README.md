@@ -1,14 +1,94 @@
 # Treppides Employee Hub
 
 **Status: LIVE IN PRODUCTION**
-**Server: 192.168.0.221 (tech-srv)**
-**Last updated: 2026-05-06 (session 4)**
+**Server: 192.168.0.221 (tech-srv) · Live URL: https://hub.treppides.com**
+**Last updated: 2026-05-29 (session 15)**
 
-Internal company portal for daily access to announcements, policies, training materials, knowledge base, and the New Client UBO Fees dashboard. Backed by a self-hosted BookStack instance and a ClickUp API backend. Zero dependencies, no build step.
+Internal company portal for daily access to announcements, policies, training materials, knowledge base, AML & UBO Fees dashboards, staff directory, and the in-hub Valuation Tool. Backed by a self-hosted BookStack instance and two FastAPI services. Vanilla HTML/CSS/JS — zero dependencies, no build step.
+
+> **For long-term planning (200 users, 3-year horizon, VM sizing, video roadmap):**
+> see **[SESSION_15.md](SESSION_15.md)** — the canonical capacity & architecture reference.
+> Operational gaps still open are tracked in **[STATUS.md](STATUS.md)** under
+> "What Is NOT Done Yet".
+
+---
+
+## Server Resources & Long-Term Plan
+
+### Current resources (live snapshot, 2026-05-29)
+
+| Resource | Value | Notes |
+|---|---|---|
+| CPU | 4 vCPU AMD EPYC 7F72 (SMT off) | KVM guest; load avg 0.06 at snapshot |
+| RAM | 9.5 GiB total · 8.6 GiB available | ~1 GB actually used; rest is reclaimable buff/cache |
+| Root disk | 72 GB total · 9.7 GB used (15 %) · 62 GB free | Smaller than earlier capacity docx assumed |
+| Swap | 4 GiB allocated · 0 B used | |
+| OS | Ubuntu Server 24.04 LTS, kernel 6.8 | |
+| Uptime at snapshot | 65 days | All services stable |
+| Media disk usage | 4.2 MB total (images), 0 video | Pilot stage |
+| Traffic today | 68 requests, 16 KB access.log | Pre-launch baseline |
+
+Detailed listener map, tuning state and service footprints: see **[SESSION_15.md §2](SESSION_15.md)**.
+
+### Optimal target spec for 200 users / 3-year horizon
+
+| Resource | Target | Why |
+|---|---|---|
+| CPU | **8 vCPU** | One FFmpeg transcode (4 cores) + interactive users (4 cores) in parallel |
+| RAM | **16 GiB** | Headroom for OpenProject (+2–3 GB) and FFmpeg peaks (+1 GB) |
+| Root disk | **250 GB** | OS + logs + BookStack data growth over 3 years |
+| Data SSD | **1 TB** mounted at `/srv/media` | Video library — 100–500 GB expected over 3 years |
+| Network | 1 Gbps LAN (unchanged) | Saturates at ~280 concurrent 1080p — far beyond 200-staff need |
+
+### Architecture options (decision summary)
+
+| Option | When to use | Effort |
+|---|---|---|
+| **1 — Single VM, vertically scaled** *(recommended now)* | 200 users, modest video cadence | 0.5 day — resize current VM |
+| **2 — Two VMs (hub + media)** | Video viewership > 100 concurrent, or daytime transcodes slow the hub | 1.5–2 days — provision second VM, migrate `/media/video/` |
+| 3 — Three VMs (hub + data + media) | Only if compliance demands DB isolation | 3–4 days |
+
+Full decision matrix, trigger conditions, and the **Option 1 → Option 2 migration playbook** are in [SESSION_15.md §4](SESSION_15.md).
+
+### Rate-limiting strategy (layered)
+
+Per-IP alone is the wrong primary on a corporate LAN where everyone shares the office NAT. The hub uses three layers:
+
+| Layer | Key | Purpose |
+|---|---|---|
+| Primary | `$cookie_hub_session` | Per-user fairness (activates when BookStack-token proxy ships) |
+| Backstop | `$binary_remote_addr` | Catches abuse even with no cookie |
+| Ceiling | `"global"` constant | Total cap on expensive endpoints (e.g. transcode enqueues) |
+
+Concrete `limit_req_zone` blocks and location-level wiring are in [SESSION_15.md §5](SESSION_15.md).
+
+### Operational gaps still open (Phase A blockers)
+
+These are confirmed live and tracked in [STATUS.md](STATUS.md):
+
+- **No backups** — no crontab, no `~/backups/`. First thing to land before opening to firm.
+- **No monitoring** — install Netdata, restrict UI to IT subnet.
+- **BookStack on `0.0.0.0:6875`** — bind to `127.0.0.1:6875` in `~/bookstack/docker-compose.yml`.
+- **nginx defaults** — `worker_connections=768`, gzip on but no `gzip_types`, no `limit_req_zone`.
+- **Kernel tuning** — `vm.swappiness=60` and `tcp_fin_timeout=60` still at distro defaults.
 
 ---
 
 ## Session Log — Pick Up From Here
+
+### Session 2026-05-29 (15) — Live server assessment + long-term plan
+
+Documentation pass only. SSH'd into `tech-admin@192.168.0.221` (read-only), captured the live resource snapshot above, produced the long-term sizing and rate-limiting plan in [SESSION_15.md](SESSION_15.md). Confirmed v3 docx findings against the live box: BookStack port exposure, no backups, nginx defaults, FastAPI correctly bound to 127.0.0.1. STATUS.md and PROJECT_BRIEF.md refreshed.
+
+### Sessions 2026-05-12 → 2026-05-25 (11–14) — Valuation Tool
+
+S11 ported the Valuation Tool from the standalone Valtrix project into the hub. S12 added live year-end FX data (43 currencies, 2015–2025) and CRP/ERP continent-average fallback. S13 backfilled Damodaran's full historical archive (2008–2025) with an edition picker. S14 added draft auto-save + JSON export/import for audit-trail snapshots. Full detail in [SESSION_11.md](SESSION_11.md), [SESSION_12.md](SESSION_12.md), [SESSION_13.md](SESSION_13.md), [SESSION_14.md](SESSION_14.md).
+
+### Sessions 2026-05-11 → 2026-05-12 (7–10) — HTTPS, Staff, AML, Announcements, AML breakdown
+
+S7 deployed the Sectigo wildcard cert and made `https://hub.treppides.com` live; built Staff Directory; reshaped AML into a multi-list landing. S8 refactored `components/` and `styles/` into `shell/pages/widgets/`. S9 redesigned Announcements as a social feed with inline media upload (`/api/upload/*`). S10 made the AML dashboard per-list breakdown work for Rejected and Disengaged. See [SESSION_9.md](SESSION_9.md) for the social-feed redesign.
+
+
 
 ### Session 2026-05-06 (4) — Infrastructure fixes, ClickUp Fees fully operational
 
@@ -100,10 +180,11 @@ All ClickUp API calls now go through nginx as `/api/clickup/fees` — no port, n
 
 | Service | URL |
 |---|---|
-| **Employee Hub** | http://192.168.0.221/ |
-| **Knowledge Base (BookStack)** | http://192.168.0.221/docs/ |
-| **ClickUp Fees API** | http://192.168.0.221/api/clickup/fees |
-| **BookStack direct port** | http://192.168.0.221:6875/ |
+| **Employee Hub** | https://hub.treppides.com/ |
+| **Knowledge Base (BookStack)** | https://hub.treppides.com/docs/ |
+| **ClickUp Fees API** | https://hub.treppides.com/api/clickup/fees |
+| **Valuation API** | https://hub.treppides.com/api/valuation/ |
+| **BookStack direct port** *(LAN-only, should be 127.0.0.1-bound)* | http://192.168.0.221:6875/ |
 
 ---
 

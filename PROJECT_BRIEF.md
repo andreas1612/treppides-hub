@@ -2,9 +2,14 @@
 > Paste this at the start of a new chat and say "continue the Treppides Hub project"
 
 **Status: LIVE IN PRODUCTION — fully operational**
-**Last session: 2026-05-12 (session 10)**
+**Last session: 2026-05-29 (session 15) — live capacity assessment + long-term plan**
 **Server: 192.168.0.221 (tech-srv) · User: tech-admin**
 **Live URL: https://hub.treppides.com**
+
+**Long-term planning target:** 200 total staff, ~60–80 concurrent at peak, 3-year horizon.
+**Live resources (2026-05-29):** 4 vCPU EPYC 7F72 · 9.5 GiB RAM · 72 GB root (15 % used) · uptime 65 d.
+**Target spec (≤ 24 months):** 8 vCPU · 16 GiB RAM · 250 GB root + 1 TB SSD for `/srv/media`.
+**Canonical plan reference:** [SESSION_15.md](SESSION_15.md) — sizing, VM options, rate-limiting design.
 
 ---
 
@@ -124,6 +129,38 @@ treppides-hub/
 ---
 
 ## Session Log
+
+### 2026-05-29 (session 15) — Live server assessment + long-term plan
+
+Documentation pass only — no code, no server changes. Read-only SSH
+into `tech-admin@192.168.0.221` to ground the v1–v3 capacity docx in
+real numbers. Recorded:
+
+- Live resource snapshot (CPU/RAM/disk/services/listeners/tuning state).
+- Optimal target spec for 200 staff / 3-year horizon.
+- Three architecture options (single VM scaled · two VMs split · three
+  VMs full split), with a decision matrix and migration playbook
+  Option 1 → Option 2.
+- Layered rate-limiting design (per-session cookie primary · per-IP
+  backstop · per-endpoint global ceiling) replacing the v3 IP-only
+  proposal.
+
+Confirmed v3-flagged findings on the live box: BookStack port 6875
+binds `0.0.0.0`; no crontab / no backups; `worker_connections=768`;
+no `limit_req_zone`; kernel mostly at defaults. FastAPI services
+both correctly on `127.0.0.1` (v3 worry doesn't apply).
+
+Files touched: SESSION_15.md (new — canonical reference), STATUS.md
+(server-resources block + DNS marked live + operational gaps added),
+PROJECT_BRIEF.md (header refreshed), README.md (server-resources
+section appended).
+
+### 2026-05-25 (sessions 11–14) — see SESSION_11.md … SESSION_14.md
+
+Valuation Tool full port from Valtrix (S11), live FX + CRP/ERP
+continent-average fallback (S12), historical Damodaran archive
+2008–2025 with edition picker (S13), valuation draft auto-save +
+JSON export/import (S14).
 
 ### 2026-05-12 (session 10) — AML dashboard per-list fee breakdown
 

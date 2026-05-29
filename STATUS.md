@@ -1,7 +1,25 @@
 # STATUS — Treppides Hub
 
-**Last updated: 2026-05-25 (session 14)**
+**Last updated: 2026-05-29 (session 15)**
 **→ Start every session from [NEXT_SESSION.md](NEXT_SESSION.md)**
+**→ Live capacity & long-term plan: [SESSION_15.md](SESSION_15.md)**
+
+---
+
+## Server Resources (live, 2026-05-29)
+
+| Resource | Current | Target (≤ 24 months) | Notes |
+|---|---|---|---|
+| CPU | 4 vCPU AMD EPYC 7F72 | **8 vCPU** | Load avg 0.06; transcoder is the only future contention |
+| RAM | 9.5 GiB (8.6 GiB available) | **16 GiB** | Reserves for OpenProject + FFmpeg worker |
+| Root disk | 72 GB (9.7 GB used, 15 %) | **250 GB** | Plus a dedicated **1 TB SSD** for `/srv/media` |
+| Swap | 4 GiB (0 used) | unchanged | |
+| Uptime | 65 days at snapshot | — | All services stable |
+
+Full sizing rationale, architecture options (1 VM vs 2 VM vs 3 VM) and
+rate-limiting design are in **[SESSION_15.md](SESSION_15.md)** — that
+is the canonical long-term plan reference. Planning target: **200 total
+staff, ~60–80 concurrent at peak, 3-year horizon**.
 
 ---
 
@@ -45,7 +63,7 @@
 | SSL certificate | ✅ Live | Sectigo wildcard `*.treppides.com` — valid until 22 Nov 2026 |
 | Cert chain | ✅ Live | `/etc/nginx/ssl/treppides_chain.crt` |
 | nginx HTTPS config | ✅ Live | Deployed at `/etc/nginx/sites-enabled/treppides-hub` |
-| Internal DNS | ⏳ Pending | Add A record: `hub.treppides.com` → `192.168.0.221` on office DNS/router |
+| Internal DNS | ✅ Live | `hub.treppides.com` → `192.168.0.221` resolves correctly; HTTPS padlock confirmed in browsers |
 | config.js BASE_URL | ✅ Done | `https://hub.treppides.com/docs` |
 
 ---
@@ -98,10 +116,26 @@
 
 ## What Is NOT Done Yet
 
+### Operational (confirmed live 2026-05-29 — must land before firm-wide launch)
+
+| Item | Priority | Notes |
+|---|---|---|
+| Off-box backups | **High** | No crontab, no `~/backups/`. Nightly tar+rsync of BookStack DB, `media/`, `valuation_reference.db`, nginx/systemd configs. See [SESSION_15.md §6.2](SESSION_15.md) |
+| Monitoring (Netdata) | **High** | Currently blind beyond `systemctl status`. Install + UI restricted to IT subnet via ufw |
+| BookStack port `0.0.0.0:6875` | **High** | LAN-reachable bypassing nginx TLS. Bind to `127.0.0.1:6875` in `~/bookstack/docker-compose.yml` |
+| nginx `worker_connections=768` | Medium | Raise to 4096. Currently Ubuntu default |
+| nginx `gzip_types` empty | Medium | gzip is on but no types declared — no actual compression of CSS/JS/JSON |
+| Layered rate limiting | Medium | No `limit_req_zone` configured. Design in [SESSION_15.md §5](SESSION_15.md) |
+| Kernel `vm.swappiness=60`, `tcp_fin_timeout=60` | Low | Defaults; tune to 10 / 15 |
+| ADMIN_PIN strength | **High** | Rotate from any default; document the rotation cadence |
+
+### Features (longer horizon)
+
 | Feature | Priority | Notes |
 |---|---|---|
-| Internal DNS record | **Do this now** | Add A record `hub.treppides.com` → `192.168.0.221` on office DNS/router |
 | OpenProject at `/projects` | High | `~/openproject/docker-compose.yml` already on server |
+| Server-side BookStack token proxy | High | Removes token from browser; enables real PIN auth + per-session rate limiting |
 | Mobile reader navigation | Medium | Drawer/bottom sheet |
-| LDAP/SSO auth | Low | Phase 2 |
-| API token server-side proxy | Low | Phase 2 |
+| LDAP/SSO auth | Medium | Unlocks per-user rate limiting + audit log |
+| Video subsystem (HLS pipeline) | Planned | Phase B — depends on VM resize to 8 vCPU / 16 GB / 1 TB |
+| `media-srv` VM split | Future | Only when video viewership > 100 concurrent. See [SESSION_15.md §4.2](SESSION_15.md) |
