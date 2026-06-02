@@ -2,7 +2,7 @@
 > Paste this at the start of a new chat and say "continue the Treppides Hub project"
 
 **Status: LIVE IN PRODUCTION — fully operational**
-**Last session: 2026-05-29 (session 15) — live capacity assessment + long-term plan**
+**Last session: 2026-06-02 (backend hardening)**
 **Server: 192.168.0.221 (tech-srv) · User: tech-admin**
 **Live URL: https://hub.treppides.com**
 
@@ -38,7 +38,10 @@
 | IT Support ticket modal (FormSubmit → email) | ✅ Live |
 | Live search (BookStack full-text, topbar) | ✅ Live |
 | Projects page — stub ("under development") | ✅ Visible |
-| HTTPS — Sectigo wildcard *.treppides.com | ✅ Live |
+| Valuation Tool (DCF, Damodaran archive, edition picker, FX, PDF) | ✅ Live |
+| HTTPS — Sectigo wildcard *.treppides.com, TLS 1.2+ | ✅ Live |
+| Server hardening — UFW, fail2ban, rate limits, sandboxed services | ✅ Live |
+| Automated backups + health monitoring + renewal alerts | ✅ Live |
 
 ---
 
@@ -48,11 +51,13 @@
 - **Backend (wiki):** BookStack (PHP/Laravel) in Docker, port 6875, proxied at `/docs/*`
 - **Backend (fees + uploads):** FastAPI Python, systemd `clickup-fees`, port 8001
   - proxied at `/api/clickup/*` and `/api/upload/*`
+- **Backend (valuation):** FastAPI Python, systemd `valuation-api`, port 8002
+  - proxied at `/api/valuation/*`
 - **Static media:** uploaded images/videos served at `/media/` from `~/treppides-hub/media/`
-- **Web server:** Nginx — HTTPS termination, SPA routing, all proxy blocks
-- **Database:** MariaDB in Docker (BookStack data)
+- **Web server:** Nginx — HTTPS, HTTP/2, rate limiting, security headers, SPA routing
+- **Database:** MariaDB in Docker (BookStack), SQLite (valuation reference data)
 - **Deployment:** `git push` from server → live immediately (nginx serves repo dir directly)
-- **Vendor libs:** Chart.js + datalabels bundled in `/vendor/` (no CDN)
+- **Vendor libs:** Chart.js, jsPDF, html2canvas bundled in `/vendor/` (no CDN)
 
 ---
 
@@ -61,20 +66,26 @@
 ```
 VM: 192.168.0.221 (tech-srv) — Ubuntu Server 24.04
 
-nginx (HTTPS :443)
+nginx (HTTPS :443, HTTP/2, TLS 1.2+)
   /                → ~/treppides-hub (SPA, try_files → index.html)
   /docs/*          → localhost:6875 (BookStack Docker)
-  /api/clickup/*   → localhost:8001 (FastAPI)
+  /api/clickup/*   → localhost:8001 (FastAPI — fees + uploads)
   /api/upload/*    → localhost:8001 (FastAPI — media uploads)
+  /api/valuation/* → localhost:8002 (FastAPI — valuation reference)
   /media/          → ~/treppides-hub/media/ (static uploaded files)
   /projects        → localhost:3000 (OpenProject — not yet deployed)
   http :80         → redirect → HTTPS
+
+Security: UFW (22/80/443), fail2ban (SSH + nginx), rate limits (30r/s API, 5r/m upload)
 ```
 
 **Services:**
 - `sudo systemctl reload nginx`
-- `sudo systemctl start|stop|restart clickup-fees`
+- `sudo systemctl restart clickup-fees`
+- `sudo systemctl restart valuation-api`
 - `cd ~/bookstack && sudo docker compose up -d`
+
+**Ops:** See [SERVER-OPS.md](SERVER-OPS.md) for backups, monitoring, firewall, crons, and restore procedures.
 
 ---
 
@@ -83,29 +94,42 @@ nginx (HTTPS :443)
 ```
 treppides-hub/
 ├── index.html, main.js
-├── config.js                        GITIGNORED — only on server
+├── config.js                         GITIGNORED — only on server
 ├── config.example.js
-├── nginx-treppides-hub.conf         deploy: sudo cp → /etc/nginx/sites-enabled/ + reload
-├── clickup-fees.service
-├── staff.json                       static staff data
+├── nginx-treppides-hub.conf          Nginx site config
+├── clickup-fees.service              systemd unit — ClickUp API
+├── valuation-api.service             systemd unit — Valuation API
+├── SETUP.sh                          Idempotent server provisioning
+├── backup.sh                         Daily backup (cron 2 AM)
+├── healthcheck.sh                    Health monitor (cron 5 min)
+├── renewal-alert.sh                  Cert/token expiry (cron monthly)
+├── staff.json                        Static staff data
+├── SERVER-OPS.md                     Full ops reference
 ├── media/
-│   ├── images/                      GITIGNORED
-│   └── videos/                      GITIGNORED
+│   ├── images/                       GITIGNORED
+│   └── videos/                       GITIGNORED
 ├── components/
 │   ├── shell/    sidebar.js, topbar.js, admin.js, support.js
-│   ├── pages/    aml.js, fees.js, knowledgebase.js, projects.js, reader.js, staff.js
+│   ├── pages/    aml.js, fees.js, knowledgebase.js, projects.js, reader.js, staff.js, valuation.js
 │   └── widgets/  announcements.js, policies.js, training.js, quicklinks.js
 ├── api/
 │   ├── bookstack.js
-│   └── clickup/server.py            FastAPI: fees data + /api/upload/image + /api/upload/video
+│   ├── clickup/server.py             FastAPI: fees data + media uploads
+│   └── valuation/
+│       ├── main.py                   FastAPI: valuation reference data
+│       ├── build_database.py         Schema + models
+│       ├── seed_database.py          Baseline seed (Jan 2024)
+│       ├── backfill_damodaran.py     Historical archive 2008-2024
+│       ├── update_damodaran.py       Append current edition
+│       └── fetch_exchange_rates.py   Year-end FX from Frankfurter/ECB
 ├── styles/
 │   ├── theme.css, base.css, layout.css, cards.css, modals.css
-│   ├── pages/    aml.css, fees.css, knowledgebase.css, reader.css, staff.css
+│   ├── pages/    aml.css, fees.css, knowledgebase.css, reader.css, staff.css, valuation.css
 │   └── widgets/  announcements.css
 ├── utils/
 │   ├── dom.js    escapeHtml, renderSkeleton, renderError, renderEmpty
 │   └── format.js formatDate, excerptFromHtml
-└── vendor/       Chart.js + datalabels (bundled, no CDN)
+└── vendor/       Chart.js, jsPDF, html2canvas (bundled, no CDN)
 ```
 
 ---
@@ -126,9 +150,23 @@ treppides-hub/
 | `ADMIN_PIN` | Set on server |
 | `SUPPORT_EMAIL` | `apieri@treppides.com` |
 
+**Token rotation:** BookStack admin → My Account → API Tokens → delete old → create new → update `config.js`.
+
 ---
 
 ## Session Log
+
+### 2026-06-02 — Backend hardening
+
+- nginx.conf: gzip, server_tokens off, TLS 1.2+, worker tuning, rate limit zones
+- ClickUp API: CORS restricted, error responses sanitized
+- Valuation API: SQLite WAL mode, connection pooling
+- Both service files rewritten: 2 workers, memory/CPU caps, security sandbox
+- New scripts: backup.sh, healthcheck.sh, renewal-alert.sh
+- SETUP.sh rewritten: idempotent, installs fail2ban + UFW + crons + services
+- UFW firewall + fail2ban deployed and active
+- SERVER-OPS.md created as full ops reference
+- File permissions hardened, system packages updated
 
 ### 2026-05-29 (session 15) — Live server assessment + long-term plan
 
@@ -145,72 +183,45 @@ real numbers. Recorded:
   backstop · per-endpoint global ceiling) replacing the v3 IP-only
   proposal.
 
-Confirmed v3-flagged findings on the live box: BookStack port 6875
-binds `0.0.0.0`; no crontab / no backups; `worker_connections=768`;
-no `limit_req_zone`; kernel mostly at defaults. FastAPI services
-both correctly on `127.0.0.1` (v3 worry doesn't apply).
+Files touched: SESSION_15.md (new — canonical reference), STATUS.md,
+PROJECT_BRIEF.md, README.md.
 
-Files touched: SESSION_15.md (new — canonical reference), STATUS.md
-(server-resources block + DNS marked live + operational gaps added),
-PROJECT_BRIEF.md (header refreshed), README.md (server-resources
-section appended).
+### 2026-05-25 (sessions 13-14) — Valuation: Damodaran archive + draft persistence
 
-### 2026-05-25 (sessions 11–14) — see SESSION_11.md … SESSION_14.md
+- Schema rebuilt around per-edition keying (2008-2026)
+- backfill_damodaran.py for historical ingest from Damodaran archive
+- Edition picker in valuation form, all reference calls edition-scoped
+- Draft auto-save to localStorage, JSON export/import for audit trail
+- valuation_reference.db removed from git (rebuilt server-side)
 
-Valuation Tool full port from Valtrix (S11), live FX + CRP/ERP
-continent-average fallback (S12), historical Damodaran archive
-2008–2025 with edition picker (S13), valuation draft auto-save +
-JSON export/import (S14).
+### 2026-05-19 (session 12) — Valuation: FX data + tax auto-fill + PDF polish
 
-### 2026-05-12 (session 10) — AML dashboard per-list fee breakdown
+- Real year-end FX rates: 43 currencies, 2015-2025, sourced from Frankfurter/ECB
+- Country selection auto-fills CRP + ERP + statutory tax rate
+- CRP continent-average fallback (matches Excel IFERROR logic)
+- PDF report layout refined
 
-- Each AML list now has its own breakdown field driving the chart, KPI
-  cards, and drill-down table badges:
-  - `new` → `client_status` (Existing / New) — unchanged
-  - `rejected` → `rejection_reason`
-  - `disengaged` → `disengaged_reason`
-- Fixes silent bug where rejected/disengaged showed €0 in Existing/New
-  KPI cards and force-bucketed every chart bar as "Existing".
-- KPI cards become list-aware: Top {Reason} + Distinct {Reason}s replace
-  Existing/New on non-new lists.
-- Chart datasets and legend built dynamically from distinct values present.
-- Stable per-load colour palette so colours don't shuffle between tab switches.
-- Drill-down breakdown column rendered as colour-coded badges.
-- One unverified assumption — exact snake-cased keys in ClickUp may differ;
-  see NEXT_SESSION.md Priority 1.
-- Single file changed: `components/pages/fees.js`.
+### 2026-05-14 (session 11) — Valuation Tool port (Valtrix → Hub)
 
-### 2026-05-12 (session 9) — Social announcements + media upload infrastructure
+- Full valuation page ported: sidebar wiring, form, FastAPI backend
+- CDN deps vendored (jsPDF, html2canvas), API namespaced under /api/valuation
+- systemd unit + nginx proxy block
 
-- Announcements redesigned as social post feed (LinkedIn/FB style, 10 posts, inline media)
-- Admin panel: media composer — Photo / Video (≤150MB) / YouTube+Vimeo with live previews
-- FastAPI: `/api/upload/image` and `/api/upload/video` endpoints
-- Nginx: `/media/` static block, `/api/upload/` proxy, `client_max_body_size 160m`
-- `window.__hub_announcements.refresh()` exposed; auto-called after admin publish
-- New: `styles/widgets/announcements.css`
+### 2026-05-12 (sessions 8-10) — AML breakdown, social announcements, refactor
 
-### 2026-05-12 (session 8) — File structure refactor
+- AML per-list fee breakdown (status/rejection/disengagement reason)
+- Social post feed with inline media, media upload endpoints
+- File structure refactor (components/shell, pages, widgets)
 
-- `components/` split into `shell/`, `pages/`, `widgets/`
-- `styles/` split into `pages/`, `widgets/`
-- All import paths updated — pure structural move, no logic changes
+### 2026-05-11 (session 7) — HTTPS, Staff Directory, AML multi-list
 
-### 2026-05-11 (session 7) — HTTPS, Staff Directory, AML multi-list, Projects stub
+- Sectigo wildcard cert, nginx HTTPS, Staff Directory, AML multi-list landing
 
-- Sectigo wildcard cert deployed, nginx HTTPS live at `hub.treppides.com`
-- Staff Directory built (`staff.js`, `staff.css`, `staff.json`)
-- AML multi-list landing (new/rejected/disengaged)
-- KB, Staff, AML, Projects moved to dedicated full-page views
-- Active nav state via `hub:navchange` events
+### 2026-04-03 to 2026-05-06 (sessions 1-6) — Core portal + infrastructure
 
-### 2026-05-06 (sessions 4–6) — Infrastructure, fees dashboard, admin
-
-- FastAPI as systemd service, Chart.js bundled in `vendor/`
-- Admin panel, IT Support modal, Fees dashboard v3 (chart, CSV export)
-
-### 2026-04-03 (sessions 1–3) — Core portal
-
-- Announcements, Policies, Training, KB, In-app Reader, BookStack API, credential hygiene
+- Announcements, Policies, Training, KB, In-app Reader, BookStack API
+- Admin panel, IT Support modal, Fees dashboard, credential hygiene
+- FastAPI as systemd service, Chart.js bundled
 
 ---
 
@@ -228,7 +239,9 @@ JSON export/import (S14).
 
 ## Next Features
 
-1. **OpenProject** — deploy at `/projects` (docker-compose at `~/openproject/`)
-2. **Mobile reader navigation** — drawer/bottom sheet
-3. **LDAP/SSO auth** — Phase 2
-4. **API token server-side proxy** — Phase 2
+1. **BookStack port `127.0.0.1:6875`** — bind to localhost in `~/bookstack/docker-compose.yml`
+2. **OpenProject** — deploy at `/projects` (docker-compose at `~/openproject/`)
+3. **Server-side BookStack token proxy** — removes token from browser
+4. **Active monitoring notifications** — email/Slack alerts when healthcheck fails
+5. **Mobile reader navigation** — drawer/bottom sheet
+6. **LDAP/SSO auth** — Phase 2

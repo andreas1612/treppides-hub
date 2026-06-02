@@ -1,14 +1,45 @@
 [Unit]
 Description=Valuation Reference API — Treppides Hub backend
 After=network.target
+Documentation=https://hub.treppides.com
 
 [Service]
 Type=simple
 User=tech-admin
 WorkingDirectory=/home/tech-admin/treppides-hub/api/valuation
-ExecStart=/home/tech-admin/treppides-hub/api/valuation/venv/bin/uvicorn main:app --host 127.0.0.1 --port 8002
-Restart=always
-RestartSec=5
+ExecStart=/home/tech-admin/treppides-hub/api/valuation/venv/bin/uvicorn \
+    main:app \
+    --host 127.0.0.1 \
+    --port 8002 \
+    --workers 2 \
+    --limit-max-requests 10000 \
+    --timeout-keep-alive 65 \
+    --access-log
+
+# --- Restart strategy ---
+Restart=on-failure
+RestartSec=10
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+# --- Resource limits ---
+MemoryMax=384M
+MemoryHigh=300M
+CPUQuota=200%
+TasksMax=128
+
+# --- Security sandbox ---
+PrivateTmp=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/tech-admin/treppides-hub/api/valuation
+ReadOnlyPaths=/home/tech-admin/treppides-hub/api/valuation/venv
+
+# --- Logging ---
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=valuation-api
 
 [Install]
 WantedBy=multi-user.target

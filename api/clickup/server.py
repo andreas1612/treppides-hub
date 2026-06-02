@@ -49,9 +49,12 @@ app = FastAPI(title="ClickUp Fees API", version="2.1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://hub.treppides.com",
+        "http://192.168.0.221",
+    ],
     allow_methods=["GET", "POST"],
-    allow_headers=["*"],
+    allow_headers=["Content-Type"],
 )
 
 # ---- Media upload config ---------------------------------------------
@@ -93,9 +96,10 @@ def fetch_all_tasks(list_id: str) -> list[dict]:
         params = {"page": page, "include_closed": "true"}
         resp = requests.get(url, headers=_clickup_headers(), params=params)
         if resp.status_code != 200:
+            logging.error(f"ClickUp API error: HTTP {resp.status_code} — {resp.text[:500]}")
             raise HTTPException(
                 status_code=502,
-                detail=f"ClickUp API error: HTTP {resp.status_code} — {resp.text[:300]}"
+                detail="Unable to fetch data from ClickUp. Please try again or contact IT support."
             )
         tasks = resp.json().get("tasks", [])
         all_tasks.extend(tasks)

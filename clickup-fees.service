@@ -1,14 +1,45 @@
 [Unit]
 Description=ClickUp Fees API — Treppides Hub backend
 After=network.target
+Documentation=https://hub.treppides.com
 
 [Service]
 Type=simple
 User=tech-admin
 WorkingDirectory=/home/tech-admin/treppides-hub/api/clickup
-ExecStart=/home/tech-admin/treppides-hub/api/clickup/venv/bin/uvicorn server:app --host 127.0.0.1 --port 8001
-Restart=always
-RestartSec=5
+ExecStart=/home/tech-admin/treppides-hub/api/clickup/venv/bin/uvicorn \
+    server:app \
+    --host 127.0.0.1 \
+    --port 8001 \
+    --workers 2 \
+    --limit-max-requests 10000 \
+    --timeout-keep-alive 65 \
+    --access-log
+
+# --- Restart strategy ---
+Restart=on-failure
+RestartSec=10
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+# --- Resource limits ---
+MemoryMax=512M
+MemoryHigh=400M
+CPUQuota=200%
+TasksMax=128
+
+# --- Security sandbox ---
+PrivateTmp=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/tech-admin/treppides-hub/media
+ReadOnlyPaths=/home/tech-admin/treppides-hub/api/clickup
+
+# --- Logging ---
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=clickup-fees
 
 [Install]
 WantedBy=multi-user.target

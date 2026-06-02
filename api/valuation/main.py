@@ -41,10 +41,25 @@ app = FastAPI(title="Valuation Reference API", version="2.0.0")
 # No CORS middleware: same-origin behind nginx in production.
 
 _DB_PATH = Path(__file__).resolve().parent / "valuation_reference.db"
+from sqlalchemy import event as sa_event
+
 engine = create_engine(
     f"sqlite:///{_DB_PATH}",
     connect_args={"check_same_thread": False},
+    pool_size=5,
+    max_overflow=10,
+    pool_pre_ping=True,
 )
+
+@sa_event.listens_for(engine, "connect")
+def _set_sqlite_pragmas(dbapi_conn, connection_record):
+    cursor = dbapi_conn.cursor()
+    cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.execute("PRAGMA busy_timeout=5000")
+    cursor.execute("PRAGMA synchronous=NORMAL")
+    cursor.execute("PRAGMA cache_size=-32000")
+    cursor.close()
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 

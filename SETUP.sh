@@ -1,87 +1,182 @@
 #!/bin/bash
 # ============================================================
-# SETUP.sh — Full server setup pipeline for Treppides Hub
-# Run this on the VM (192.168.0.221) as tech-admin via SSH.
-# Run with: bash SETUP.sh
+# SETUP.sh — Idempotent server setup for Treppides Hub
+# Run: sudo bash SETUP.sh
 #
-# Prerequisites before running:
-#   1. SSL certs must already be in /etc/nginx/ssl/
-#      (run the ssl-install block below if not done yet)
-#   2. config.js must exist at ~/treppides-hub/config.js
-#   3. api/clickup/.env must exist
+# Safe to re-run — skips already-completed steps.
+#
+# Prerequisites:
+#   1. SSL certs in /etc/nginx/ssl/
+#   2. config.js exists at ~/treppides-hub/config.js
+#   3. api/clickup/.env exists
 # ============================================================
 
-set -e  # stop on any error
+set -euo pipefail
 
-# ---- SSL install (run once — skip if certs already in place) ----
-# Uncomment this block on first run after copying certs from laptop:
-#
-# echo "=== [0/5] Installing SSL certificates ==="
-# sudo mkdir -p /etc/nginx/ssl
-# cat ~/ssl-upload/STAR_treppides_com.crt \
-#     ~/ssl-upload/SectigoPublicServerAuthenticationCADVR36.crt \
-#     ~/ssl-upload/SectigoPublicServerAuthenticationRootR46_USERTrust.crt \
-#     ~/ssl-upload/USERTrustRSACertificationAuthority.crt \
-#     | sudo tee /etc/nginx/ssl/treppides_chain.crt > /dev/null
-# sudo cp ~/ssl-upload/PRIVATE\ KEY.txt /etc/nginx/ssl/treppides.key
-# sudo chmod 600 /etc/nginx/ssl/treppides.key
-# sudo chown root:root /etc/nginx/ssl/treppides.key
-# rm -rf ~/ssl-upload
-# echo "SSL certs installed."
+HUB_DIR="/home/tech-admin/treppides-hub"
+USER="tech-admin"
+
+section() { echo ""; echo "=== [$1] $2 ==="; }
+ok()      { echo "  ✓ $1"; }
+
+# ---- 1. System packages -------------------------------------------
+section "1/10" "Installing system packages"
+
+apt-get update -qq
+apt-get install -y -qq fail2ban ufw sqlite3 > /dev/null
+
+ok "fail2ban, ufw, sqlite3 installed"
+
+# ---- 2. Firewall (UFW) --------------------------------------------
+section "2/10" "Configuring firewall"
+
+ufw --force reset > /dev/null 2>&1
+ufw default deny incoming
+ufw default allow outgoing
+ufw allow 22/tcp comment 'SSH'
+ufw allow 80/tcp comment 'HTTP redirect'
+ufw allow 443/tcp comment 'HTTPS'
+ufw --force enable
+
+ok "UFW active — only 22, 80, 443 open"
+
+# ---- 3. fail2ban ---------------------------------------------------
+section "3/10" "Configuring fail2ban"
+
+cat > /etc/fail2ban/jail.local << 'JAIL'
+[DEFAULT]
+bantime  = 3600
+findtime = 600
+maxretry = 5
+backend  = systemd
+
+[sshd]
+enabled  = true
+port     = ssh
+filter   = sshd
+maxretry = 5
+bantime  = 3600
+
+[nginx-limit-req]
+enabled  = true
+port     = http,https
+filter   = nginx-limit-req
+logpath  = /var/log/nginx/error.log
+maxretry = 10
+bantime  = 600
+JAIL
+
+systemctl enable --now fail2ban > /dev/null 2>&1
+systemctl restart fail2ban
+
+ok "fail2ban active — SSH (5 tries/1hr ban) + nginx rate limit jail"
+
+# ---- 4. nginx config -----------------------------------------------
+section "4/10" "Deploying nginx configuration"
+
+cp "$HUB_DIR/nginx-treppides-hub.conf" /etc/nginx/sites-enabled/treppides-hub
+nginx -t
+systemctl reload nginx
+
+ok "nginx reloaded with hardened config"
+
+# ---- 5. ClickUp API venv -------------------------------------------
+section "5/10" "Setting up ClickUp API"
+
+cd "$HUB_DIR/api/clickup"
+if [ ! -d venv ]; then
+    sudo -u "$USER" python3 -m venv venv
+fi
+sudo -u "$USER" venv/bin/pip install -q -r requirements.txt
+
+ok "ClickUp venv ready"
+
+# ---- 6. Valuation API venv -----------------------------------------
+section "6/10" "Setting up Valuation API"
+
+cd "$HUB_DIR/api/valuation"
+if [ ! -d venv ]; then
+    sudo -u "$USER" python3 -m venv venv
+fi
+sudo -u "$USER" venv/bin/pip install -q -r requirements.txt
+
+ok "Valuation venv ready"
+
+# ---- 7. Systemd services -------------------------------------------
+section "7/10" "Installing systemd services"
+
+cp "$HUB_DIR/clickup-fees.service"  /etc/systemd/system/
+cp "$HUB_DIR/valuation-api.service" /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now clickup-fees
+systemctl enable --now valuation-api
+systemctl restart clickup-fees
+systemctl restart valuation-api
+
+ok "Both API services running with sandboxing"
+
+# ---- 8. Backup cron ------------------------------------------------
+section "8/10" "Installing backup cron"
+
+chmod +x "$HUB_DIR/backup.sh"
+mkdir -p /home/tech-admin/backups/hub
+
+# Add cron if not already present
+CRON_BACKUP="0 2 * * * $HUB_DIR/backup.sh"
+(crontab -u "$USER" -l 2>/dev/null | grep -v "backup.sh"; echo "$CRON_BACKUP") | crontab -u "$USER" -
+
+ok "Daily backup at 2 AM configured"
+
+# ---- 9. Health check + renewal alert crons -------------------------
+section "9/10" "Installing monitoring crons"
+
+chmod +x "$HUB_DIR/healthcheck.sh"
+chmod +x "$HUB_DIR/renewal-alert.sh"
+touch /var/log/hub-health.log /var/log/hub-health-alerts.log /var/log/hub-backup.log
+chown "$USER":"$USER" /var/log/hub-health.log /var/log/hub-health-alerts.log /var/log/hub-backup.log
+
+CRON_HEALTH="*/5 * * * * $HUB_DIR/healthcheck.sh"
+CRON_RENEW="0 9 1 * * $HUB_DIR/renewal-alert.sh"
+
+(crontab -u "$USER" -l 2>/dev/null | grep -v "healthcheck.sh" | grep -v "renewal-alert.sh"; echo "$CRON_HEALTH"; echo "$CRON_RENEW") | crontab -u "$USER" -
+
+ok "Health check (5min) + renewal alert (monthly) installed"
+
+# ---- 10. Smoke tests -----------------------------------------------
+section "10/10" "Running smoke tests"
+
+sleep 3
+
+echo -n "  nginx:          "; systemctl is-active nginx
+echo -n "  clickup-fees:   "; systemctl is-active clickup-fees
+echo -n "  valuation-api:  "; systemctl is-active valuation-api
+echo -n "  docker:         "; systemctl is-active docker
+echo -n "  fail2ban:       "; systemctl is-active fail2ban
+echo -n "  ufw:            "; ufw status | head -1
 
 echo ""
-echo "=== [1/5] Installing nginx config ==="
-sudo cp ~/treppides-hub/nginx-treppides-hub.conf /etc/nginx/sites-enabled/treppides-hub
-sudo nginx -t
-sudo systemctl reload nginx
-echo "OK"
-
+echo -n "  HTTPS (443):    "
+curl -sk -o /dev/null -w "%{http_code}" https://hub.treppides.com/ --connect-timeout 5 --resolve hub.treppides.com:443:127.0.0.1 2>/dev/null || echo "SKIP (DNS)"
 echo ""
-echo "=== [2/5] Installing Python venv + dependencies ==="
-cd ~/treppides-hub/api/clickup
-python3 -m venv venv
-venv/bin/pip install -r requirements.txt --quiet
-echo "OK"
-
+echo -n "  ClickUp API:    "
+curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8001/health --connect-timeout 5
 echo ""
-echo "=== [3/5] Installing ClickUp Fees API as systemd service ==="
-sudo cp ~/treppides-hub/clickup-fees.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now clickup-fees
-echo "OK"
-
-echo ""
-echo "=== [4/5] Verifying services ==="
-echo "--- nginx ---"
-sudo systemctl status nginx --no-pager | head -5
-echo "--- clickup-fees ---"
-sudo systemctl status clickup-fees --no-pager | head -5
-echo "--- BookStack containers ---"
-cd ~/bookstack && sudo docker compose ps
-
-echo ""
-echo "=== [5/5] Smoke tests ==="
-sleep 2
-echo -n "Hub HTTPS redirect:   "
-curl -s -o /dev/null -w "%{http_code}" http://192.168.0.221/
-echo ""
-echo -n "Hub HTTPS:            "
-curl -s -o /dev/null -w "%{http_code}" https://hub.treppides.com/ --resolve hub.treppides.com:443:192.168.0.221 2>/dev/null || echo "DNS not yet set — expected"
-echo ""
-echo -n "BookStack API:        "
-curl -s -o /dev/null -w "%{http_code}" https://hub.treppides.com/docs/api/books \
-  -H "Authorization: Token $(grep API_TOKEN_ID ~/treppides-hub/config.js | grep -o '"[^"]*"' | tail -1 | tr -d '"'):$(grep API_TOKEN_SECRET ~/treppides-hub/config.js | grep -o '"[^"]*"' | tail -1 | tr -d '"')" \
-  --resolve hub.treppides.com:443:192.168.0.221 2>/dev/null || echo "DNS not yet set"
-echo ""
-echo -n "ClickUp Fees API:     "
-curl -s -o /dev/null -w "%{http_code}" https://hub.treppides.com/api/clickup/fees \
-  --resolve hub.treppides.com:443:192.168.0.221 2>/dev/null || echo "DNS not yet set"
+echo -n "  Valuation API:  "
+curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8002/api/valuation/health --connect-timeout 5
 echo ""
 
 echo ""
-echo "=== All done. ==="
-echo "  HTTP  → https://hub.treppides.com  (redirects automatically)"
-echo "  HTTPS → https://hub.treppides.com"
+echo "=== Setup complete ==="
 echo ""
-echo "  Next step: add internal DNS record hub.treppides.com → 192.168.0.221"
-echo "  Then update config.js: BASE_URL and DOCS_URL → https://hub.treppides.com/docs"
+echo "  Firewall:   UFW active (22/80/443 only)"
+echo "  fail2ban:   SSH + nginx jails"
+echo "  nginx:      TLS 1.2+, gzip, rate limits, DDoS protection, video streaming"
+echo "  APIs:       2 workers each, sandboxed, resource-capped"
+echo "  Backups:    Daily at 2 AM → /home/tech-admin/backups/hub/"
+echo "  Health:     Every 5 min → /var/log/hub-health.log"
+echo "  Renewals:   Monthly → /var/log/hub-health-alerts.log"
+echo ""
+echo "  Key dates:"
+echo "    BookStack API token expires: 2026-08-15"
+echo "    SSL cert expires:            2026-11-22"
+echo ""
