@@ -12,6 +12,7 @@
 | nginx | systemd | 80, 443 | `systemctl status nginx` |
 | clickup-fees | systemd | 8001 (localhost) | `systemctl status clickup-fees` |
 | valuation-api | systemd | 8002 (localhost) | `systemctl status valuation-api` |
+| companies-api | systemd | 8003 (localhost) | `systemctl status companies-api` |
 | bookstack | Docker | 6875 (localhost) | `sudo docker ps \| grep bookstack` |
 | bookstack_db | Docker (MariaDB) | 3306 (internal) | `sudo docker ps \| grep bookstack_db` |
 
@@ -20,6 +21,7 @@
 ```
 curl http://127.0.0.1:8001/health          # ClickUp Fees API
 curl http://127.0.0.1:8002/api/valuation/health   # Valuation API
+curl http://127.0.0.1:8003/api/companies/health   # Company Finder API
 ```
 
 ### Restarting Services
@@ -27,9 +29,20 @@ curl http://127.0.0.1:8002/api/valuation/health   # Valuation API
 ```bash
 sudo systemctl restart clickup-fees
 sudo systemctl restart valuation-api
+sudo systemctl restart companies-api
 sudo systemctl reload nginx          # reload config without downtime
 cd ~/bookstack && sudo docker compose restart
 ```
+
+### Company Finder — master database
+
+The Company Finder (`companies-api`, port 8003) keeps a SQLite master DB
+(`api/companies/companies.db`) of every ClickUp task across the 10 CRM spaces.
+- **Initial build (one-time):** `cd ~/treppides-hub/api/companies && source venv/bin/activate && python sync.py --full` (~2-3 min).
+- **Incremental sync** runs every 3 min via cron (fast, ~10s — only tasks changed since last sync). Deletion reconcile (heavier, re-lists all spaces) runs at most every 15 min.
+- **Manual refresh:** the dashboard's Refresh button, or `curl 'http://127.0.0.1:8003/api/companies/sync?wait=true'`.
+- **Rebuild from scratch:** `python sync.py --full` (or `curl '.../sync?full=true&wait=true'`).
+- **DB freshness:** `curl http://127.0.0.1:8003/api/companies/status`
 
 ---
 
@@ -78,6 +91,7 @@ Sensitive files are locked to owner-only (600):
 |------|-------------|----------|
 | `~/treppides-hub/config.js` | 600 | BookStack API token |
 | `~/treppides-hub/api/clickup/.env` | 600 | ClickUp API token |
+| `~/treppides-hub/api/companies/.env` | 600 | ClickUp API token (Company Finder) |
 | `~/bookstack/config/www/.env` | 600 | BookStack DB credentials |
 | `/etc/nginx/ssl/treppides.key` | 600 (root) | SSL private key |
 
@@ -201,6 +215,7 @@ crontab -l       # view all crons
 | `0 2 * * *` | `backup.sh` | Daily backup at 2 AM |
 | `*/5 * * * *` | `healthcheck.sh` | Health check every 5 min |
 | `0 9 1 * *` | `renewal-alert.sh` | Cert/token expiry check monthly |
+| `*/3 * * * *` | `curl -s http://127.0.0.1:8003/api/companies/sync >/dev/null` | Company Finder incremental sync every 3 min |
 
 ---
 
@@ -280,6 +295,9 @@ journalctl -u valuation-api --since "1 hour ago" --no-pager
 | ClickUp API code | `~/treppides-hub/api/clickup/` |
 | Valuation API code | `~/treppides-hub/api/valuation/` |
 | Valuation database | `~/treppides-hub/api/valuation/valuation_reference.db` |
+| Company Finder API code | `~/treppides-hub/api/companies/` |
+| Company master database | `~/treppides-hub/api/companies/companies.db` |
+| Company Finder secrets | `~/treppides-hub/api/companies/.env` |
 | ClickUp secrets | `~/treppides-hub/api/clickup/.env` |
 | App config | `~/treppides-hub/config.js` |
 | Staff list | `~/treppides-hub/staff.json` |

@@ -1,0 +1,362 @@
+/* ============================================================
+   companies.css — Company Task Finder dashboard.
+   Search box + results grouped by company (TID) → space.
+   Mirrors the AML/fees full-page show/hide pattern.
+   ============================================================ */
+
+/* Default: hidden, hub content visible */
+#section-companies {
+  display: none;
+  padding: var(--page-gutter, 32px);
+}
+
+.main.companies-active .page-content   { display: none !important; }
+.main.companies-active .reader-overlay { display: none !important; }
+.main.companies-active #section-companies { display: block !important; }
+
+/* ---- Header ---- */
+#section-companies .section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.companies-header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.companies-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.companies-synced {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.companies-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.companies-refresh-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+  background: rgba(0, 0, 0, .02);
+}
+.companies-refresh-btn svg { width: 17px; height: 17px; }
+.companies-refresh-btn.spinning svg { animation: companies-spin .8s linear infinite; }
+
+.companies-back-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.companies-back-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+  background: rgba(0, 0, 0, .02);
+}
+.companies-back-btn svg { width: 18px; height: 18px; }
+
+/* ---- Search bar ---- */
+.companies-searchbar {
+  position: relative;
+  margin: 24px 0 8px;
+  max-width: 560px;
+}
+.companies-search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+.companies-search-input {
+  width: 100%;
+  font-family: inherit;
+  font-size: 15px;
+  color: var(--text-primary);
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 16px 12px 42px;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.companies-search-input:focus {
+  outline: none;
+  border-color: var(--accent, #2F855A);
+  box-shadow: 0 0 0 3px rgba(47, 133, 90, .12);
+}
+
+/* ---- Result summary ---- */
+.companies-result-summary {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 16px 0 12px;
+}
+.companies-result-summary.truncated {
+  color: #B7791F;
+  font-weight: 600;
+}
+
+/* ---- Company card (collapsible per TID) ---- */
+.companies-results { margin-top: 8px; }
+
+.companies-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin-bottom: 14px;
+  overflow: hidden;
+}
+
+.companies-card-summary {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.companies-card-summary::-webkit-details-marker { display: none; }
+
+.companies-card-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.companies-card-tid {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  color: var(--accent-hover, #1a1f2e);
+  background: rgba(47, 133, 90, .1);
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+/* Deal-value badge in the collapsed summary row — pushed to the right so it
+   lines up across cards and no-deal rows stand out at a glance. */
+.companies-card-value {
+  margin-left: auto;
+  font-size: 14px;
+  font-weight: 800;
+  color: #2F855A;
+  white-space: nowrap;
+}
+.companies-card-value.none {
+  font-weight: 600;
+  color: #A0768B;                 /* muted rose — clearly "not a real value" */
+  background: rgba(160, 118, 139, .1);
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+.companies-card-count {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+/* No-deal cards: dim the whole row so they recede from the ones that matter. */
+.companies-card.no-deals .companies-card-name { color: var(--text-secondary); }
+.companies-card.no-deals { opacity: .85; }
+.companies-chevron {
+  width: 18px;
+  height: 18px;
+  color: var(--text-secondary);
+  transition: transform var(--transition);
+}
+.companies-card[open] .companies-chevron { transform: rotate(180deg); }
+
+.companies-card-body {
+  padding: 0 20px 8px;
+  border-top: 1px solid var(--border);
+}
+
+/* ---- Space group ---- */
+.companies-space { padding: 14px 0; }
+.companies-space + .companies-space { border-top: 1px dashed var(--border); }
+
+.companies-space-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.companies-space-name {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--text-secondary);
+}
+.companies-space-count {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: rgba(0, 0, 0, .05);
+  padding: 1px 7px;
+  border-radius: 999px;
+}
+
+/* ---- Task row ---- */
+.companies-task-list { list-style: none; margin: 0; padding: 0; }
+
+.companies-task {
+  padding: 10px 0;
+  border-top: 1px solid rgba(0, 0, 0, .04);
+}
+.companies-task:first-child { border-top: none; }
+
+.companies-task-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.companies-task-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.companies-status {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  color: #fff;
+  background: var(--pill, #A0AEC0);
+  padding: 2px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.companies-task-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 5px;
+}
+.companies-meta-item {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.companies-open {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-hover, #1a1f2e);
+  text-decoration: none;
+}
+.companies-open:hover { text-decoration: underline; }
+
+/* ---- Prompt / loading states ---- */
+.companies-prompt {
+  text-align: center;
+  padding: 56px 24px;
+  color: var(--text-secondary);
+}
+.companies-prompt svg { width: 40px; height: 40px; opacity: .5; margin-bottom: 12px; }
+.companies-prompt h3 { font-size: 16px; color: var(--text-primary); margin: 0 0 6px; }
+.companies-prompt p  { font-size: 13px; margin: 0; max-width: 360px; margin-inline: auto; line-height: 1.5; }
+
+.companies-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 48px 24px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+.companies-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent, #2F855A);
+  border-radius: 50%;
+  animation: companies-spin .7s linear infinite;
+}
+@keyframes companies-spin { to { transform: rotate(360deg); } }
+
+/* ---- Fee headline (per company) ---- */
+.companies-fees {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 4px 20px 16px;
+}
+.companies-fee {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  min-width: 160px;
+}
+.companies-fee.active { background: rgba(47, 133, 90, .08); border: 1px solid rgba(47, 133, 90, .2); }
+.companies-fee.lost   { background: rgba(229, 62, 62, .06); border: 1px solid rgba(229, 62, 62, .18); }
+.companies-fee-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--text-secondary);
+}
+.companies-fee.active .companies-fee-value { color: #2F855A; }
+.companies-fee.lost   .companies-fee-value { color: #C53030; }
+.companies-fee-value {
+  font-size: 22px;
+  font-weight: 800;
+}
+.companies-fee-sub { font-size: 12px; color: var(--text-secondary); }
+
+/* No-deal states */
+.companies-fee.empty .companies-fee-value { color: var(--text-secondary); }
+.companies-nodeal {
+  padding: 16px 20px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* ---- Deal group (within a space) ---- */
+.companies-listgroup { margin-top: 10px; }
+.companies-list-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 6px 0 4px;
+}
+.companies-listgroup.lost .companies-list-header { color: #C53030; }
+
+/* Deal value chip on a task row */
+.companies-dealval {
+  font-weight: 700;
+  color: #2F855A;
+}

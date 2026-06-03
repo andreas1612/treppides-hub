@@ -25,11 +25,19 @@ log "Backing up config files..."
 cp -f "$HUB_DIR/config.js"             "$DEST/" 2>/dev/null || true
 cp -f "$HUB_DIR/staff.json"            "$DEST/" 2>/dev/null || true
 cp -f "$HUB_DIR/api/clickup/.env"      "$DEST/clickup.env" 2>/dev/null || true
+cp -f "$HUB_DIR/api/companies/.env"    "$DEST/companies.env" 2>/dev/null || true
 
 # 2. Valuation SQLite (hot backup — safe while DB is in use with WAL)
 log "Backing up valuation database..."
 if [ -f "$HUB_DIR/api/valuation/valuation_reference.db" ]; then
     sqlite3 "$HUB_DIR/api/valuation/valuation_reference.db" ".backup '$DEST/valuation_reference.db'"
+fi
+
+# 2b. Company Finder SQLite (hot backup; rebuildable via sync.py but backing
+# up avoids a 2-3 min full re-sync on restore)
+log "Backing up company database..."
+if [ -f "$HUB_DIR/api/companies/companies.db" ]; then
+    sqlite3 "$HUB_DIR/api/companies/companies.db" ".backup '$DEST/companies.db'"
 fi
 
 # 3. BookStack MariaDB

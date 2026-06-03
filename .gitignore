@@ -3,15 +3,22 @@ config.js
 
 # ClickUp API credentials
 api/clickup/.env
+api/companies/.env
 
-# Temp exploration scripts
-api/clickup/_explore.py
+# Company master database — rebuilt on the server from ClickUp via sync.py,
+# not committed (like the valuation DB). WAL sidecar files too.
+api/companies/companies.db
+api/companies/companies.db-wal
+api/companies/companies.db-shm
 
-# Python bytecode and virtualenv
-api/clickup/__pycache__/
-api/clickup/venv/
-api/valuation/__pycache__/
-api/valuation/venv/
+# Temp exploration / local test scripts (anything underscore-prefixed under api/)
+api/*/_*.py
+
+# Python bytecode and virtualenvs (global — catch every directory)
+__pycache__/
+*.pyc
+venv/
+.venv/
 
 # Built reference database — rebuilt on the server via seed_database.py +
 # backfill_damodaran.py + update_damodaran.py. Committing it caused diff

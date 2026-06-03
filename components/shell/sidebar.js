@@ -141,6 +141,12 @@ const ICONS = {
                 <line x1="8" y1="18" x2="10" y2="18"/>
                 <line x1="12" y1="18" x2="16" y2="18"/>
               </svg>`,
+
+  search: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+             <circle cx="11" cy="11" r="8"/>
+             <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+           </svg>`,
 };
 
 // ---- Component ------------------------------------------------
@@ -191,6 +197,10 @@ export default async function init(config) {
           ${ICONS.calculator} Valuation Tool
         </button>
 
+        <button class="nav-item nav-btn" id="sb-companies">
+          ${ICONS.search} Company Finder
+        </button>
+
         <div class="nav-label" style="margin-top:12px;">Support</div>
 
         <button class="nav-item nav-btn" id="sb-support">
@@ -213,6 +223,7 @@ export default async function init(config) {
       if (window.__hub_kb)        window.__hub_kb.hide();
       if (window.__hub_projects)  window.__hub_projects.hide();
       if (window.__hub_valuation) window.__hub_valuation.hide();
+      if (window.__hub_companies)  window.__hub_companies.hide();
       if (window.__hub_reader)    window.__hub_reader.goHome();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
@@ -225,6 +236,7 @@ export default async function init(config) {
       if (window.__hub_staff)     window.__hub_staff.hide();
       if (window.__hub_projects)  window.__hub_projects.hide();
       if (window.__hub_valuation) window.__hub_valuation.hide();
+      if (window.__hub_companies)  window.__hub_companies.hide();
       if (window.__hub_kb)        window.__hub_kb.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
@@ -237,6 +249,7 @@ export default async function init(config) {
       if (window.__hub_kb)        window.__hub_kb.hide();
       if (window.__hub_projects)  window.__hub_projects.hide();
       if (window.__hub_valuation) window.__hub_valuation.hide();
+      if (window.__hub_companies)  window.__hub_companies.hide();
       if (window.__hub_staff)     window.__hub_staff.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
@@ -250,6 +263,7 @@ export default async function init(config) {
       if (window.__hub_kb)        window.__hub_kb.hide();
       if (window.__hub_projects)  window.__hub_projects.hide();
       if (window.__hub_valuation) window.__hub_valuation.hide();
+      if (window.__hub_companies)  window.__hub_companies.hide();
       if (window.__hub_aml)       window.__hub_aml.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
@@ -262,6 +276,7 @@ export default async function init(config) {
       if (window.__hub_staff)    window.__hub_staff.hide();
       if (window.__hub_kb)       window.__hub_kb.hide();
       if (window.__hub_valuation) window.__hub_valuation.hide();
+      if (window.__hub_companies)  window.__hub_companies.hide();
       if (window.__hub_projects) window.__hub_projects.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
@@ -274,7 +289,21 @@ export default async function init(config) {
       if (window.__hub_staff)     window.__hub_staff.hide();
       if (window.__hub_kb)        window.__hub_kb.hide();
       if (window.__hub_projects)  window.__hub_projects.hide();
+      if (window.__hub_companies)  window.__hub_companies.hide();
       if (window.__hub_valuation) window.__hub_valuation.show();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+
+    // Company Finder: open dedicated full-page cross-space company search
+    document.getElementById("sb-companies")?.addEventListener("click", () => {
+      if (window.__hub_reader)    window.__hub_reader.goHome();
+      if (window.__hub_fees)      window.__hub_fees.hide();
+      if (window.__hub_aml)       window.__hub_aml.hide();
+      if (window.__hub_staff)     window.__hub_staff.hide();
+      if (window.__hub_kb)        window.__hub_kb.hide();
+      if (window.__hub_projects)  window.__hub_projects.hide();
+      if (window.__hub_valuation) window.__hub_valuation.hide();
+      if (window.__hub_companies) window.__hub_companies.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
   }
@@ -316,6 +345,9 @@ export default async function init(config) {
         <button class="nav-item nav-btn" id="mb-valuation">
           ${ICONS.calculator} Valuation Tool
         </button>
+        <button class="nav-item nav-btn" id="mb-companies">
+          ${ICONS.search} Company Finder
+        </button>
         <button class="nav-item nav-btn" id="mb-support">
           ${ICONS.phone} IT Support
         </button>
@@ -335,6 +367,7 @@ export default async function init(config) {
       if (window.__hub_kb)        window.__hub_kb.hide();
       if (window.__hub_projects)  window.__hub_projects.hide();
       if (window.__hub_valuation) window.__hub_valuation.hide();
+      if (window.__hub_companies)  window.__hub_companies.hide();
       if (window.__hub_reader)    window.__hub_reader.goHome();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
@@ -347,6 +380,7 @@ export default async function init(config) {
       if (window.__hub_staff)     window.__hub_staff.hide();
       if (window.__hub_projects)  window.__hub_projects.hide();
       if (window.__hub_valuation) window.__hub_valuation.hide();
+      if (window.__hub_companies)  window.__hub_companies.hide();
       if (window.__hub_kb)        window.__hub_kb.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
@@ -359,6 +393,7 @@ export default async function init(config) {
       if (window.__hub_kb)        window.__hub_kb.hide();
       if (window.__hub_projects)  window.__hub_projects.hide();
       if (window.__hub_valuation) window.__hub_valuation.hide();
+      if (window.__hub_companies)  window.__hub_companies.hide();
       if (window.__hub_staff)     window.__hub_staff.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
@@ -372,6 +407,7 @@ export default async function init(config) {
       if (window.__hub_kb)        window.__hub_kb.hide();
       if (window.__hub_projects)  window.__hub_projects.hide();
       if (window.__hub_valuation) window.__hub_valuation.hide();
+      if (window.__hub_companies)  window.__hub_companies.hide();
       if (window.__hub_aml)       window.__hub_aml.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
@@ -385,6 +421,7 @@ export default async function init(config) {
       if (window.__hub_staff)     window.__hub_staff.hide();
       if (window.__hub_kb)        window.__hub_kb.hide();
       if (window.__hub_valuation) window.__hub_valuation.hide();
+      if (window.__hub_companies)  window.__hub_companies.hide();
       if (window.__hub_projects)  window.__hub_projects.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
@@ -398,7 +435,22 @@ export default async function init(config) {
       if (window.__hub_staff)     window.__hub_staff.hide();
       if (window.__hub_kb)        window.__hub_kb.hide();
       if (window.__hub_projects)  window.__hub_projects.hide();
+      if (window.__hub_companies)  window.__hub_companies.hide();
       if (window.__hub_valuation) window.__hub_valuation.show();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+
+    // Mobile Company Finder link
+    document.getElementById("mb-companies")?.addEventListener("click", () => {
+      document.getElementById("mobile-nav")?.classList.remove("open");
+      if (window.__hub_reader)    window.__hub_reader.goHome();
+      if (window.__hub_fees)      window.__hub_fees.hide();
+      if (window.__hub_aml)       window.__hub_aml.hide();
+      if (window.__hub_staff)     window.__hub_staff.hide();
+      if (window.__hub_kb)        window.__hub_kb.hide();
+      if (window.__hub_projects)  window.__hub_projects.hide();
+      if (window.__hub_valuation) window.__hub_valuation.hide();
+      if (window.__hub_companies) window.__hub_companies.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
@@ -423,10 +475,11 @@ export default async function init(config) {
       aml:       ["sb-fees",      "mb-fees"],     // landing → highlight AML Dashboard
       fees:      ["sb-fees",      "mb-fees"],     // dashboard view → same highlight
       valuation: ["sb-valuation", "mb-valuation"],
+      companies: ["sb-companies", "mb-companies"],
     };
     [
-      "sb-home","sb-kb","sb-staff","sb-proj","sb-fees","sb-valuation",
-      "mb-home","mb-kb","mb-staff","mb-proj","mb-fees","mb-valuation",
+      "sb-home","sb-kb","sb-staff","sb-proj","sb-fees","sb-valuation","sb-companies",
+      "mb-home","mb-kb","mb-staff","mb-proj","mb-fees","mb-valuation","mb-companies",
     ].forEach(id => {
       document.getElementById(id)?.classList.remove("active");
     });

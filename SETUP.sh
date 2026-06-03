@@ -102,18 +102,42 @@ sudo -u "$USER" venv/bin/pip install -q -r requirements.txt
 
 ok "Valuation venv ready"
 
+# ---- 6b. Company Finder API venv -----------------------------------
+section "6b/10" "Setting up Company Finder API"
+
+cd "$HUB_DIR/api/companies"
+if [ ! -d venv ]; then
+    sudo -u "$USER" python3 -m venv venv
+fi
+sudo -u "$USER" venv/bin/pip install -q -r requirements.txt
+# Build the master DB on first install if it doesn't exist yet (~2-3 min).
+if [ ! -f companies.db ]; then
+    echo "  Building company master database (initial full sync)..."
+    sudo -u "$USER" venv/bin/python sync.py --full || echo "  (build deferred — run 'python sync.py --full' once .env is set)"
+fi
+
+ok "Company Finder venv ready"
+
 # ---- 7. Systemd services -------------------------------------------
 section "7/10" "Installing systemd services"
 
 cp "$HUB_DIR/clickup-fees.service"  /etc/systemd/system/
 cp "$HUB_DIR/valuation-api.service" /etc/systemd/system/
+cp "$HUB_DIR/companies-api.service" /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable --now clickup-fees
 systemctl enable --now valuation-api
+systemctl enable --now companies-api
 systemctl restart clickup-fees
 systemctl restart valuation-api
+systemctl restart companies-api
 
-ok "Both API services running with sandboxing"
+ok "All three API services running with sandboxing"
+
+# Company Finder incremental sync — every 3 min via cron (idempotent install).
+CRON_LINE='*/3 * * * * curl -s http://127.0.0.1:8003/api/companies/sync >/dev/null 2>&1'
+( crontab -u "$USER" -l 2>/dev/null | grep -v 'api/companies/sync' ; echo "$CRON_LINE" ) | crontab -u "$USER" -
+ok "Company Finder 3-min sync cron installed"
 
 # ---- 8. Backup cron ------------------------------------------------
 section "8/10" "Installing backup cron"
@@ -150,6 +174,7 @@ sleep 3
 echo -n "  nginx:          "; systemctl is-active nginx
 echo -n "  clickup-fees:   "; systemctl is-active clickup-fees
 echo -n "  valuation-api:  "; systemctl is-active valuation-api
+echo -n "  companies-api:  "; systemctl is-active companies-api
 echo -n "  docker:         "; systemctl is-active docker
 echo -n "  fail2ban:       "; systemctl is-active fail2ban
 echo -n "  ufw:            "; ufw status | head -1
@@ -163,6 +188,9 @@ curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8001/health --connect-ti
 echo ""
 echo -n "  Valuation API:  "
 curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8002/api/valuation/health --connect-timeout 5
+echo ""
+echo -n "  Company API:    "
+curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8003/api/companies/health --connect-timeout 5
 echo ""
 
 echo ""

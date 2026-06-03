@@ -269,6 +269,17 @@ def get_ordered_months(rows: list[dict]) -> list[str]:
     return ordered
 
 
+# ======================================================================
+# [REMOVED] Company Task Finder (v1, in-memory).
+#
+# The cross-space company search + fee dashboard now lives in its own
+# service: api/companies/ (companies-api, port 8003), backed by a
+# persistent SQLite master DB synced incrementally. The old in-memory
+# implementation that lived here (the /api/clickup/company/* routes plus
+# their index/cache/threading helpers) was removed once that service
+# replaced it. See api/companies/OUTLINE.md and SESSION_16.md.
+# ======================================================================
+
 # ---- API endpoints ---------------------------------------------------
 
 @app.get("/api/clickup/fees")

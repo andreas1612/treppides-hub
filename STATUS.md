@@ -1,6 +1,6 @@
 # STATUS — Treppides Hub
 
-**Last updated: 2026-06-02**
+**Last updated: 2026-06-03**
 **Long-term capacity plan: [SESSION_15.md](SESSION_15.md)**
 
 ---
@@ -12,8 +12,9 @@
 | **Nginx** | Active | systemd | TLS 1.2+, HTTP/2, rate limits, security headers |
 | **BookStack** | Active | Docker `bookstack` | |
 | **MariaDB** | Active | Docker `bookstack_db` | |
-| **ClickUp Fees + Upload API** | Active | systemd `clickup-fees` (port 8001) | 2 workers, 512 MB cap, sandboxed |
+| **ClickUp Fees + Upload API** | Active | systemd `clickup-fees` (port 8001) | 2 workers, 512 MB cap, sandboxed. AML fees + media upload (Company Finder moved to its own service) |
 | **Valuation Reference API** | Active | systemd `valuation-api` (port 8002) | 2 workers, 384 MB cap, sandboxed, SQLite WAL |
+| **Company Finder API** | Active | systemd `companies-api` (port 8003) | 2 workers, 384 MB cap, sandboxed, SQLite WAL. Master DB of all ClickUp tasks; 3-min incremental sync via cron |
 | **UFW Firewall** | Active | ufw | Deny all except 22/80/443 |
 | **fail2ban** | Active | systemd | SSH (5 tries/1hr) + nginx rate-limit jail |
 
@@ -36,6 +37,7 @@
 | IT Support Modal | Live | FormSubmit → email | → apieri@treppides.com |
 | Search | Live | BookStack full-text | Topbar, 400ms debounce |
 | Valuation Tool | Live | FastAPI + SQLite (Damodaran) | DCF builder; historical archive 2008-2026 with edition picker; country/industry/currency reference auto-fill; historical FX (2015-2025); draft auto-save + JSON export/import; PDF report |
+| Company Finder | Live | ClickUp → FastAPI + SQLite | Search a company by name (or TID-XXXXX) → **total Deal Value (fees)** accrued across deals (active vs rejected/lost shown separately; no-deal companies flagged with `—`). Detail view lists **deal tasks only**, grouped by space. Backed by a persistent master DB (`companies-api`, port 8003, ~9.8k tasks) synced incrementally every 3 min via `date_updated_gt` (deletion reconcile gated to 15 min); manual Refresh button. Instant SQL search — no indexing wait |
 | Projects | Stub | — | "Under development" placeholder |
 
 ---
