@@ -198,7 +198,7 @@ export default async function init(config) {
         </button>
 
         <button class="nav-item nav-btn" id="sb-companies">
-          ${ICONS.search} Company Finder
+          ${ICONS.search} Group Dashboard
         </button>
 
         <div class="nav-label" style="margin-top:12px;">Support</div>
@@ -346,7 +346,7 @@ export default async function init(config) {
           ${ICONS.calculator} Valuation Tool
         </button>
         <button class="nav-item nav-btn" id="mb-companies">
-          ${ICONS.search} Company Finder
+          ${ICONS.search} Group Dashboard
         </button>
         <button class="nav-item nav-btn" id="mb-support">
           ${ICONS.phone} IT Support

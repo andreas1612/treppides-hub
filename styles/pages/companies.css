@@ -360,3 +360,194 @@
   font-weight: 700;
   color: #2F855A;
 }
+
+/* Service badge on a task row — color-coded per service via the --svc var */
+.companies-service {
+  font-weight: 700;
+  color: var(--svc, #2F855A);
+  background: color-mix(in srgb, var(--svc, #2F855A) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--svc, #2F855A) 30%, transparent);
+  padding: 1px 8px;
+  border-radius: 999px;
+}
+
+/* ---- Landing tiles (AML-style chooser) ---- */
+.companies-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+  margin-top: 24px;
+}
+.companies-card-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px 24px;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow: var(--shadow);
+  transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition);
+}
+.companies-card-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-hover);
+  border-color: var(--text-secondary);
+}
+.companies-card-icon {
+  width: 48px; height: 48px;
+  border-radius: 12px;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.companies-card-icon svg { width: 26px; height: 26px; stroke-width: 2; }
+.companies-card-icon.search { background: rgba(74, 144, 217, .12); color: #2B6CB0; }
+.companies-card-icon.all    { background: rgba(47, 133, 90, .12);  color: #2F855A; }
+.companies-card-tile-title { font-size: 18px; font-weight: 700; color: var(--text-primary); margin: 0; }
+.companies-card-tile-desc  { font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin: 0; }
+.companies-card-cta {
+  margin-top: auto;
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 600; color: var(--accent-hover, #1a1f2e);
+}
+.companies-card-cta svg { width: 14px; height: 14px; }
+
+/* ---- Filter bar ---- */
+.companies-filterbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px;
+  margin: 20px 0 8px;
+  padding: 14px 16px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.companies-filter { display: flex; flex-direction: column; gap: 4px; }
+.companies-filter span {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .04em; color: var(--text-secondary);
+}
+.companies-filter select {
+  font-family: inherit; font-size: 13px;
+  padding: 7px 10px; min-width: 150px;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: #fff; color: var(--text-primary); cursor: pointer;
+}
+.companies-filter select:focus { outline: none; border-color: var(--accent, #2F855A); }
+.companies-filter-clear {
+  margin-left: auto; align-self: center;
+  font-family: inherit; font-size: 12px; font-weight: 600;
+  color: #C53030; background: rgba(229, 62, 62, .08);
+  border: 1px solid rgba(229, 62, 62, .2); border-radius: var(--radius);
+  padding: 8px 12px; cursor: pointer;
+}
+.companies-filter-clear:hover { background: rgba(229, 62, 62, .14); }
+
+.companies-nodeal-toggle {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 13px; color: var(--text-secondary);
+  margin: 6px 0 12px; cursor: pointer;
+}
+
+/* ---- Multi-select filter (service / department) ---- */
+.companies-multi { position: relative; }
+.companies-multi > summary {
+  list-style: none; cursor: pointer;
+  font-family: inherit; font-size: 13px;
+  padding: 7px 10px; min-width: 150px;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: #fff; color: var(--text-primary);
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+.companies-multi > summary::-webkit-details-marker { display: none; }
+.companies-multi[open] > summary { border-color: var(--accent, #2F855A); }
+.companies-multi-caret { color: var(--text-secondary); font-size: 11px; }
+.companies-multi-menu {
+  position: absolute; z-index: 50; top: calc(100% + 4px); left: 0;
+  min-width: 220px; max-height: 280px; overflow-y: auto;
+  background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow-hover); padding: 6px;
+}
+.companies-multi-opt {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; color: var(--text-primary);
+  padding: 6px 8px; border-radius: 6px; cursor: pointer; white-space: nowrap;
+}
+.companies-multi-opt:hover { background: rgba(0,0,0,.04); }
+
+/* ---- Grand total banner ---- */
+.companies-grandtotal {
+  display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
+  margin: 16px 0 14px; padding: 16px 20px;
+  background: rgba(47, 133, 90, .08);
+  border: 1px solid rgba(47, 133, 90, .2);
+  border-radius: var(--radius);
+}
+.companies-grandtotal.filtered {
+  background: rgba(74, 144, 217, .08);
+  border-color: rgba(74, 144, 217, .25);
+}
+.companies-grandtotal-main { display: flex; align-items: baseline; gap: 12px; }
+.companies-grandtotal-label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .04em; color: var(--text-secondary);
+}
+.companies-grandtotal-value { font-size: 26px; font-weight: 800; color: #2F855A; }
+.companies-grandtotal.filtered .companies-grandtotal-value { color: #2B6CB0; }
+.companies-grandtotal-sub { font-size: 13px; color: var(--text-secondary); margin-left: auto; }
+
+/* ---- All Companies table ---- */
+.companies-table-wrap { margin-top: 8px; overflow-x: auto; }
+.companies-table {
+  width: 100%; border-collapse: collapse;
+  background: var(--card-bg);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  overflow: hidden;
+}
+.companies-table th, .companies-table td {
+  padding: 11px 14px; text-align: left; font-size: 13px;
+  border-bottom: 1px solid var(--border);
+}
+.companies-table th {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .04em; color: var(--text-secondary);
+  background: rgba(0,0,0,.02); white-space: nowrap;
+}
+.companies-table th.sortable { cursor: pointer; user-select: none; }
+.companies-table th.sortable:hover { color: var(--text-primary); }
+.companies-table th.num, .companies-table td.num { text-align: right; }
+.companies-table tbody tr { cursor: pointer; transition: background var(--transition); }
+.companies-table tbody tr:hover { background: rgba(0,0,0,.025); }
+.companies-table tbody tr:last-child td { border-bottom: none; }
+.companies-td-name { font-weight: 600; color: var(--text-primary); }
+.companies-td-tid  { font-size: 12px; color: var(--text-secondary); white-space: nowrap; }
+.companies-td-spaces { color: var(--text-secondary); font-size: 12px; }
+.companies-table td.val   { font-weight: 700; color: #2F855A; }
+.companies-table td.muted { color: var(--text-secondary); }
+
+.companies-pager {
+  display: flex; align-items: center; justify-content: center; gap: 16px;
+  margin-top: 16px; font-size: 13px; color: var(--text-secondary);
+}
+.companies-pager button {
+  font-family: inherit; font-size: 13px; font-weight: 600;
+  padding: 7px 14px; border: 1px solid var(--border);
+  border-radius: var(--radius); background: var(--card-bg);
+  color: var(--text-primary); cursor: pointer;
+}
+.companies-pager button:disabled { opacity: .4; cursor: default; }
+.companies-pager button:not(:disabled):hover { border-color: var(--text-secondary); }
+
+/* Single-company popover opened from a table row */
+.companies-detail-pop { margin-bottom: 18px; }
+.companies-detail-close {
+  font-family: inherit; font-size: 12px; font-weight: 600;
+  color: var(--text-secondary); background: none; border: none;
+  cursor: pointer; margin-bottom: 6px;
+}
+.companies-detail-close:hover { color: var(--text-primary); }

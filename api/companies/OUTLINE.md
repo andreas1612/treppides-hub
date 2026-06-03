@@ -26,6 +26,9 @@ every cache cycle. This service instead keeps a local mirror, refreshed
   `rejected,approved terminated`).
 - The dashboard **detail view shows DEAL tasks only** (Accounts/Contacts/Leads/
   Forms are excluded); companies with no deals show a `—` indicator.
+- **Promoted, indexed columns** on `tasks` for filtering/sorting/display (also kept
+  in the `custom_fields` JSON): `service` ('Service' field), `year_of_project`
+  ('Year of Project', the project-year filter), `department` ('Departement').
 
 > ⚠ `is_lost` is computed and stored on each task **at sync time**. Changing
 > `COMPANIES_LOST_STATUSES` only takes effect after a re-sync — run
@@ -77,10 +80,17 @@ sudo systemctl daemon-reload && sudo systemctl enable --now companies-api
 
 ## Endpoints
 
+All search/browse/detail endpoints accept the optional **deal-level filters**
+`year`, `service`, `assignee`, `department` (comma-separated multi-value; ANY within
+a field, AND across fields). When any filter is active, **Deal Value totals recompute
+over the matching deals only**.
+
 | Endpoint | Purpose |
 |----------|---------|
-| `GET /api/companies/search?q=` | search by company name or TID → companies + active/lost fee totals (cap 50, with truncation note) |
-| `GET /api/companies/{tid}` | company detail: **deal tasks only**, grouped by space, split active vs rejected/lost (`has_deals` flag) |
+| `GET /api/companies/search?q=&<filters>` | search by company name or TID → companies + (filtered) active/lost fee totals (cap 50) |
+| `GET /api/companies/companies?sort=&dir=&page=&page_size=&include_nodeal=&<filters>` | All-Companies list. Sortable (`deal_value\|name\|deal_count\|last_activity`), paginated. Default deals-only; `include_nodeal=true` adds no-deal companies |
+| `GET /api/companies/filters` | distinct option lists for the UI dropdowns: `{years, assignees, services, departments}` |
+| `GET /api/companies/{tid}?<filters>` | company detail: **deal tasks only**, grouped by space, split active vs rejected/lost (`has_deals` flag); honours filters |
 | `GET /api/companies/sync` | incremental sync (+ gated reconcile); `?full=true` rebuild, `?wait=true` block |
 | `GET /api/companies/status` | DB counts + per-space last-sync info |
 | `GET /api/companies/health` | `{ok:true}` |

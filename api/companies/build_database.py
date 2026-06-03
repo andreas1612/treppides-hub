@@ -54,6 +54,12 @@ class Task(Base):
     is_deal       = Column(Boolean, default=False, index=True)   # list_name == 'Deals'
     is_lost       = Column(Boolean, default=False)               # status in LOST_STATUSES
 
+    # Promoted custom fields used for filtering/sorting/display (also kept in the
+    # custom_fields JSON). Indexed so the Group Dashboard filters are cheap.
+    service         = Column(String, index=True)   # 'Service' field — Audit/Bookkeeping/VAT/...
+    year_of_project = Column(String, index=True)   # 'Year of Project' — clean year string
+    department      = Column(String, index=True)   # 'Departement' field — Audit/FCR/FRA/...
+
     date_created  = Column(Integer)                       # Unix ms
     date_updated  = Column(Integer, index=True)           # Unix ms — drives incremental sync
     date_due      = Column(Integer)

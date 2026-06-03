@@ -52,9 +52,43 @@
 
 ---
 
+## Session 17 — Group Dashboard expansion (2026-06-03)
+
+**Status:** Built + verified locally. Committed. Deploy needs a `sync.py --full` (new DB columns).
+
+The Company Finder grew into the **Group Dashboard** (sidebar label renamed; section id
+stays `companies`). AML-style **card landing → two views**: **Search** and **All
+Companies** (sortable, paginated table). Shared **advanced filter bar** on both.
+
+**What was built:**
+- **Two-view landing** (AML-card style) — Search Companies / All Companies.
+- **All Companies** view: sortable, paginated table (company · TID · total Deal Value ·
+  deals · spaces · last activity); row → opens that company's deals; "include no-deal" toggle.
+- **Advanced filters** — Project Year, Service, Assignee, Department. **All multi-select**
+  (checkbox popovers; apply on click-away). ANY within a field, AND across fields.
+- **Filtered grand total** banner — sums active Deal Value across the whole filtered set
+  (turns blue when filtered). Backend `/companies` + `/search` return `grand_active_deal_value`.
+- **Service field** surfaced on every deal row, **color-coded** (stable hue per service).
+- **Space names prettified** on the hub (display-only): drop `_CRM`, `KT` → `K. Treppides`.
+- Compound Service/Department values (e.g. "Bookkeeping, VAT") hidden from filter dropdowns.
+
+**Backend (`api/companies/`):** new indexed columns `service` / `year_of_project` /
+`department` on `tasks` (promoted from the custom_fields JSON) → **needs `sync.py --full`
+on deploy to populate**. New endpoints: `GET /companies` (browse), `GET /filters`
+(dropdown options); `/search` + `/{tid}` now take filter params and return filtered totals.
+
+**Data notes:** `year_of_project` only on ~816 deals (mostly Bookkeeping/VAT — Audit deals
+lack a project year in the CRM). Service list has some messy single values (fee codes,
+`ICT ` w/ trailing space) — left as-is.
+
+**Deploy:** `git pull` on server → `cd api/companies && python sync.py --full` (rebuilds DB
+with new columns) → `sudo systemctl restart companies-api`. Frontend is live on pull.
+
+---
+
 ## Session 16 — Company Finder + Company Master Database (2026-06-02/03)
 
-**Status:** Built, verified, cleaned up. Committed (b0594e1). Deploy to server pending.
+**Status:** Built, verified, cleaned up. Committed (b0594e1) and **deployed/live** on the server.
 
 **What was built:**
 - New **Company Finder** dashboard: search by company name or `TID-XXXXX`, see total Deal Value (fees) across all 10 ClickUp CRM spaces

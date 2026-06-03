@@ -179,6 +179,10 @@ def normalize(task: dict) -> dict:
         "currency":     "EUR",
         "is_deal":      is_deal,
         "is_lost":      is_lost,
+        "service":         fields.get("service"),
+        "year_of_project": (str(fields["year_of_project"]).strip()
+                            if fields.get("year_of_project") not in (None, "") else None),
+        "department":      fields.get("departement"),
         "date_created": _to_int(task.get("date_created")),
         "date_updated": _to_int(task.get("date_updated")),
         "date_due":     _to_int(task.get("due_date")),
