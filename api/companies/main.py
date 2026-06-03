@@ -35,6 +35,19 @@ SORT_FIELDS = {"deal_value", "name", "deal_count", "last_activity"}
 router = APIRouter(prefix="/api/companies")
 
 
+def _word_matchers(query: str):
+    """Compile a whole-word, case-insensitive regex per search term. A title
+    matches only if EVERY term appears as a whole word (any order). Word
+    boundaries (\\b) treat spaces/punctuation in titles like 'FCR - ACME LTD'
+    as separators, so 'isp' matches 'ISP Holdings' but not 'KLISP'."""
+    terms = [t for t in re.split(r"\s+", query.strip()) if t]
+    return [re.compile(rf"\b{re.escape(t)}\b", re.IGNORECASE) for t in terms]
+
+
+def _title_matches(name: str, matchers: list) -> bool:
+    return bool(name) and all(m.search(name) for m in matchers)
+
+
 # ---- Filtering ------------------------------------------------------
 
 def _multi(val: str | None) -> list[str]:
@@ -240,10 +253,20 @@ def search(q: str = Query("", description="Company name or TID-XXXXX code"),
             select(Company.tid).where(Company.tid == query.strip().upper())
         ).scalars().all()]
     else:
-        like = f"%{query}%"
-        tids = [r for r in db.execute(
-            select(Task.tid).where(Task.tid.isnot(None), Task.name.ilike(like)).distinct()
-        ).scalars().all()]
+        # Whole-word match: cheap LIKE prefilter (every term must appear as a
+        # substring somewhere), then a precise \b word-boundary check in Python
+        # so 'isp' matches 'ISP Holdings' but not 'KLISP'. All terms required.
+        matchers = _word_matchers(query)
+        if not matchers:
+            return {"query": query, "matched_tids": [], "companies": []}
+        conds = [Task.tid.isnot(None)]
+        for t in re.split(r"\s+", query.strip()):
+            if t:
+                conds.append(Task.name.ilike(f"%{t}%"))
+        candidates = db.execute(
+            select(Task.tid, Task.name).where(*conds)
+        ).all()
+        tids = sorted({tid for tid, name in candidates if _title_matches(name, matchers)})
 
     if not tids:
         return {"query": query, "matched_tids": [], "companies": []}
