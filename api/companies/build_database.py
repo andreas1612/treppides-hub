@@ -19,7 +19,7 @@
 from pathlib import Path
 
 from sqlalchemy import (
-    Column, String, Float, Integer, Boolean, Text, Index, create_engine, event,
+    Column, String, Float, Integer, Boolean, Text, Index, create_engine, event, inspect, text,
 )
 from sqlalchemy.orm import declarative_base, sessionmaker
 
@@ -130,8 +130,28 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 def init_db():
-    """Create all tables if they don't exist."""
+    """Create tables if missing, then bring existing tables up to the current
+    schema by adding any columns the models declare but the DB lacks.
+
+    create_all() does NOT alter an existing table, so when we add a column to a
+    model a pre-existing DB would otherwise be missing it (and every insert that
+    names the column fails with 'no such column'). SQLite supports cheap
+    ALTER TABLE ... ADD COLUMN, so we backfill missing columns here. New columns
+    start NULL and get populated on the next sync — no manual rebuild needed."""
     Base.metadata.create_all(engine)
+
+    insp = inspect(engine)
+    existing_tables = set(insp.get_table_names())
+    with engine.begin() as conn:
+        for table in Base.metadata.sorted_tables:
+            if table.name not in existing_tables:
+                continue  # freshly created by create_all — already current
+            have = {c["name"] for c in insp.get_columns(table.name)}
+            for col in table.columns:
+                if col.name in have:
+                    continue
+                ddl = f'ALTER TABLE {table.name} ADD COLUMN "{col.name}" {col.type.compile(engine.dialect)}'
+                conn.execute(text(ddl))
 
 
 if __name__ == "__main__":
