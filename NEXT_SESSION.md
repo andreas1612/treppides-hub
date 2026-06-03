@@ -35,6 +35,56 @@
 
 ---
 
+## Session 15 — Live Server Assessment + Long-Term Capacity Plan (2026-05-29)
+
+**Scope:** Documentation + planning only. No code changes, no server changes. Read-only SSH against `tech-admin@192.168.0.221`.
+
+**What was done:**
+- Live SSH audit of `tech-srv`: 4 vCPU (AMD EPYC 7F72), 9.5 GiB RAM (980 MiB used), 72 GB root disk (15% used), load ~0.00
+- Confirmed BookStack on `0.0.0.0:6875` — bypasses nginx TLS (severity: High). Fix: bind to `127.0.0.1:6875`
+- Both FastAPI services correctly on `127.0.0.1` only (good)
+- No backups, no crontab, no monitoring — all flagged as Phase A blockers
+- nginx at Ubuntu defaults (worker_connections 768, no gzip_types, no rate limits)
+- **Recommended target spec (≤24 months):** 8 vCPU / 16 GB RAM / 250 GB root + 1 TB SSD for video
+- **Architecture recommendation:** start with Option 1 (single VM vertically scaled), document migration to Option 2 (hub-srv + media-srv) but don't execute until trigger conditions fire
+- Designed layered rate-limiting (per-session + per-IP backstop + global transcode ceiling)
+- Full details: [SESSION_15.md was here] — key sections: live snapshot (§2), optimal resources (§3), architecture options (§4), rate limiting (§5), operational gaps (§6-7)
+
+---
+
+## Session 16 — Company Finder + Company Master Database (2026-06-02/03)
+
+**Status:** Built, verified, cleaned up. Committed (b0594e1). Deploy to server pending.
+
+**What was built:**
+- New **Company Finder** dashboard: search by company name or `TID-XXXXX`, see total Deal Value (fees) across all 10 ClickUp CRM spaces
+- New service: **`companies-api`** (port 8003) — FastAPI + SQLite WAL, lives in `api/companies/`
+- DB: 9,779 tasks / 4,515 companies / 10 spaces synced from ClickUp
+- Incremental sync every 3 min (~12s), full reconcile gated to every 15 min
+- Frontend: `components/pages/companies.js` + `styles/pages/companies.css`
+
+**Day 2 fixes:**
+- Lost-status config changed: `COMPANIES_LOST_STATUSES` = `rejected,approved terminated` (was `rejected,on hold - stall`)
+- Fixed SQLite param cap bug (chunked upserts for large spaces like KT_CRM with 6,874 rows)
+- Fixed sync concurrency bug (RLock for re-entrant locking)
+- Visual: deal value shown inline in search results, no-deal companies flagged
+
+**Cleanup done:** v1 in-memory company code removed from `api/clickup/server.py`
+
+**Deploy steps (not yet done):**
+- `git pull` on server → `cd ~/treppides-hub/api/companies` → create venv, pip install, create `.env` with `CLICKUP_API_TOKEN` + `CLICKUP_SPACE_IDS`
+- Initial build: `python sync.py --full` (~2-3 min)
+- Install service: `sudo cp companies-api.service /etc/systemd/system/ && sudo systemctl enable --now companies-api`
+- Reload nginx (config already has `/api/companies/*` proxy)
+- Add cron: `*/3 * * * * curl -s http://127.0.0.1:8003/api/companies/sync >/dev/null`
+- Or run `bash SETUP.sh` which does venv+service+cron+build automatically
+
+**Key decisions (settled):** own service on 8003 ✓ · EUR ✓ · Deal Value only (not Fees field) ✓ · active vs lost split ✓ · 3-min sync + 15-min reconcile ✓ · detail shows deals only ✓
+
+**Reference docs:** `COMPANY_DB_DESIGN.md` (feasibility/design), `api/companies/OUTLINE.md` (build & ops guide)
+
+---
+
 ## Priority 1 — Internal DNS Record (5-minute task)
 
 Add an A record to the **office router / Active Directory DNS**:
