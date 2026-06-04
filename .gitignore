@@ -29,6 +29,9 @@ api/valuation/valuation_reference.db
 # server commands and is for the maintainer's reference, not the repo.
 DATABASE_INSTRUCTIONS.md
 
+# Local working-session notes (handoff scratchpad) — not for the repo.
+LOCAL_SESSION.md
+
 # Raw data files
 staff.xlsx
 media/images/

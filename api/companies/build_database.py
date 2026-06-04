@@ -40,6 +40,8 @@ class Task(Base):
     # Origin — never lose where a task came from.
     list_name     = Column(String, index=True)           # 'Deals' | 'Accounts (Companies)' | ...
     folder_name   = Column(String)
+    parent_id     = Column(String)                        # ClickUp parent task id (subtasks only)
+    parent_name   = Column(String)                        # resolved parent task title (filled in sync 2nd pass)
     space_id      = Column(String, index=True)
     space_name    = Column(String)
 
@@ -58,7 +60,9 @@ class Task(Base):
     # custom_fields JSON). Indexed so the Group Dashboard filters are cheap.
     service         = Column(String, index=True)   # 'Service' field — Audit/Bookkeeping/VAT/...
     year_of_project = Column(String, index=True)   # 'Year of Project' — clean year string
+    business_year   = Column(String, index=True)   # 'Business Year' field — clean year string
     department      = Column(String, index=True)   # 'Departement' field — Audit/FCR/FRA/...
+    ubos            = Column(Text)                  # JSON array of normalized UBO names (from ubo/ubo_2/... slots)
 
     date_created  = Column(Integer)                       # Unix ms
     date_updated  = Column(Integer, index=True)           # Unix ms — drives incremental sync
@@ -87,6 +91,7 @@ class Company(Base):
     lost_deal_count   = Column(Integer, default=0)
 
     space_names       = Column(Text)                 # JSON array of spaces this company appears in
+    ubos              = Column(Text)                  # JSON array of this company's UBO names (union across its tasks)
     last_activity     = Column(Integer)              # max(date_updated)
 
 

@@ -27,8 +27,14 @@ every cache cycle. This service instead keeps a local mirror, refreshed
 - The dashboard **detail view shows DEAL tasks only** (Accounts/Contacts/Leads/
   Forms are excluded); companies with no deals show a `—` indicator.
 - **Promoted, indexed columns** on `tasks` for filtering/sorting/display (also kept
-  in the `custom_fields` JSON): `service` ('Service' field), `year_of_project`
-  ('Year of Project', the project-year filter), `department` ('Departement').
+  in the `custom_fields` JSON): `service`, `year_of_project`, `business_year`,
+  `department`, plus `ubos` (JSON array of normalized UBO names from the ~55 `ubo*`
+  slot fields). `companies.ubos` holds the union per company.
+- **Subtasks:** `Task.parent_id` (ClickUp parent id) + `Task.parent_name` (resolved
+  in a 2nd sync pass from the fetched task set). Deal rows show "↳ subtask of {parent}".
+- **UBOs live on company/account tasks, not deals.** The chart attributes a deal's
+  value to its company's UBOs (via TID) — full value to each UBO. UBO names are
+  lightly normalized (case/trim, strip trailing "(NN%)", drop "null").
 
 > ⚠ `is_lost` is computed and stored on each task **at sync time**. Changing
 > `COMPANIES_LOST_STATUSES` only takes effect after a re-sync — run
@@ -81,15 +87,24 @@ sudo systemctl daemon-reload && sudo systemctl enable --now companies-api
 ## Endpoints
 
 All search/browse/detail endpoints accept the optional **deal-level filters**
-`year`, `service`, `assignee`, `department` (comma-separated multi-value; ANY within
-a field, AND across fields). When any filter is active, **Deal Value totals recompute
-over the matching deals only**.
+`space`, `year` (year_of_project), `business_year`, `service`, `assignee`,
+`department` (comma-separated multi-value; ANY within a field, AND across fields).
+`space` matches the raw space_name. When any filter is active, **Deal Value totals
+recompute over the matching deals only**.
+
+`GET /filters` is **cascading**: pass the current filters and each field's option
+list is scoped to the others (e.g. `?space=ZK_CRM` → services/departments/years
+narrow to that space). It returns `{spaces, years, business_years, assignees,
+services, departments}`.
 
 | Endpoint | Purpose |
 |----------|---------|
 | `GET /api/companies/search?q=&<filters>` | search by company name or TID → companies + (filtered) active/lost fee totals (cap 50) |
-| `GET /api/companies/companies?sort=&dir=&page=&page_size=&include_nodeal=&<filters>` | All-Companies list. Sortable (`deal_value\|name\|deal_count\|last_activity`), paginated. Default deals-only; `include_nodeal=true` adds no-deal companies |
-| `GET /api/companies/filters` | distinct option lists for the UI dropdowns: `{years, assignees, services, departments}` |
+| `GET /api/companies/companies?q=&sort=&dir=&page=&page_size=&include_nodeal=&<filters>` | The unified list (search built in). `q`=whole-word name/TID search. Sortable (`deal_value\|name\|deal_count\|last_activity`), paginated. Default deals-only; `include_nodeal=true` adds no-deal companies. Returns `grand_active_deal_value` |
+| `GET /api/companies/chart?by=company\|ubo&select=&top=&<filters>` | Bar-chart data: active Deal Value per company or UBO. `select`=comma TIDs (company) / UBO names; else top-N (default 15). UBO value = company value attributed in full to each of its UBOs |
+| `GET /api/companies/ubos?q=&limit=` | Distinct UBO names with attributable Deal Value (ranked) — for the chart's UBO picker |
+| `GET /api/companies/deals?q=&page=&page_size=&<filters>` | Flat list of individual DEAL tasks (active + lost) for the Custom Total picker. Honours filters + whole-word search; each row has value/status/service/space/company. Total is summed client-side from ticked rows |
+| `GET /api/companies/filters` | CASCADING option lists: `{spaces, years, business_years, assignees, services, departments}` (scoped to the other active filters) |
 | `GET /api/companies/{tid}?<filters>` | company detail: **deal tasks only**, grouped by space, split active vs rejected/lost (`has_deals` flag); honours filters |
 | `GET /api/companies/sync` | incremental sync (+ gated reconcile); `?full=true` rebuild, `?wait=true` block |
 | `GET /api/companies/status` | DB counts + per-space last-sync info |

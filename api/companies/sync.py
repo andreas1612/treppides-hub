@@ -12,6 +12,7 @@
 # ============================================================
 
 import os
+import re
 import json
 import time
 import logging
@@ -143,6 +144,29 @@ def _flatten_custom_fields(task: dict) -> dict:
     return out
 
 
+_UBO_KEY_RE = re.compile(r"^ubo(_?\d+)?$")        # ubo, ubo_2..ubo_9, ubo10..ubo55
+_UBO_PCT_RE = re.compile(r"\s*\(\s*\d+(\.\d+)?\s*%?\s*\)\s*$")  # trailing "(100%)" / "(50)"
+
+def extract_ubos(fields: dict) -> list[str]:
+    """Collect + lightly normalize UBO names from the ~55 ubo* slot fields.
+    Case/space normalized and trailing '(NN%)' stripped so 'ANTON KRASNYY' and
+    'Anton Krasnyy (100%)' merge; literal 'null'/blank dropped. Dedup, keep order.
+    Stored canonicalized (Title Case) for display; matching is case-insensitive."""
+    seen, out = set(), []
+    for k, v in fields.items():
+        if not _UBO_KEY_RE.match(k) or not v or not isinstance(v, str):
+            continue
+        name = _UBO_PCT_RE.sub("", v).strip()
+        if not name or name.lower() == "null":
+            continue
+        key = name.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(name)
+    return out
+
+
 def _to_int(val):
     try:
         return int(val) if val not in (None, "", []) else None
@@ -169,6 +193,8 @@ def normalize(task: dict) -> dict:
         "name":         task.get("name", ""),
         "list_name":    list_name,
         "folder_name":  (task.get("folder") or {}).get("name"),
+        "parent_id":    task.get("parent"),     # ClickUp parent task id (subtasks); name resolved in 2nd pass
+        "parent_name":  None,
         "space_id":     str((task.get("space") or {}).get("id") or ""),
         "status":       status,
         "status_color": (task.get("status") or {}).get("color"),
@@ -182,7 +208,10 @@ def normalize(task: dict) -> dict:
         "service":         fields.get("service"),
         "year_of_project": (str(fields["year_of_project"]).strip()
                             if fields.get("year_of_project") not in (None, "") else None),
+        "business_year":   (str(fields["business_year"]).strip()
+                            if fields.get("business_year") not in (None, "") else None),
         "department":      fields.get("departement"),
+        "ubos":            json.dumps(extract_ubos(fields), ensure_ascii=False),
         "date_created": _to_int(task.get("date_created")),
         "date_updated": _to_int(task.get("date_updated")),
         "date_due":     _to_int(task.get("due_date")),
@@ -280,22 +309,25 @@ def rebuild_companies(session):
 
     for tid, task_count, last_activity in rows:
         deals = session.execute(
-            select(Task.deal_value, Task.is_lost, Task.name, Task.list_name, Task.space_name)
+            select(Task.deal_value, Task.is_lost, Task.name, Task.list_name, Task.space_name, Task.ubos)
             .where(Task.tid == tid)
         ).all()
 
         active_val = active_cnt = lost_val = lost_cnt = deal_cnt = 0
         active_val = 0.0; lost_val = 0.0
         spaces = set()
+        ubo_set = {}  # lower-key -> canonical display, dedup case-insensitively across tasks
         company_title = None
         shortest = None
-        for dv, is_lost, name, list_name, space_name in deals:
+        for dv, is_lost, name, list_name, space_name, ubos_json in deals:
             if space_name:
                 spaces.add(space_name)
             if name and (shortest is None or len(name) < len(shortest)):
                 shortest = name
             if list_name and list_name.strip().lower() == "accounts (companies)" and company_title is None:
                 company_title = name
+            for u in (json.loads(ubos_json) if ubos_json else []):
+                ubo_set.setdefault(u.lower(), u)
             if list_name and list_name.strip().lower() == DEALS_LIST:
                 deal_cnt += 1
                 v = dv or 0.0
@@ -314,8 +346,23 @@ def rebuild_companies(session):
             lost_deal_value=lost_val,
             lost_deal_count=lost_cnt,
             space_names=json.dumps(sorted(spaces)),
+            ubos=json.dumps(sorted(ubo_set.values(), key=str.lower)),
             last_activity=last_activity,
         ))
+
+
+# ---- Parent-name resolution ----
+
+def resolve_parent_names(session):
+    """Fill parent_name for subtasks by looking up their parent_id in the tasks
+    table. Runs after upserts (the parent task is in our dataset since we fetch
+    everything). Sets parent_name=NULL for orphans (parent not found)."""
+    id_to_name = dict(session.execute(select(Task.id, Task.name)).all())
+    subs = session.execute(
+        select(Task).where(Task.parent_id.isnot(None))
+    ).scalars().all()
+    for t in subs:
+        t.parent_name = id_to_name.get(t.parent_id)
 
 
 # ---- Sync drivers ----
@@ -370,6 +417,7 @@ def _sync_full_locked():
             res = session.execute(delete(Task).where(Task.synced_at < run_start))
             deleted = res.rowcount or 0
             _mark_reconcile(session)
+        resolve_parent_names(session)
         rebuild_companies(session)
         session.commit()
     finally:
@@ -434,6 +482,7 @@ def _sync_incremental_locked(force_reconcile=False):
             _mark_reconcile(session)
             reconciled = True
 
+        resolve_parent_names(session)
         rebuild_companies(session)
         session.commit()
     finally:

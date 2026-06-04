@@ -52,7 +52,60 @@
 
 ---
 
-## Session 17 — Group Dashboard expansion (2026-06-03)
+## Session 18 — Group Dashboard rework: unified view + Chart + Custom Total (2026-06-04)
+
+**Status:** Built + verified locally, committed + pushed. **Deploy needs `sync.py --full`**
+(several new DB columns). Supersedes the Session 17 two-tab design below.
+
+The dashboard was reworked into **ONE unified view** + two extra views, all under the
+sidebar "Group Dashboard" (section id `companies`, service `companies-api` :8003).
+
+**Frontend (`components/pages/companies.js`):**
+- **Dropped the two-tab landing.** Now a single searchable + filterable company list
+  (`goMain`); search bar built in (`/companies?q=` whole-word).
+- **Chart view** (`goChart`): bar chart (vendored Chart.js) comparing Deal Value
+  **by company or by UBO**; toggle + picker; default top 15. Header "Chart" button.
+- **Custom Total view** (`goCalc`): tick individual deals → combined running total +
+  auditable selected-deals panel; session-only; selection persists across filter/search.
+  Header "Custom Total" button.
+- **Cascading multi-select filters**: Space, Project Year, Business Year, Service,
+  Assignee, Department — options narrow to the current selection.
+- Deal rows show **color-coded Service**, **Project/FY year**, and **"↳ subtask of
+  {parent}"** when the deal is a subtask. Space names prettified (`KT`→`K. Treppides`).
+- Filter label kept as **"Space"** (not "Group"). Sidebar entry: "Group Dashboard".
+
+**Backend / DB structure (`api/companies/`):**
+- `Task` indexed columns (promoted from custom_fields JSON, populated on sync):
+  `service`, `year_of_project`, `business_year`, `department`, `ubos` (JSON array),
+  `parent_id`, `parent_name`.
+- `Company` rollup adds `ubos` (union of its tasks' UBOs).
+- **UBOs live on company/account tasks** (slot fields `ubo`,`ubo_2`…`ubo55`), joined
+  to deals by TID; chart attributes a company's value to each of its UBOs (full value).
+- Sync does a **2nd pass** (`resolve_parent_names`) to fill `parent_name` from the
+  fetched task set.
+- **New endpoints:** `GET /chart` (by company|ubo, select/top), `GET /ubos` (picker),
+  `GET /deals` (flat deal list for Custom Total), `GET /companies?q=` (in-list search);
+  `/filters` is now **cascading**; `/search`,`/companies`,`/{tid}` accept `space`+`business_year`.
+
+**Data notes (real, not bugs):** `year_of_project` ~816 deals (mostly Bookkeeping/VAT,
+~no Audit); `business_year` ≈ all 2026; deals ~90% KT_CRM; only 15 deal subtasks; UBO
+names messy free-text. See memory `reference_clickup_data_model.md`.
+
+**Bug fixed this session:** chart view crashed because `bindFilters` wired the chart
+picker (a `.companies-multi` with no `data-filter`) → scoped selector to
+`.companies-filterbar .companies-multi`.
+
+**Deploy:** `git pull` → `cd api/companies && sudo systemctl stop companies-api &&
+source venv/bin/activate && python sync.py --full && deactivate && sudo systemctl start
+companies-api`. `init_db` auto-adds the new columns; `--full` populates them. Frontend
+live on pull (hard-refresh).
+
+---
+
+## Session 17 — Group Dashboard expansion (2026-06-03) — SUPERSEDED by Session 18
+
+> Note: this describes the intermediate two-tab design that Session 18 replaced with a
+> unified view. Kept for history.
 
 **Status:** Built + verified locally. Committed. Deploy needs a `sync.py --full` (new DB columns).
 
