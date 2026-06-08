@@ -23,7 +23,7 @@ export default {
 
   // Quick-link destinations
   DOCS_URL:     "http://192.168.0.221/docs",
-  PROJECTS_URL: "http://192.168.0.221/projects",
+  PROJECTS_URL: "https://tasks.treppides.com",
 
   SEARCH_ENABLED: true,
 

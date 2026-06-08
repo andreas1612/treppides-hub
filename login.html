@@ -104,19 +104,13 @@
     </div>
 
     <script>
-        const TM_BASE = window.location.hostname === "localhost"
+        // Go straight to Azure OAuth — no intermediate TM login page.
+        // hub_pre_login_url is read by auth.js after login to restore the original page.
+        const oauthBase = window.location.hostname === "localhost"
             ? "http://localhost:8080"
-            : "/projects";
-
-        // Store where to return after login (read by TM dashboard.html via cookie).
-        const returnTo = encodeURIComponent(
-            sessionStorage.getItem("hub_pre_login_url") || window.location.origin + "/"
-        );
-        sessionStorage.removeItem("hub_pre_login_url");
-
-        // Store in sessionStorage for TM's login.html to pick up via the returnTo param.
+            : "";
         document.getElementById("signInBtn").href =
-            `${TM_BASE}/login.html?returnTo=${returnTo}`;
+            `${oauthBase}/oauth2/authorization/azure`;
     </script>
 </body>
 </html>

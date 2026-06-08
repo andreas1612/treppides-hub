@@ -1,7 +1,7 @@
-# Treppides Hub — Server Operations Reference
+# Treppides Hub --- Server Operations Reference
 
-> **Server:** 192.168.0.221 (tech-srv) · Ubuntu 24.04.4 LTS  
-> **Last hardened:** 2026-06-02 · **Last patched:** 2026-06-02
+> **Server:** 192.168.0.221 (tech-srv) - Ubuntu 24.04.4 LTS  
+> **Last hardened:** 2026-06-02 - **Last patched:** 2026-06-02
 
 ---
 
@@ -13,15 +13,17 @@
 | clickup-fees | systemd | 8001 (localhost) | `systemctl status clickup-fees` |
 | valuation-api | systemd | 8002 (localhost) | `systemctl status valuation-api` |
 | companies-api | systemd | 8003 (localhost) | `systemctl status companies-api` |
+| taskmanager | systemd | 8080 (all interfaces) | `systemctl status taskmanager` |
 | bookstack | Docker | 6875 (localhost) | `sudo docker ps \| grep bookstack` |
 | bookstack_db | Docker (MariaDB) | 3306 (internal) | `sudo docker ps \| grep bookstack_db` |
 
 ### API Health Endpoints
 
 ```
-curl http://127.0.0.1:8001/health          # ClickUp Fees API
-curl http://127.0.0.1:8002/api/valuation/health   # Valuation API
-curl http://127.0.0.1:8003/api/companies/health   # Company Finder API
+curl http://127.0.0.1:8001/health                       # ClickUp Fees API
+curl http://127.0.0.1:8002/api/valuation/health          # Valuation API
+curl http://127.0.0.1:8003/api/companies/health           # Company Finder API
+curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8080/   # Task Manager (expect 302)
 ```
 
 ### Restarting Services
@@ -30,16 +32,27 @@ curl http://127.0.0.1:8003/api/companies/health   # Company Finder API
 sudo systemctl restart clickup-fees
 sudo systemctl restart valuation-api
 sudo systemctl restart companies-api
+sudo systemctl restart taskmanager
 sudo systemctl reload nginx          # reload config without downtime
 cd ~/bookstack && sudo docker compose restart
 ```
 
-### Company Finder — master database
+### Task Manager --- rebuild from source
+
+The Task Manager is a Spring Boot Java application. If Java source code changes:
+
+```bash
+cd ~/taskmanager && ./mvnw package -DskipTests && sudo systemctl restart taskmanager
+```
+
+This compiles the JAR, then restarts the service. Takes ~30-60 seconds.
+
+### Company Finder --- master database
 
 The Company Finder (`companies-api`, port 8003) keeps a SQLite master DB
 (`api/companies/companies.db`) of every ClickUp task across the 10 CRM spaces.
 - **Initial build (one-time):** `cd ~/treppides-hub/api/companies && source venv/bin/activate && python sync.py --full` (~2-3 min).
-- **Incremental sync** runs every 3 min via cron (fast, ~10s — only tasks changed since last sync). Deletion reconcile (heavier, re-lists all spaces) runs at most every 15 min.
+- **Incremental sync** runs every 3 min via cron (fast, ~10s --- only tasks changed since last sync). Deletion reconcile (heavier, re-lists all spaces) runs at most every 15 min.
 - **Manual refresh:** the dashboard's Refresh button, or `curl 'http://127.0.0.1:8003/api/companies/sync?wait=true'`.
 - **Rebuild from scratch:** `python sync.py --full` (or `curl '.../sync?full=true&wait=true'`).
 - **DB freshness:** `curl http://127.0.0.1:8003/api/companies/status`
@@ -48,12 +61,12 @@ The Company Finder (`companies-api`, port 8003) keeps a SQLite master DB
 
 ## Firewall (UFW)
 
-**Status:** Active — deny all incoming except:
+**Status:** Active --- deny all incoming except:
 
 | Port | Purpose |
 |------|---------|
 | 22/tcp | SSH |
-| 80/tcp | HTTP → HTTPS redirect |
+| 80/tcp | HTTP -> HTTPS redirect |
 | 443/tcp | HTTPS |
 
 ```bash
@@ -93,6 +106,7 @@ Sensitive files are locked to owner-only (600):
 | `~/treppides-hub/api/clickup/.env` | 600 | ClickUp API token |
 | `~/treppides-hub/api/companies/.env` | 600 | ClickUp API token (Company Finder) |
 | `~/bookstack/config/www/.env` | 600 | BookStack DB credentials |
+| `~/taskmanager/application.properties` | 600 | Azure AD client secret, SQL Server credentials |
 | `/etc/nginx/ssl/treppides.key` | 600 (root) | SSL private key |
 
 ---
@@ -112,7 +126,7 @@ Sensitive files are locked to owner-only (600):
 | App config | `config.js`, `staff.json` | File copy |
 | ClickUp secrets | `api/clickup/.env` | File copy |
 | Valuation database | `api/valuation/valuation_reference.db` | `sqlite3 .backup` (WAL-safe) |
-| BookStack database | MariaDB in Docker | `mariadb-dump` → gzipped |
+| BookStack database | MariaDB in Docker | `mariadb-dump` -> gzipped |
 | Uploaded media | `media/` (images + videos) | `rsync` (incremental) |
 
 ### Manual backup
@@ -126,19 +140,19 @@ ls -lh ~/backups/hub/                # list all backups
 ### Restoring from backup
 
 ```bash
-# 1. Config files — just copy back
+# 1. Config files --- just copy back
 cp ~/backups/hub/2026-06-01/config.js ~/treppides-hub/
 
-# 2. Valuation DB — stop service, replace file, start service
+# 2. Valuation DB --- stop service, replace file, start service
 sudo systemctl stop valuation-api
 cp ~/backups/hub/2026-06-01/valuation_reference.db ~/treppides-hub/api/valuation/
 sudo systemctl start valuation-api
 
-# 3. BookStack MariaDB — pipe gzipped dump back into container
+# 3. BookStack MariaDB --- pipe gzipped dump back into container
 gunzip -c ~/backups/hub/2026-06-01/bookstack_mariadb.sql.gz \
   | sudo docker exec -i bookstack_db mariadb -u root
 
-# 4. Media — rsync back
+# 4. Media --- rsync back
 rsync -a ~/backups/hub/2026-06-01/media/ ~/treppides-hub/media/
 ```
 
@@ -153,19 +167,23 @@ rsync -a ~/backups/hub/2026-06-01/media/ ~/treppides-hub/media/
 **Log:** `/var/log/hub-health.log`  
 **Alerts:** `/var/log/hub-health-alerts.log`
 
-**What it checks (9 checks):**
+**What it checks:**
 
 | # | Check | Type |
 |---|-------|------|
 | 1 | nginx | systemd service |
 | 2 | clickup-fees | systemd service |
 | 3 | valuation-api | systemd service |
-| 4 | docker | systemd service |
-| 5 | bookstack | Docker container |
-| 6 | bookstack_db | Docker container |
-| 7 | https://hub.treppides.com/ | HTTP 200 |
-| 8 | http://127.0.0.1:8001/health | HTTP 200 |
-| 9 | http://127.0.0.1:8002/api/valuation/health | HTTP 200 |
+| 4 | companies-api | systemd service |
+| 5 | taskmanager | systemd service |
+| 6 | docker | systemd service |
+| 7 | bookstack | Docker container |
+| 8 | bookstack_db | Docker container |
+| 9 | https://hub.treppides.com/ | HTTP 200 |
+| 10 | https://tasks.treppides.com/ | HTTP 302 |
+| 11 | http://127.0.0.1:8001/health | HTTP 200 |
+| 12 | http://127.0.0.1:8002/api/valuation/health | HTTP 200 |
+| 13 | http://127.0.0.1:8003/api/companies/health | HTTP 200 |
 
 ### Reading the logs
 
@@ -191,7 +209,7 @@ bash ~/treppides-hub/healthcheck.sh && tail -1 /var/log/hub-health.log
 | Item | Expiry date | Action needed |
 |------|-------------|---------------|
 | SSL certificate | 2026-11-22 | Renew via Sectigo, rebuild chain, copy to `/etc/nginx/ssl/` |
-| BookStack API token | 2026-08-15 | Rotate at BookStack Admin → My Account → API Tokens, update `config.js` |
+| BookStack API token | 2026-08-15 | Rotate at BookStack Admin -> My Account -> API Tokens, update `config.js` |
 
 ```bash
 # Run manually
@@ -224,7 +242,7 @@ crontab -l       # view all crons
 | File | Purpose |
 |------|---------|
 | `/etc/nginx/nginx.conf` | Global settings: gzip, TLS 1.2+, rate limit zones, worker tuning |
-| `/etc/nginx/sites-enabled/treppides-hub` | Site config: upstreams, security headers, video streaming, proxying |
+| `/etc/nginx/sites-enabled/treppides-hub` | Site config: hub.treppides.com + tasks.treppides.com, upstreams, security headers, proxying |
 
 ### Rate limits defined in nginx.conf
 
@@ -247,24 +265,40 @@ sudo systemctl reload nginx    # apply without downtime
 
 ## API Service Details
 
-Both APIs run under systemd with security hardening:
+### Python API services (systemd, sandboxed)
 
-| Setting | clickup-fees | valuation-api |
-|---------|-------------|---------------|
-| Workers | 2 | 2 |
-| Memory cap | 512 MB | 384 MB |
-| CPU quota | 200% (2 cores) | 200% (2 cores) |
-| Max requests per worker | 10,000 (then recycle) | 10,000 |
-| Sandbox | PrivateTmp, NoNewPrivileges, ProtectSystem=strict | Same |
+| Setting | clickup-fees | valuation-api | companies-api |
+|---------|-------------|---------------|---------------|
+| Workers | 2 | 2 | 2 |
+| Memory cap | 512 MB | 384 MB | 384 MB |
+| CPU quota | 200% (2 cores) | 200% (2 cores) | 200% (2 cores) |
+| Max requests per worker | 10,000 (then recycle) | 10,000 | 10,000 |
+| Sandbox | PrivateTmp, NoNewPrivileges, ProtectSystem=strict | Same | Same |
 
-**Service files:** `~/treppides-hub/clickup-fees.service`, `~/treppides-hub/valuation-api.service`  
+**Service files:** `~/treppides-hub/clickup-fees.service`, `~/treppides-hub/valuation-api.service`, `~/treppides-hub/companies-api.service`  
 **Deployed to:** `/etc/systemd/system/`
+
+### Task Manager (systemd, Spring Boot)
+
+| Setting | Value |
+|---------|-------|
+| Runtime | Java (Spring Boot JAR) |
+| Port | 8080 (all interfaces) |
+| Database | SQL Server on KTDEV:1433, database InternalTools |
+| Auth | Azure AD OAuth2 (client-id: dc4895f7-ea14-4387-a368-cbccacee7270) |
+| Email | Office 365 SMTP (configured, untested in prod) |
+
+**Application dir:** `~/taskmanager/`  
+**Config:** `~/taskmanager/application.properties`  
+**Service file:** `/etc/systemd/system/taskmanager.service`
 
 ### Viewing logs
 
 ```bash
 journalctl -u clickup-fees --since "1 hour ago" --no-pager
 journalctl -u valuation-api --since "1 hour ago" --no-pager
+journalctl -u companies-api --since "1 hour ago" --no-pager
+journalctl -u taskmanager --since "1 hour ago" --no-pager
 ```
 
 ---
@@ -292,6 +326,8 @@ journalctl -u valuation-api --since "1 hour ago" --no-pager
 | What | Path |
 |------|------|
 | Hub web root | `~/treppides-hub/` |
+| Hub auth gate | `~/treppides-hub/js/auth.js` |
+| Hub login page | `~/treppides-hub/login.html` |
 | ClickUp API code | `~/treppides-hub/api/clickup/` |
 | Valuation API code | `~/treppides-hub/api/valuation/` |
 | Valuation database | `~/treppides-hub/api/valuation/valuation_reference.db` |
@@ -304,6 +340,8 @@ journalctl -u valuation-api --since "1 hour ago" --no-pager
 | Uploaded media | `~/treppides-hub/media/` |
 | Backups | `~/backups/hub/` |
 | BookStack (Docker) | `~/bookstack/` |
+| Task Manager app | `~/taskmanager/` |
+| Task Manager config | `~/taskmanager/application.properties` |
 | nginx site config | `/etc/nginx/sites-enabled/treppides-hub` |
 | nginx global config | `/etc/nginx/nginx.conf` |
 | SSL certs | `/etc/nginx/ssl/` |
@@ -317,7 +355,7 @@ journalctl -u valuation-api --since "1 hour ago" --no-pager
 
 ## System Updates
 
-Unattended-upgrades is enabled — security patches install automatically.
+Unattended-upgrades is enabled --- security patches install automatically.
 
 ```bash
 sudo apt update && sudo apt upgrade -y    # manual full update

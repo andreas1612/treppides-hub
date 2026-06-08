@@ -1,16 +1,13 @@
 // ============================================================
 // js/auth.js — Hub authentication via Task Manager session.
 //
-// No Azure AD registration needed for the hub.
-// Reuses TM's Spring Boot OAuth2 session:
-//   1. Hub calls TM /api/me — if OK, user is already logged in.
-//   2. If 401 — redirect to TM login page (Azure AD SSO).
-//   3. TM login page stores returnTo in sessionStorage, after Azure
-//      AD login TM dashboard reads it and bounces back to the hub.
+// Reuses TM's Spring Boot OAuth2 session via /projects proxy:
+//   1. Hub calls /projects/api/me — if OK, user is already logged in.
+//   2. If 401 — redirect to hub login page → Azure AD SSO.
+//   3. After Azure login, Spring redirects to /dashboard.html which
+//      loads the hub SPA — auth.js restores the original URL.
 // ============================================================
 
-// In production both are on hub.treppides.com so TM_BASE = '/projects'.
-// Locally TM runs on 8080, hub on a different port.
 const TM_BASE = window.location.hostname === "localhost"
   ? "http://localhost:8080"
   : "/projects";
@@ -30,11 +27,20 @@ export async function initAuth() {
 
     if (res.ok) {
       _user = await res.json();   // { email, name }
+
+      // After login, Spring redirects to /dashboard.html — restore the original page.
+      const savedUrl = sessionStorage.getItem("hub_pre_login_url");
+      if (savedUrl) {
+        sessionStorage.removeItem("hub_pre_login_url");
+        if (savedUrl !== window.location.href) {
+          window.location.replace(savedUrl);
+          return null;
+        }
+      }
       return _user;
     }
 
-    // Not authenticated — go to the hub's own login page (hub-branded, not TM).
-    // Store current URL so login.html can pass it as returnTo to TM.
+    // Not authenticated — go to the hub's own login page.
     sessionStorage.setItem("hub_pre_login_url", window.location.href);
     window.location.href = "/login.html";
     return null;
