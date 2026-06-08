@@ -1,11 +1,12 @@
 // ============================================================
-// components/projects.js — Projects page (under development)
-// Dedicated full-page view following the staff/aml/kb pattern.
+// components/projects.js — Projects page
+// Launcher card that opens the Task Manager in a new tab.
 // Mounts into: #section-projects
 // ============================================================
 
-const SECTION_ID  = "section-projects";
-const BACK_BTN_ID = "projects-back-btn";
+const SECTION_ID    = "section-projects";
+const BACK_BTN_ID   = "projects-back-btn";
+const LAUNCH_BTN_ID = "projects-launch-btn";
 
 // ---- Page visibility ----------------------------------------
 
@@ -26,7 +27,7 @@ window.__hub_projects = { show: showProjectsPage, hide: hideProjectsPage };
 
 // ---- Component init -----------------------------------------
 
-export default async function init(_config) {
+export default async function init(config) {
   const section = document.getElementById(SECTION_ID);
   if (!section) return;
 
@@ -48,28 +49,37 @@ export default async function init(_config) {
         </div>
       </div>
 
-      <div class="projects-under-dev">
-        <div class="projects-dev-icon">
+      <div class="projects-launcher">
+        <div class="projects-launcher-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
                stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="2" y="3" width="20" height="14" rx="2"/>
-            <line x1="8" y1="21" x2="16" y2="21"/>
-            <line x1="12" y1="17" x2="12" y2="21"/>
-            <line x1="9" y1="9" x2="9.01" y2="9"/>
-            <polyline points="12 7 14 9 12 11"/>
+            <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
+            <rect x="9" y="3" width="6" height="4" rx="1"/>
+            <line x1="9" y1="12" x2="15" y2="12"/>
+            <line x1="9" y1="16" x2="13" y2="16"/>
           </svg>
         </div>
-        <h3 class="projects-dev-title">Under Development</h3>
-        <p class="projects-dev-msg">
-          The project management module is currently being built.<br>
-          It will be available here once provisioning is complete.
+        <h3 class="projects-launcher-title">Task Manager</h3>
+        <p class="projects-launcher-desc">
+          Assign tasks, track progress, and manage your team's workload.
         </p>
-        <span class="projects-dev-badge">Coming Soon</span>
+        <button class="projects-launch-btn" id="${LAUNCH_BTN_ID}">
+          Open Task Manager
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="7" y1="17" x2="17" y2="7"/>
+            <polyline points="7 7 17 7 17 17"/>
+          </svg>
+        </button>
       </div>
     </div>`;
 
   document.getElementById(BACK_BTN_ID)?.addEventListener("click", () => {
     hideProjectsPage();
     window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+
+  document.getElementById(LAUNCH_BTN_ID)?.addEventListener("click", () => {
+    window.open(config.PROJECTS_URL, "_blank", "noopener");
   });
 }

@@ -6,6 +6,7 @@
 
 import CONFIG from "../../config.js";
 import { searchPages } from "../../api/bookstack.js";
+import { signOut } from "../../js/auth.js";
 
 const SEARCH_STYLES = `
   .search-wrap {
@@ -169,7 +170,7 @@ function setupSearch() {
  *
  * @param {object} _config - Hub config (reserved for future use).
  */
-export default async function init(_config) {
+export default async function init(_config, user) {
   const el = document.getElementById("topbar");
   if (!el) return;
 
@@ -181,10 +182,12 @@ export default async function init(_config) {
       <div id="search-dropdown" hidden></div>
     </div>` : "";
 
+  const firstName = user?.name?.split(" ")[0] ?? "";
+
   el.innerHTML = `
     <div class="topbar-left">
       <h1>Company Hub</h1>
-      <p>Internal Portal &nbsp;·&nbsp; Welcome back</p>
+      <p>Internal Portal &nbsp;·&nbsp; Welcome${firstName ? ", " + firstName : " back"}</p>
     </div>
     <div class="topbar-right">
       ${searchHtml}
@@ -192,7 +195,10 @@ export default async function init(_config) {
         <span class="dot" id="status-dot"></span>
         <span id="status-label">All systems operational</span>
       </div>
+      <button id="hub-signout" class="topbar-signout" title="Sign out">↪ Sign out</button>
     </div>`;
+
+  document.getElementById("hub-signout")?.addEventListener("click", signOut);
 
   if (CONFIG.SEARCH_ENABLED) setupSearch();
 }

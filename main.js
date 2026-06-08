@@ -4,6 +4,7 @@
 // ============================================================
 
 import CONFIG            from "./config.js";
+import { initAuth }      from "./js/auth.js";
 import initSidebar       from "./components/shell/sidebar.js";
 import initTopbar        from "./components/shell/topbar.js";
 import initAnnouncements from "./components/widgets/announcements.js";
@@ -22,10 +23,15 @@ import initValuation     from "./components/pages/valuation.js";
 import initCompanies      from "./components/pages/companies.js";
 
 async function boot() {
+  // Auth gate — redirects to Microsoft login if no active session.
+  // Returns null while the redirect is in flight; boot halts safely.
+  const user = await initAuth();
+  if (!user) return;
+
   // Structural components (no async data needed — run in parallel)
   await Promise.all([
     initSidebar(CONFIG),
-    initTopbar(CONFIG),
+    initTopbar(CONFIG, user),
   ]);
 
   // Initialise reader before content sections so openBook/openPage are
