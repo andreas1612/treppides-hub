@@ -4,11 +4,9 @@
 // No Azure AD registration needed for the hub.
 // Reuses TM's Spring Boot OAuth2 session:
 //   1. Hub calls TM /api/me — if OK, user is already logged in.
-//   2. If 401 — store returnTo in a cookie, redirect straight to
-//      TM's OAuth2 endpoint. On an org machine Azure SSO is silent
-//      (no login page, no button click).
-//   3. After Azure AD login, TM redirects to dashboard.html which
-//      reads the cookie and bounces back to the hub.
+//   2. If 401 — redirect to TM login page (Azure AD SSO).
+//   3. TM login page stores returnTo in sessionStorage, after Azure
+//      AD login TM dashboard reads it and bounces back to the hub.
 // ============================================================
 
 // In production both are on hub.treppides.com so TM_BASE = '/projects'.
@@ -35,11 +33,9 @@ export async function initAuth() {
       return _user;
     }
 
-    // Not authenticated — store return URL in a cookie (readable by dashboard.html
-    // on the same domain) then go straight to the OAuth2 endpoint.
-    // On an org machine Azure SSO is fully silent — no login page shown.
-    document.cookie = `tm_return_to=${encodeURIComponent(window.location.href)};path=/;SameSite=Lax`;
-    window.location.href = `${TM_BASE}/oauth2/authorization/azure`;
+    // Not authenticated — redirect to TM login page with returnTo param.
+    const returnTo = encodeURIComponent(window.location.href);
+    window.location.href = `${TM_BASE}/login.html?returnTo=${returnTo}`;
     return null;
 
   } catch {
