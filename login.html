@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign in — Treppides Hub</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #0e131e;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        .login-card {
+            background: #1c232c;
+            border: 1px solid #2a3340;
+            border-radius: 16px;
+            padding: 48px 40px;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+        }
+
+        .brand-mark {
+            width: 56px;
+            height: 56px;
+            background: #bbee44;
+            color: #0b0f19;
+            border-radius: 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            color: #f9fafb;
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .subtitle {
+            color: #8c9098;
+            font-size: 14px;
+            margin-bottom: 36px;
+        }
+
+        .ms-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            width: 100%;
+            padding: 14px 20px;
+            background: #bbee44;
+            color: #0b0f19;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background 0.15s, transform 0.1s;
+        }
+
+        .ms-button:hover { background: #cdf55a; }
+        .ms-button:active { transform: scale(0.98); }
+        .ms-button svg { flex-shrink: 0; }
+
+        .footer-note {
+            margin-top: 28px;
+            font-size: 12px;
+            color: #4b5563;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <div class="brand-mark">KT</div>
+        <h1>Treppides Hub</h1>
+        <p class="subtitle">Sign in with your Treppides Microsoft account</p>
+
+        <a id="signInBtn" href="#" class="ms-button">
+            <svg width="20" height="20" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+                <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+                <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+                <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+            </svg>
+            Sign in with Microsoft
+        </a>
+
+        <p class="footer-note">K. Treppides &amp; Co — Internal Tools</p>
+    </div>
+
+    <script>
+        const TM_BASE = window.location.hostname === "localhost"
+            ? "http://localhost:8080"
+            : "https://tasks.treppides.com";
+
+        // Store where to return after login (read by TM dashboard.html via cookie).
+        const returnTo = encodeURIComponent(
+            sessionStorage.getItem("hub_pre_login_url") || window.location.origin + "/"
+        );
+        sessionStorage.removeItem("hub_pre_login_url");
+
+        // Store in sessionStorage for TM's login.html to pick up via the returnTo param.
+        document.getElementById("signInBtn").href =
+            `${TM_BASE}/login.html?returnTo=${returnTo}`;
+    </script>
+</body>
+</html>

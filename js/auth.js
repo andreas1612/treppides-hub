@@ -33,9 +33,10 @@ export async function initAuth() {
       return _user;
     }
 
-    // Not authenticated — redirect to TM login page with returnTo param.
-    const returnTo = encodeURIComponent(window.location.href);
-    window.location.href = `${TM_BASE}/login.html?returnTo=${returnTo}`;
+    // Not authenticated — go to the hub's own login page (hub-branded, not TM).
+    // Store current URL so login.html can pass it as returnTo to TM.
+    sessionStorage.setItem("hub_pre_login_url", window.location.href);
+    window.location.href = "/login.html";
     return null;
 
   } catch {
