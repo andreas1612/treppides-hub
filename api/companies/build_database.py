@@ -62,6 +62,7 @@ class Task(Base):
     year_of_project = Column(String, index=True)   # 'Year of Project' — clean year string
     business_year   = Column(String, index=True)   # 'Business Year' field — clean year string
     department      = Column(String, index=True)   # 'Departement' field — Audit/FCR/FRA/...
+    dashboard_tid   = Column(String, index=True)   # 'Dashboard TID' (GID-XXXXX) — group key for the chart (rolls up several Clickup_TIDs)
     ubos            = Column(Text)                  # JSON array of normalized UBO names (from ubo/ubo_2/... slots)
 
     date_created  = Column(Integer)                       # Unix ms

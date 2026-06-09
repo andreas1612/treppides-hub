@@ -65,6 +65,26 @@ MAX_VIDEO_BYTES = 150 * 1024 * 1024   # 150 MB per video
 ALLOWED_IMAGES  = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
 ALLOWED_VIDEOS  = {".mp4", ".mov", ".webm"}
 
+# Magic-byte signatures per extension. Extension alone is trivially spoofable
+# (a .png can hold arbitrary bytes / HTML), so we sniff the leading bytes and
+# require them to match the declared type before saving. mp4/mov/webm carry the
+# type marker after a 4-byte size prefix, so we check a small window.
+def _sniff_ok(ext: str, data: bytes) -> bool:
+    head = data[:16]
+    if ext in (".jpg", ".jpeg"):
+        return head[:3] == b"\xff\xd8\xff"
+    if ext == ".png":
+        return head[:8] == b"\x89PNG\r\n\x1a\n"
+    if ext == ".gif":
+        return head[:6] in (b"GIF87a", b"GIF89a")
+    if ext == ".webp":
+        return head[:4] == b"RIFF" and head[8:12] == b"WEBP"
+    if ext in (".mp4", ".mov"):
+        return b"ftyp" in head            # ISO base media (mp4/mov)
+    if ext == ".webm":
+        return head[:4] == b"\x1a\x45\xdf\xa3"   # EBML / Matroska-WebM
+    return False
+
 # Per-list cache: { list_key: {"data": ..., "ts": ...} }
 _cache: dict[str, dict[str, Any]] = {}
 CACHE_TTL_SECONDS = 300  # 5 minutes
@@ -94,14 +114,29 @@ def fetch_all_tasks(list_id: str) -> list[dict]:
     while True:
         url = f"https://api.clickup.com/api/v2/list/{list_id}/task"
         params = {"page": page, "include_closed": "true"}
-        resp = requests.get(url, headers=_clickup_headers(), params=params)
+        # (connect, read) timeouts so a hung/slow ClickUp can't pin a worker.
+        try:
+            resp = requests.get(url, headers=_clickup_headers(), params=params, timeout=(10, 30))
+        except requests.RequestException as e:
+            logging.error(f"ClickUp request failed (list {list_id}, page {page}): {e}")
+            raise HTTPException(
+                status_code=502,
+                detail="Unable to fetch data from ClickUp. Please try again or contact IT support."
+            )
         if resp.status_code != 200:
             logging.error(f"ClickUp API error: HTTP {resp.status_code} — {resp.text[:500]}")
             raise HTTPException(
                 status_code=502,
                 detail="Unable to fetch data from ClickUp. Please try again or contact IT support."
             )
-        tasks = resp.json().get("tasks", [])
+        try:
+            tasks = resp.json().get("tasks", [])
+        except ValueError as e:  # malformed/non-JSON body
+            logging.error(f"ClickUp returned non-JSON (list {list_id}, page {page}): {e}")
+            raise HTTPException(
+                status_code=502,
+                detail="Unable to fetch data from ClickUp. Please try again or contact IT support."
+            )
         all_tasks.extend(tasks)
         if len(tasks) < 100:
             break
@@ -167,11 +202,24 @@ def extract_task_fields(task: dict) -> dict:
     result = {"task_name": task.get("name", "")}
 
     for cf in task.get("custom_fields", []):
-        name = cf.get("name", "")
-        ftype = cf.get("type", "")
+        # Field name/type come from the (attacker-influenceable) ClickUp workspace;
+        # coerce to str so a non-string name can't throw on .lower().
+        name = str(cf.get("name", "") or "")
+        ftype = str(cf.get("type", "") or "")
 
         # Build a snake_case key from the field name
         key = name.lower().replace(" ", "_").replace("/", "_").replace("?", "")
+        if not key:
+            continue  # unnamed field → nothing to key on
+        # Two distinct field names can collapse to the same key (e.g. "Deal Value"
+        # and "Deal/Value" → deal_value). Don't silently overwrite financial data —
+        # log it so the collision is visible rather than corrupting a value.
+        if key in result and key != "task_name":
+            logging.warning(
+                f"Custom-field key collision on '{key}' (field name {name!r}) — "
+                f"keeping first value, ignoring duplicate."
+            )
+            continue
 
         if ftype in ("short_text", "text", "url", "email", "phone"):
             result[key] = (cf.get("value") or "").strip() or None
@@ -320,42 +368,53 @@ def refresh_fees(list: str = Query("new", description="Which AML list: new | rej
     return get_fees(list=list_key)
 
 
+def _save_upload(data: bytes, ext: str, subdir: str) -> str:
+    """Write upload bytes under a server-generated, collision-free name. The
+    saved name is uuid4 + the validated extension — the client filename is never
+    used in the path, so traversal/odd names can't influence where we write."""
+    fname = f"{uuid.uuid4().hex}{ext}"
+    dest = MEDIA_ROOT / subdir / fname
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(data)
+    return fname
+
+
 @app.post("/api/upload/image")
 async def upload_image(file: UploadFile = File(...)):
-    """Upload an image. Returns { url, filename }."""
+    """Upload an image. Returns { url, filename } (filename = safe stored name)."""
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No filename provided.")
     ext = Path(file.filename).suffix.lower()
     if ext not in ALLOWED_IMAGES:
-        raise HTTPException(status_code=400, detail=f"File type {ext} not allowed. Use: {ALLOWED_IMAGES}")
+        raise HTTPException(status_code=400, detail=f"File type {ext} not allowed. Use: {sorted(ALLOWED_IMAGES)}")
 
     data = await file.read()
     if len(data) > MAX_IMAGE_BYTES:
         raise HTTPException(status_code=413, detail="Image exceeds 20 MB limit.")
+    if not _sniff_ok(ext, data):
+        raise HTTPException(status_code=400, detail="File content does not match its image type.")
 
-    fname = f"{uuid.uuid4().hex}{ext}"
-    dest  = MEDIA_ROOT / "images" / fname
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_bytes(data)
-
-    return {"url": f"/media/images/{fname}", "filename": file.filename}
+    fname = _save_upload(data, ext, "images")
+    return {"url": f"/media/images/{fname}", "filename": fname}
 
 
 @app.post("/api/upload/video")
 async def upload_video(file: UploadFile = File(...)):
-    """Upload a video (≤150 MB). Returns { url, filename }."""
+    """Upload a video (≤150 MB). Returns { url, filename } (filename = safe stored name)."""
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No filename provided.")
     ext = Path(file.filename).suffix.lower()
     if ext not in ALLOWED_VIDEOS:
-        raise HTTPException(status_code=400, detail=f"File type {ext} not allowed. Use: {ALLOWED_VIDEOS}")
+        raise HTTPException(status_code=400, detail=f"File type {ext} not allowed. Use: {sorted(ALLOWED_VIDEOS)}")
 
     data = await file.read()
     if len(data) > MAX_VIDEO_BYTES:
         raise HTTPException(status_code=413, detail="Video exceeds 150 MB limit.")
+    if not _sniff_ok(ext, data):
+        raise HTTPException(status_code=400, detail="File content does not match its video type.")
 
-    fname = f"{uuid.uuid4().hex}{ext}"
-    dest  = MEDIA_ROOT / "videos" / fname
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_bytes(data)
-
-    return {"url": f"/media/videos/{fname}", "filename": file.filename}
+    fname = _save_upload(data, ext, "videos")
+    return {"url": f"/media/videos/{fname}", "filename": fname}
 
 
 @app.get("/health")

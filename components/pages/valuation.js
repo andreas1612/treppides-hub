@@ -1117,7 +1117,7 @@ function bootValuation() {
                         if(document.getElementById('dcfErp')) document.getElementById('dcfErp').value = "";
                     }
                 }
-            } catch (err) { console.error('API Fetch Error:', err); }
+            } catch (err) { console.error('API fetch failed:', err?.message || 'error'); }
         });
     }
 
@@ -1169,7 +1169,6 @@ function bootValuation() {
                 const res = await fetch(withEdition(`${API_BASE}/reference/industry/${encodeURIComponent(val)}`));
                 if (res.ok) {
                     referenceDataState.industry = await res.json();
-                    console.log('Industry Reference Data Loaded:', referenceDataState.industry);
                     if (referenceDataState.industry.effective_tax_rate != null) {
                         document.getElementById('taxRate').value = (referenceDataState.industry.effective_tax_rate * 100).toFixed(2);
                     } else {
@@ -1192,7 +1191,7 @@ function bootValuation() {
                 } else {
                     referenceDataState.industry = null;
                 }
-            } catch (err) { console.error('API Fetch Error:', err); }
+            } catch (err) { console.error('API fetch failed:', err?.message || 'error'); }
         });
     }
 
@@ -1210,7 +1209,6 @@ function bootValuation() {
 
                 if (taxRes.ok) {
                     referenceDataState.country = await taxRes.json();
-                    console.log('Country Reference Data Loaded:', referenceDataState.country);
                     if (referenceDataState.country.statutory_tax_rate != null) {
                         document.getElementById('statutoryTaxRate').value = (referenceDataState.country.statutory_tax_rate * 100).toFixed(2);
                     } else {
@@ -1290,7 +1288,7 @@ function bootValuation() {
                 }
 
                 if (typeof calculatePlProjections === 'function') calculatePlProjections();
-            } catch (err) { console.error('API Fetch Error:', err); }
+            } catch (err) { console.error('API fetch failed:', err?.message || 'error'); }
         });
     }
 
@@ -1328,7 +1326,7 @@ function bootValuation() {
             }
             if (typeof calculatePlProjections === 'function') calculatePlProjections();
         } catch (err) {
-            console.error('FX Fetch Error:', err);
+            console.error('FX fetch failed:', err?.message || 'error');
             if (hintEl) { hintEl.textContent = 'Could not load reference rate — please enter manually.'; hintEl.style.display = 'block'; }
         }
     };
@@ -1341,7 +1339,6 @@ function bootValuation() {
                 const res = await fetch(withEdition(`${API_BASE}/reference/currency/${encodeURIComponent(val)}`));
                 if (res.ok) {
                     referenceDataState.currency = await res.json();
-                    console.log('Currency Reference Data Loaded:', referenceDataState.currency);
                     if (referenceDataState.currency.risk_free_rate != null) {
                         const rfVal = (referenceDataState.currency.risk_free_rate * 100).toFixed(2);
                         document.getElementById('riskFreeRate').value = rfVal;
@@ -1362,7 +1359,7 @@ function bootValuation() {
                         if (hint) hint.textContent = `Note: currency-specific risk-free rates are not available for ${damodaranEdition} — enter Risk-free Rate manually.`;
                     }
                 }
-            } catch (err) { console.error('API Fetch Error:', err); }
+            } catch (err) { console.error('API fetch failed:', err?.message || 'error'); }
             // Refresh FX after currency change (and any time the date changes too)
             fetchAndApplyFxRate();
         });
@@ -2220,7 +2217,6 @@ function bootValuation() {
         cwcInput.addEventListener('input', (e) => {
             const val = parseFloat(e.target.value);
             referenceDataState.changeInWorkingCapital = isNaN(val) ? null : val;
-            console.log('Change In Working Capital Updated:', referenceDataState.changeInWorkingCapital);
         });
     }
 

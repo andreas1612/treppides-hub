@@ -567,10 +567,16 @@ async function wireChartPicker() {
         const d = res.ok ? await res.json() : { ubos: [] };
         return (d.ubos || []).map(u => ({ key: u, label: u }));
       } else {
-        // company picker: reuse the browse search (returns display names + TIDs)
-        const res = await fetch(`${API_BASE}/companies?q=${encodeURIComponent(q || "")}&page_size=100&sort=deal_value`);
-        const d = res.ok ? await res.json() : { companies: [] };
-        return (d.companies || []).map(c => ({ key: c.tid, label: c.display_name || c.tid }));
+        // Company picker: the chart groups by Dashboard TID (GID), so the picker
+        // must offer GID groups whose key matches what `select=` expects. Source
+        // them from /chart (key=GID, label=representative company name) and filter
+        // by the typed query client-side against the label.
+        const res = await fetch(`${API_BASE}/chart?by=company&top=500`);
+        const d = res.ok ? await res.json() : { items: [] };
+        const needle = (q || "").trim().toLowerCase();
+        let groups = (d.items || []).map(it => ({ key: it.key, label: it.label }));
+        if (needle) groups = groups.filter(g => (g.label || "").toLowerCase().includes(needle) || g.key.toLowerCase().includes(needle));
+        return groups.slice(0, 100);
       }
     } catch { return []; }
   };

@@ -1,6 +1,6 @@
 # STATUS --- Treppides Hub
 
-**Last updated: 2026-06-08**
+**Last updated: 2026-06-09**
 **Long-term capacity plan: [SESSION_15.md](SESSION_15.md)**
 
 ---
@@ -38,7 +38,7 @@
 | IT Support Modal | Live | FormSubmit -> email | -> apieri@treppides.com |
 | Search | Live | BookStack full-text | Topbar, 400ms debounce |
 | Valuation Tool | Live | FastAPI + SQLite (Damodaran) | DCF builder; historical archive 2008-2026 with edition picker; country/industry/currency reference auto-fill; historical FX (2015-2025); draft auto-save + JSON export/import; PDF report |
-| Group Dashboard | Live | ClickUp -> FastAPI + SQLite | Sidebar "Group Dashboard" --- one unified **searchable + filterable** company list (sortable, paginated; row opens that company's deals) + a **Chart** view comparing Deal Value **by company or by UBO** (bar chart via vendored Chart.js; defaults to top 15, or pick specific ones) + a **Custom Total** view (tick individual deals -> combined sum, selection persists across filters). Per-company **total Deal Value (fees)** (active vs rejected/lost; no-deal `---`) + **filtered grand-total** banner. Detail lists **deal tasks only**, color-coded Service, with "subtask of {parent}" on subtask deals. **Cascading multi-select filters**: Space, Project Year, Business Year, Service, Assignee, Department --- options narrow to the selection; fee totals recompute to the filter. Space names prettified (`_CRM` dropped, `KT` -> `K. Treppides`). Master DB (`companies-api`, port 8003, ~9.8k tasks; indexed service/year/business_year/department + UBO columns) synced every 3 min via `date_updated_gt` (reconcile gated 15 min); manual Refresh. Instant SQL |
+| Group Dashboard | Live | ClickUp -> FastAPI + SQLite | Sidebar "Group Dashboard" --- one unified **searchable + filterable** company list (sortable, paginated; row opens that company's deals) + a **Chart** view comparing Deal Value **by company or by UBO** (bar chart via vendored Chart.js; defaults to top 15, or pick specific ones). 'By company' groups on the **Dashboard TID (GID)** field --- a higher-level group key that rolls several companies into one bar, labelled with a synthesized supername (shared core of the group's company names) + a **Custom Total** view (tick individual deals -> combined sum, selection persists across filters). Per-company **total Deal Value (fees)** (active vs rejected/lost; no-deal `---`) + **filtered grand-total** banner. Detail lists **deal tasks only**, color-coded Service, with "subtask of {parent}" on subtask deals. **Cascading multi-select filters**: Space, Project Year, Business Year, Service, Assignee, Department --- options narrow to the selection; fee totals recompute to the filter. Space names prettified (`_CRM` dropped, `KT` -> `K. Treppides`). Master DB (`companies-api`, port 8003, ~9.8k tasks; indexed service/year/business_year/department + UBO columns) synced every 3 min via `date_updated_gt` (reconcile gated 15 min); manual Refresh. Instant SQL |
 | Task Manager | Live | Spring Boot + SQL Server | Full task/project management. Dashboard, my tasks, team tasks, create task, task details. Azure AD SSO auth. Proxied at `/projects` on hub; also accessible directly at `tasks.treppides.com` |
 
 ---

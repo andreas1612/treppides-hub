@@ -19,7 +19,42 @@
 
 ---
 
-## Last Session --- 2026-06-08 (Task Manager Integration)
+## ⚠️ Deploy steps pending for the latest commit
+
+The latest push bundles two changes that need server-side action:
+
+- **Dashboard TID grouping** — companies-api now stores a new `dashboard_tid` column.
+  On deploy run a **full re-sync** so existing rows pick up the field:
+  `cd ~/treppides-hub/api/companies && venv/bin/python sync.py --full && sudo systemctl restart companies-api`
+  (`init_db()` auto-adds the column; `--full` backfills it). No nginx change.
+- **Security audit fixes** — restart `clickup-fees` (H1/M1/M2 server-side) and hard-refresh
+  the frontend (H2/M3). No DB change.
+
+---
+
+## Last Session --- 2026-06-09 (Dashboard TID chart grouping + security fixes)
+
+**What was done:**
+- **Chart 'by company' now groups on `Dashboard TID` (GID)** — a new ClickUp custom field
+  on the Deals lists that rolls several companies into one dashboard group. List / search /
+  detail / UBO views still key on `Clickup_TID`; only the chart's company mode groups on GID.
+- **companies-api**: added indexed `dashboard_tid` column (`build_database.py`), extracted it
+  in `sync.py normalize()`, and grouped active Deal Value by GID in `main.py`
+  (`filtered_group_rows`). Raised the `/chart` `top` cap to 2000 so the picker lists all groups.
+- **Supername labels** — each grouped bar is labelled with a synthesized name: the longest
+  common leading words across the group's member company names (e.g. "Capital Com", "Nuvei"),
+  falling back to a representative company name, then the GID. (`_supername` in `main.py`.)
+- **Chart picker** (`components/pages/companies.js`) repointed to `/chart?by=company` so its
+  select values are GID keys that match the chart's `select=` param.
+- **Security audit fixes (carried from 2026-06-05)** — `api/clickup/server.py` +
+  `components/pages/valuation.js`: ClickUp fetch connect/read timeouts + error handling (H1);
+  removed API-payload `console.log`s (H2); media-upload hardening — None-filename guard,
+  magic-byte sniff, safe uuid name (M1); custom-field key-collision logging (M2); frontend
+  error logs message-only (M3).
+
+---
+
+## Earlier Session --- 2026-06-08 (Task Manager Integration)
 
 **What was done:**
 - DNS A record added: `tasks.treppides.com` -> `192.168.0.221`

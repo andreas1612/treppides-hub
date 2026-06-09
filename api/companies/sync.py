@@ -211,6 +211,8 @@ def normalize(task: dict) -> dict:
         "business_year":   (str(fields["business_year"]).strip()
                             if fields.get("business_year") not in (None, "") else None),
         "department":      fields.get("departement"),
+        "dashboard_tid":   (str(fields["dashboard_tid"]).strip().upper()
+                            if fields.get("dashboard_tid") not in (None, "") else None),
         "ubos":            json.dumps(extract_ubos(fields), ensure_ascii=False),
         "date_created": _to_int(task.get("date_created")),
         "date_updated": _to_int(task.get("date_updated")),

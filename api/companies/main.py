@@ -122,6 +122,129 @@ def filtered_company_rows(db, filters, tids=None):
     return out
 
 
+# Entity-type / variant noise stripped when comparing company names to find a
+# group's shared core. Compared case-insensitively at the token level.
+_NAME_NOISE = re.compile(
+    r"\b(ltd|limited|llc|plc|inc|incorporated|sa|s\.a\.|cy|cyprus|holdings?|group|"
+    r"investments?|services?|global|international|int)\b\.?",
+    re.IGNORECASE,
+)
+_PAREN_NOISE = re.compile(r"\(.*?\)")               # "(CY)", "(ex. …)"
+_SUFFIX_NOISE = re.compile(r"\s*[-–].*$")            # "- Pillar III", "- Suitability report"
+
+
+def _name_tokens(name: str) -> list[str]:
+    """Normalize a company name to comparable leading tokens: drop parentheticals
+    and '- …' suffixes, strip entity-type noise words, lowercase, split."""
+    s = _PAREN_NOISE.sub(" ", name or "")
+    s = _SUFFIX_NOISE.sub(" ", s)
+    s = _NAME_NOISE.sub(" ", s)
+    s = re.sub(r"[^a-z0-9 ]+", " ", s.lower())
+    return [t for t in s.split() if t]
+
+
+def _supername(names: list[str]) -> str | None:
+    """Longest common LEADING token sequence across a group's company names,
+    rendered from the first name's original casing. Returns None if there's no
+    shared prefix (so the caller can fall back to a representative name)."""
+    toklists = [_name_tokens(n) for n in names if n]
+    toklists = [t for t in toklists if t]
+    if not toklists:
+        return None
+    # Common leading tokens (normalized).
+    common = []
+    for i in range(min(len(t) for t in toklists)):
+        tok = toklists[0][i]
+        if all(t[i] == tok for t in toklists):
+            common.append(tok)
+        else:
+            break
+    if not common:
+        return None
+    # Render those N tokens using the ORIGINAL casing/words of the first member,
+    # by walking its raw words and taking the first len(common) significant ones.
+    first_raw = _PAREN_NOISE.sub(" ", names[0])
+    first_raw = _SUFFIX_NOISE.sub(" ", first_raw)
+    out_words, ni = [], 0
+    for w in first_raw.split():
+        norm = re.sub(r"[^a-z0-9]+", "", w.lower())
+        if not norm:
+            continue
+        if _NAME_NOISE.fullmatch(norm):   # skip noise words for token alignment
+            continue
+        if ni < len(common):
+            out_words.append(w)
+            ni += 1
+        else:
+            break
+    return " ".join(out_words).strip() or None
+
+
+def filtered_group_rows(db, filters):
+    """Per-GROUP (Dashboard TID / GID) active Deal Value over the filtered DEAL set,
+    for the chart's 'by company' bars. A GID rolls up several Clickup_TIDs (companies)
+    into one dashboard group, so this sums each group's deals directly.
+
+    Label = a SUPERNAME synthesized from the group's company names: the longest
+    common leading word-sequence (e.g. 'Capital Com …'×8 → 'Capital Com'). Falls
+    back to the representative (highest-value) deal's company_name, then the company
+    rollup display_name, then the GID code. Returns {key, label, value, deal_count}."""
+    active_val = func.sum(case((Task.is_lost.is_(False), Task.deal_value), else_=0.0))
+    active_cnt = func.sum(case((Task.is_lost.is_(False), 1), else_=0))
+
+    conds = [Task.is_deal.is_(True), Task.dashboard_tid.isnot(None), *filters]
+
+    grp = db.execute(
+        select(Task.dashboard_tid, active_val, active_cnt)
+        .where(and_(*conds)).group_by(Task.dashboard_tid)
+    ).all()
+
+    # Per-GID: collect every active deal's company_name + value + tid, so we can
+    # both synthesize the supername (all names) and pick a representative fallback.
+    cname = func.json_extract(Task.custom_fields, "$.company_name")
+    rows = db.execute(
+        select(Task.dashboard_tid, Task.deal_value, cname, Task.tid)
+        .where(and_(*conds, Task.is_lost.is_(False)))
+    ).all()
+    names_by_gid: dict[str, list[str]] = {}
+    best = {}  # gid -> (value, company_name, tid) — highest-value deal
+    for gid, dv, cn, tid in rows:
+        cn = (cn or "").strip()
+        if cn:
+            names_by_gid.setdefault(gid, []).append(cn)
+        v = dv or 0.0
+        cur = best.get(gid)
+        if cur is None or v > cur[0]:
+            best[gid] = (v, cn, tid)
+
+    rep_tids = [b[2] for b in best.values() if b[2]]
+    disp = {}
+    if rep_tids:
+        disp = {c.tid: c.display_name for c in db.execute(
+            select(Company.tid, Company.display_name).where(Company.tid.in_(rep_tids))
+        ).all()}
+
+    items = []
+    for gid, av, ac in grp:
+        # Supername from distinct names (preserve first-seen order for casing).
+        seen, distinct = set(), []
+        for n in names_by_gid.get(gid, []):
+            k = n.lower()
+            if k not in seen:
+                seen.add(k); distinct.append(n)
+        label = _supername(distinct)
+        if not label:
+            b = best.get(gid)
+            label = (b[1] if b else None) or (disp.get(b[2]) if b else None) or gid
+        items.append({
+            "key": gid,
+            "label": label,
+            "value": round(av or 0.0, 2),
+            "deal_count": int(ac or 0),
+        })
+    return items
+
+
 def get_db():
     db = SessionLocal()
     try:
@@ -441,7 +564,7 @@ def list_ubos(q: str = Query("", description="optional name filter"),
 def chart(by: str = Query("company", description="company | ubo"),
           select_: str | None = Query(None, alias="select",
                                        description="comma-separated TIDs (company) or UBO names to compare"),
-          top: int = Query(15, ge=1, le=100),
+          top: int = Query(15, ge=1, le=2000),
           year: str | None = Query(None), assignee: str | None = Query(None),
           service: str | None = Query(None), department: str | None = Query(None),
           space: str | None = Query(None), business_year: str | None = Query(None),
@@ -455,29 +578,26 @@ def chart(by: str = Query("company", description="company | ubo"),
                space=space, business_year=business_year)
     filters = deal_filters(**fkw)
 
-    # Active Deal Value per TID over the filtered deal set.
-    totals = filtered_company_rows(db, filters)  # {tid: {...}}
-    if not totals:
-        return {"by": by, "top": top, "selected": False, "items": []}
-
-    tids = list(totals.keys())
-    companies = {c.tid: c for c in db.execute(
-        select(Company).where(Company.tid.in_(tids))
-    ).scalars().all()}
-
     if by == "company":
-        items = [{
-            "key": tid,
-            "label": companies[tid].display_name if tid in companies else tid,
-            "value": totals[tid]["active_deal_value"],
-            "deal_count": totals[tid]["active_deal_count"],
-        } for tid in tids if tid in companies]
+        # Group by Dashboard TID (GID) — the higher-level group key that rolls
+        # several Clickup_TIDs into one dashboard group. Bars = consolidated groups.
+        items = filtered_group_rows(db, filters)
+        if not items:
+            return {"by": by, "top": top, "selected": False, "items": []}
         wanted = _multi(select_)
         selected = bool(wanted)
         if selected:
             wset = {w.upper() for w in wanted}
             items = [it for it in items if it["key"].upper() in wset]
     else:  # ubo — attribute each company's active value to each of its UBOs
+        # Active Deal Value per TID over the filtered deal set.
+        totals = filtered_company_rows(db, filters)  # {tid: {...}}
+        if not totals:
+            return {"by": by, "top": top, "selected": False, "items": []}
+        tids = list(totals.keys())
+        companies = {c.tid: c for c in db.execute(
+            select(Company).where(Company.tid.in_(tids))
+        ).scalars().all()}
         agg = {}  # lowerkey -> {label, value, companies}
         for tid, t in totals.items():
             c = companies.get(tid)

@@ -28,8 +28,12 @@ every cache cycle. This service instead keeps a local mirror, refreshed
   Forms are excluded); companies with no deals show a `—` indicator.
 - **Promoted, indexed columns** on `tasks` for filtering/sorting/display (also kept
   in the `custom_fields` JSON): `service`, `year_of_project`, `business_year`,
-  `department`, plus `ubos` (JSON array of normalized UBO names from the ~55 `ubo*`
-  slot fields). `companies.ubos` holds the union per company.
+  `department`, `dashboard_tid`, plus `ubos` (JSON array of normalized UBO names
+  from the ~55 `ubo*` slot fields). `companies.ubos` holds the union per company.
+- **Two grouping keys.** `Clickup_TID` (`TID-XXXXX`) = per-company; `dashboard_tid`
+  (`Dashboard TID`, `GID-XXXXX`) = a higher-level GROUP key that rolls several
+  companies under one dashboard group. The list/search/detail/UBO key on TID; the
+  **chart 'by company' groups on GID** (see below).
 - **Subtasks:** `Task.parent_id` (ClickUp parent id) + `Task.parent_name` (resolved
   in a 2nd sync pass from the fetched task set). Deal rows show "↳ subtask of {parent}".
 - **UBOs live on company/account tasks, not deals.** The chart attributes a deal's
@@ -101,7 +105,7 @@ services, departments}`.
 |----------|---------|
 | `GET /api/companies/search?q=&<filters>` | search by company name or TID → companies + (filtered) active/lost fee totals (cap 50) |
 | `GET /api/companies/companies?q=&sort=&dir=&page=&page_size=&include_nodeal=&<filters>` | The unified list (search built in). `q`=whole-word name/TID search. Sortable (`deal_value\|name\|deal_count\|last_activity`), paginated. Default deals-only; `include_nodeal=true` adds no-deal companies. Returns `grand_active_deal_value` |
-| `GET /api/companies/chart?by=company\|ubo&select=&top=&<filters>` | Bar-chart data: active Deal Value per company or UBO. `select`=comma TIDs (company) / UBO names; else top-N (default 15). UBO value = company value attributed in full to each of its UBOs |
+| `GET /api/companies/chart?by=company\|ubo&select=&top=&<filters>` | Bar-chart data: active Deal Value. **`by=company` groups on `dashboard_tid` (GID)** — each bar = one dashboard group; `select`=comma GID keys; label = a **supername** (longest common leading words across the group's `company_name`s, e.g. "Capital Com"). `by=ubo` attributes each company's value to each of its UBOs. `select` empty → top-N (default 15, `top` cap 2000 so the picker can list all groups) |
 | `GET /api/companies/ubos?q=&limit=` | Distinct UBO names with attributable Deal Value (ranked) — for the chart's UBO picker |
 | `GET /api/companies/deals?q=&page=&page_size=&<filters>` | Flat list of individual DEAL tasks (active + lost) for the Custom Total picker. Honours filters + whole-word search; each row has value/status/service/space/company. Total is summed client-side from ticked rows |
 | `GET /api/companies/filters` | CASCADING option lists: `{spaces, years, business_years, assignees, services, departments}` (scoped to the other active filters) |
