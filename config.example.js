@@ -6,7 +6,7 @@
 
 export default {
   // BookStack is proxied by nginx: /docs/ → localhost:6875
-  BASE_URL: "http://192.168.0.221/docs",
+  BASE_URL: "/docs",
 
   // BookStack API token — generate in BookStack: Settings > API Tokens
   // ⚠ Fill in real values — DO NOT commit config.js to git

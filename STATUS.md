@@ -10,7 +10,7 @@
 | Service | Status | How it runs | Notes |
 |---|---|---|---|
 | **Nginx** | Active | systemd | TLS 1.2+, HTTP/2, rate limits, security headers. Routes both hub.treppides.com and tasks.treppides.com |
-| **BookStack** | Active | Docker `bookstack` | |
+| **BookStack** | Active | Docker `bookstack` | APP_URL: `https://hub.treppides.com/docs`, port bound to `127.0.0.1:6875` |
 | **MariaDB** | Active | Docker `bookstack_db` | |
 | **ClickUp Fees + Upload API** | Active | systemd `clickup-fees` (port 8001) | 2 workers, 512 MB cap, sandboxed. AML fees + media upload |
 | **Valuation Reference API** | Active | systemd `valuation-api` (port 8002) | 2 workers, 384 MB cap, sandboxed, SQLite WAL |
@@ -50,7 +50,7 @@
 | SSL certificate | Live | Sectigo wildcard `*.treppides.com` --- valid until 22 Nov 2026 |
 | TLS | 1.2+ only | TLS 1.0/1.1 dropped |
 | HTTP/2 | Enabled | |
-| Security headers | Live | HSTS, CSP, X-Frame, X-Content-Type, Permissions-Policy, X-XSS-Protection |
+| Security headers | Live | HSTS, CSP (incl. `blob:` in frame-src), X-Frame, X-Content-Type, Permissions-Policy, X-XSS-Protection |
 | OCSP stapling | Enabled | |
 | Internal DNS | Live | `hub.treppides.com` -> `192.168.0.221` resolves; HTTPS padlock confirmed |
 | Internal DNS | Live | `tasks.treppides.com` -> `192.168.0.221` resolves; direct Task Manager access |
@@ -132,7 +132,7 @@ Full ops details in **[SERVER-OPS.md](SERVER-OPS.md)**.
 | 11 | Low | Industry betas only backfilled to 2014 --- pre-2014 archive uses different schema |
 | 12 | Low | Switching editions doesn't clear stale dropdown selection |
 | 13 | Info | Monitoring is log-only --- no active notifications (email/Slack/push) |
-| 14 | Medium | BookStack Docker port 6875 binds `0.0.0.0` --- blocked by UFW but should be `127.0.0.1` |
+
 | 15 | Info | Auth is session-based (Azure AD SSO) --- no per-user LDAP integration yet (no user-level rate limiting or audit log) |
 
 ---
@@ -141,7 +141,6 @@ Full ops details in **[SERVER-OPS.md](SERVER-OPS.md)**.
 
 | Feature | Priority | Notes |
 |---|---|---|
-| BookStack port `127.0.0.1:6875` | High | Bind to localhost in `~/bookstack/docker-compose.yml` |
 | Server-side BookStack token proxy | High | Removes token from browser; enables per-session rate limiting |
 | Active notifications | Medium | Email/Slack alerts when healthcheck fails |
 | Mobile reader navigation | Medium | Drawer/bottom sheet |

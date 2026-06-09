@@ -2,7 +2,7 @@
 > Paste this at the start of a new chat and say "continue the Treppides Hub project"
 
 **Status: LIVE IN PRODUCTION --- fully operational**
-**Last session: 2026-06-08 (Task Manager DNS + auth integration)**
+**Last session: 2026-06-09 (BookStack + Reader fixes)**
 **Server: 192.168.0.221 (tech-srv) - User: tech-admin**
 **Live URLs: https://hub.treppides.com | https://tasks.treppides.com**
 
@@ -171,7 +171,7 @@ treppides-hub/
 
 | Key | Value |
 |---|---|
-| `BASE_URL` | `https://hub.treppides.com/docs` |
+| `BASE_URL` | `/docs` (relative --- works regardless of access via domain or IP) |
 | `API_TOKEN_ID` | BookStack token --- **expires 15/08/2026** |
 | `API_TOKEN_SECRET` | In config.js on server |
 | `DEPARTMENTS_SHELF_ID` | `57` |
@@ -193,6 +193,15 @@ treppides-hub/
 ---
 
 ## Session Log
+
+### 2026-06-09 --- BookStack + Reader fixes (session 20)
+
+- **BookStack APP_URL fixed:** `http://192.168.0.221/docs` -> `https://hub.treppides.com/docs` in docker-compose.yml --- eliminated mixed-content blocking
+- **config.js BASE_URL made relative:** absolute URL -> `/docs` --- eliminates cross-origin CSP blocks when accessing via IP
+- **Reader overlay fix:** `showOverlay()` removes page-active CSS classes before displaying --- fixes invisible reader when opened from KB page
+- **Reader image rewrite fix:** handles BookStack absolute image URLs with relative BASE_URL
+- **CSP frame-src:** added `blob:` --- fixes PDF preview iframe blocking
+- **BookStack port confirmed secure:** `127.0.0.1:6875:80` already in place (issue #14 closed)
 
 ### 2026-06-08 --- Task Manager DNS + auth integration (session 19)
 
@@ -290,8 +299,7 @@ PROJECT_BRIEF.md, README.md.
 
 ## Next Features
 
-1. **BookStack port `127.0.0.1:6875`** --- bind to localhost in `~/bookstack/docker-compose.yml`
-2. **Server-side BookStack token proxy** --- removes token from browser
-3. **Active monitoring notifications** --- email/Slack alerts when healthcheck fails
-4. **Mobile reader navigation** --- drawer/bottom sheet
-5. **Task Manager email notifications** --- configured but untested in production (Office 365 SMTP)
+1. **Server-side BookStack token proxy** --- removes token from browser
+2. **Active monitoring notifications** --- email/Slack alerts when healthcheck fails
+3. **Mobile reader navigation** --- drawer/bottom sheet
+4. **Task Manager email notifications** --- configured but untested in production (Office 365 SMTP)

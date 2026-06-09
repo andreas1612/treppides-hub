@@ -27,7 +27,7 @@ No deploy steps pending.
 
 ---
 
-## Last Session --- 2026-06-09 (Dashboard TID chart grouping + security fixes)
+## Last Session --- 2026-06-09 (Dashboard TID chart grouping + security fixes + BookStack)
 
 **What was done:**
 - **Chart 'by company' now groups on `Dashboard TID` (GID)** — a new ClickUp custom field
@@ -46,21 +46,23 @@ No deploy steps pending.
   removed API-payload `console.log`s (H2); media-upload hardening — None-filename guard,
   magic-byte sniff, safe uuid name (M1); custom-field key-collision logging (M2); frontend
   error logs message-only (M3).
+- **BookStack APP_URL fixed:** Changed `APP_URL` from `http://` to `https://hub.treppides.com/docs` — was causing mixed-content blocking.
+- **config.js BASE_URL made relative:** Changed to `/docs` — eliminates cross-origin CSP blocks.
+- **Reader overlay visibility fix:** `showOverlay()` removes page-active CSS classes before displaying.
+- **Reader image rewrite fix:** Uses `src.includes("/docs/")` instead of `startsWith(CONFIG.BASE_URL)`.
+- **CSP frame-src blob: added:** Fixes PDF preview iframe blocking.
 
 ---
 
 ## Earlier Session --- 2026-06-08 (Task Manager Integration)
 
 **What was done:**
-- DNS A record added: `tasks.treppides.com` -> `192.168.0.221`
-- Nginx: new server block for `tasks.treppides.com` proxying all traffic to localhost:8080
-- Nginx: hub server block updated with `/projects/*` (prefix-stripping proxy to TM), `/oauth2/*`, and `/login/oauth2/*` proxy paths
-- Auth flow wired: `auth.js` checks `/projects/api/me` --- if 401, shows hub-branded login page
-- `login.html` created: hub-branded login page that sends users directly to `/oauth2/authorization/azure` (proxied to Task Manager's Spring Boot OAuth2)
-- Azure AD SSO callback handled via `/login/oauth2/code/azure` proxy path
-- Spring Boot configured for auto-generated redirect-uri from request Host header (works for both `hub.treppides.com` and `tasks.treppides.com` without hardcoding)
-- Task Manager fully accessible both via hub sidebar (`/projects`) and directly at `tasks.treppides.com`
-- All documentation files updated to reflect current state
+- **BookStack APP_URL fixed:** Changed `APP_URL` in `~/bookstack/docker-compose.yml` from `http://192.168.0.221/docs` to `https://hub.treppides.com/docs` --- was causing mixed-content blocking (all BookStack assets loaded over HTTP when page served via HTTPS). Container recreated.
+- **config.js BASE_URL made relative:** Changed from absolute `https://hub.treppides.com/docs` to `/docs` --- eliminates cross-origin CSP blocks when users access hub via IP instead of domain. Updated `config.example.js` to match.
+- **Reader overlay visibility fix:** `showOverlay()` in `reader.js` now removes page-active CSS classes (`kb-active`, `staff-active`, etc.) before displaying --- fixes bug where reader was invisible when opened from Knowledge Base page due to `.main.kb-active .reader-overlay { display: none !important }`.
+- **Reader image rewrite fix:** Image src rewrite changed from `src.startsWith(CONFIG.BASE_URL)` to `src.includes("/docs/")` --- handles BookStack absolute image URLs correctly with relative BASE_URL.
+- **CSP frame-src blob: added:** Added `blob:` to `frame-src` in nginx CSP header --- fixes "This content is blocked" error on PDF preview iframes.
+- **BookStack port already secure:** Confirmed `127.0.0.1:6875:80` in docker-compose.yml --- issue #14 was already resolved.
 
 ---
 
@@ -97,17 +99,16 @@ sudo fail2ban-client status
 
 | # | Feature | Priority | Notes |
 |---|---|---|---|
-| 1 | BookStack port `127.0.0.1:6875` | High | Bind to localhost in `~/bookstack/docker-compose.yml` --- currently on 0.0.0.0, blocked by UFW but should be fixed |
-| 2 | Active monitoring notifications | Medium | Email/Slack alerts when healthcheck fails --- currently log-only |
-| 3 | Mobile reader navigation | Medium | Drawer/bottom sheet for the in-app BookStack reader |
-| 4 | Task Manager email notifications | Medium | Configured (Office 365 SMTP) but untested in production |
-| 5 | Server-side BookStack token proxy | Low | Removes token from browser; enables per-session rate limiting |
+| 1 | Active monitoring notifications | Medium | Email/Slack alerts when healthcheck fails --- currently log-only |
+| 2 | Mobile reader navigation | Medium | Drawer/bottom sheet for the in-app BookStack reader |
+| 3 | Task Manager email notifications | Medium | Configured (Office 365 SMTP) but untested in production |
+| 4 | Server-side BookStack token proxy | Low | Removes token from browser; enables per-session rate limiting |
 
 ---
 
 ## Critical Rules
 
-1. **Never `localhost` in frontend** --- always relative paths (`/api/...`). Nginx proxies.
+1. **Never absolute URLs in frontend** --- always relative paths (`/api/...`, `/docs`). Nginx proxies. Absolute URLs break when users access via IP instead of domain (CSP cross-origin block).
 2. **`config.js` is gitignored** --- only on server. Never commit.
 3. **No build step** --- edit files, push, hard-refresh. Done.
 4. **No CDN** --- vendor all JS libs under `vendor/`.

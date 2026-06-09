@@ -47,8 +47,8 @@ function sanitizeHtml(htmlString) {
     // the request goes through nginx (/docs/* → BookStack) regardless of server IP.
     if (el.tagName === "IMG" && el.hasAttribute("src")) {
       const src = el.getAttribute("src");
-      if (src.startsWith(CONFIG.BASE_URL)) {
-        el.setAttribute("src", new URL(src).pathname);
+      if (src.includes("/docs/")) {
+        el.setAttribute("src", src.substring(src.indexOf("/docs/")));
       }
     }
 
@@ -420,6 +420,9 @@ function renderCurrentState() {
 
 // ── Show / hide overlay ──────────────────────────────────────
 function showOverlay() {
+  // Remove page-active classes that hide the reader overlay via !important
+  const main = document.querySelector(".main");
+  if (main) main.classList.remove("kb-active", "staff-active", "aml-active", "fees-active", "projects-active", "valuation-active", "companies-active");
   _overlay.classList.add("active");
   if (_dashboard) _dashboard.style.display = "none";
 }
