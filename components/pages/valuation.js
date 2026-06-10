@@ -174,7 +174,7 @@ const SHELL_HTML = `
                           <div>
                               <div class="form-grid">
                                   <div class="input-group">
-                                      <label for="companyName">Company's Name</label>
+                                      <label for="companyName">Company's Name <span title="Enter the name of the company that will be valuated. This name appears throughout the generated valuation report." style="cursor:help; border-bottom: 1px dotted #ccc;">ℹ️</span></label>
                                       <input type="text" id="companyName" name="companyName" placeholder="e.g. Acme Corp" required>
                                   </div>
                                   <div class="input-group full-width">
@@ -217,11 +217,7 @@ const SHELL_HTML = `
                                       <input type="date" id="valuationDate" name="valuationDate" required>
                                   </div>
                                   <div class="input-group">
-                                      <label for="referenceDate">Reference Date</label>
-                                      <input type="date" id="referenceDate" name="referenceDate">
-                                  </div>
-                                  <div class="input-group">
-                                      <label for="reportDate">Report Generation Date</label>
+                                      <label for="reportDate">Report Generation Date <span title="The date on which the valuation is performed. This is the date the report is generated and appears on the report cover." style="cursor:help; border-bottom: 1px dotted #ccc;">ℹ️</span></label>
                                       <input type="date" id="reportDate" name="reportDate" required>
                                   </div>
                                   <div class="input-group">
@@ -231,7 +227,7 @@ const SHELL_HTML = `
                                       </select>
                                   </div>
                                   <div class="input-group">
-                                      <label for="valuationMethodology">Valuation Methodology</label>
+                                      <label for="valuationMethodology">Valuation Methodology <span title="For audit purposes only. This selection does not affect the valuation calculations." style="cursor:help; border-bottom: 1px dotted #ccc;">ℹ️</span></label>
                                       <select id="valuationMethodology" name="valuationMethodology">
                                           <option value="Equity value" selected>Equity value</option>
                                           <option value="Enterprise value">Enterprise value</option>
@@ -239,7 +235,7 @@ const SHELL_HTML = `
                                       </select>
                                   </div>
                                   <div class="input-group">
-                                      <label for="baseYear">Base Historical Year</label>
+                                      <label for="baseYear">Base Historical Year <span title="The most recent completed financial year used as the starting point for the projections. The forecast years are built forward from this year's actual figures. Auto-filled as the year before the Valuation Date; override if needed." style="cursor:help; border-bottom: 1px dotted #ccc;">ℹ️</span></label>
                                       <input type="number" id="baseYear" name="baseYear" min="1990" max="2100" placeholder="e.g. 2024">
                                   </div>
                                   <div class="input-group">
@@ -351,7 +347,7 @@ const SHELL_HTML = `
                                       <input type="number" id="revenueGrowthOverride" name="revenueGrowthOverride" step="0.01" placeholder="Blank = use industry default">
                                   </div>
                                   <div class="input-group">
-                                      <label for="capex" id="capexLabel">Capital Expenditure (USD)</label>
+                                      <label for="capex" id="capexLabel">Capital Expenditure</label>
                                       <input type="number" id="capex" name="capex" step="0.01" placeholder="e.g. 1500000.00">
                                   </div>
                                   <div class="input-group">
@@ -1086,16 +1082,6 @@ function bootValuation() {
         await initEditionPicker();
         await fetchDropdowns();
     })();
-
-    // Dynamic Currency Label Logic for Capital Expenditure
-    const capexLabel = document.getElementById('capexLabel');
-
-    if (currencySelect && capexLabel) {
-        currencySelect.addEventListener('change', function () {
-            const selectedCurrency = this.value;
-            capexLabel.textContent = `Capital Expenditure (${selectedCurrency})`;
-        });
-    }
 
     // --- API Reference Data Fetching ---
 
