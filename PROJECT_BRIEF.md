@@ -9,7 +9,7 @@
 **Long-term planning target:** 200 total staff, ~60-80 concurrent at peak, 3-year horizon.
 **Live resources (2026-05-29):** 4 vCPU EPYC 7F72 - 9.5 GiB RAM - 72 GB root (15 % used) - uptime 65 d.
 **Target spec (<=24 months):** 8 vCPU - 16 GiB RAM - 250 GB root + 1 TB SSD for `/srv/media`.
-**Canonical plan reference:** [SESSION_15.md](SESSION_15.md) --- sizing, VM options, rate-limiting design.
+**Long-term planning note:** the detailed capacity plan (sizing, VM options, rate-limiting design) lived in `SESSION_15.md`, consolidated away on 2026-06-03 (commit 358efa1). Session summaries are now inline in [NEXT_SESSION.md](NEXT_SESSION.md); the deep §-numbered detail was not migrated.
 
 ---
 

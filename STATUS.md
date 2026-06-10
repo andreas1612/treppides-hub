@@ -1,7 +1,7 @@
 # STATUS --- Treppides Hub
 
 **Last updated: 2026-06-09**
-**Long-term capacity plan: [SESSION_15.md](SESSION_15.md)**
+**Long-term capacity plan:** detailed in former `SESSION_15.md` (consolidated away 2026-06-03, commit 358efa1); session summaries now inline in [NEXT_SESSION.md](NEXT_SESSION.md).
 
 ---
 
@@ -146,4 +146,4 @@ Full ops details in **[SERVER-OPS.md](SERVER-OPS.md)**.
 | Active notifications | Medium | Email/Slack alerts when healthcheck fails |
 | Mobile reader navigation | Medium | Drawer/bottom sheet |
 | Task Manager email notifications | Medium | Configured in application.properties (Office 365 SMTP) but untested in production |
-| Video subsystem (HLS pipeline) | Planned | Phase B --- depends on VM resize. See [SESSION_15.md](SESSION_15.md) |
+| Video subsystem (HLS pipeline) | Planned | Phase B --- depends on VM resize (plan was in former `SESSION_15.md`, consolidated 2026-06-03) |

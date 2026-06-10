@@ -8,7 +8,9 @@
 Internal company portal replacing SharePoint. Staff land here daily for announcements, knowledge base, AML/fees dashboards, valuation tool, Group Dashboard, Task Manager, and IT support. LAN-only, self-hosted.
 
 > **Long-term planning (200 users, 3-year horizon, VM sizing, video roadmap):**
-> see **[SESSION_15.md](SESSION_15.md)** --- the canonical capacity & architecture reference.
+> session summaries are inline in **[NEXT_SESSION.md](NEXT_SESSION.md)**. The detailed
+> capacity & architecture doc (`SESSION_15.md`) was consolidated away on 2026-06-03
+> (commit 358efa1); its §-numbered detail was not migrated.
 
 ---
 

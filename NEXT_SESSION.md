@@ -19,16 +19,11 @@
 
 ---
 
-## ⚠️ Deploy steps pending for the latest commit
+## Deploy status
 
-The latest push bundles two changes that need server-side action:
-
-- **Dashboard TID grouping** — companies-api now stores a new `dashboard_tid` column.
-  On deploy run a **full re-sync** so existing rows pick up the field:
-  `cd ~/treppides-hub/api/companies && venv/bin/python sync.py --full && sudo systemctl restart companies-api`
-  (`init_db()` auto-adds the column; `--full` backfills it). No nginx change.
-- **Security audit fixes** — restart `clickup-fees` (H1/M1/M2 server-side) and hard-refresh
-  the frontend (H2/M3). No DB change.
+Latest commit (`6202295`, 2026-06-09) is **fully deployed** — Dashboard TID `--full`
+re-sync run, `companies-api` + `clickup-fees` restarted, frontend hard-refreshed.
+No deploy steps pending.
 
 ---
 
