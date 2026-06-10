@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Performance Report — Treppides Hub</title>
+
+  <link rel="stylesheet" href="styles/theme.css" />
+  <link rel="stylesheet" href="styles/base.css" />
+  <link rel="stylesheet" href="styles/layout.css" />
+  <link rel="stylesheet" href="styles/cards.css" />
+  <link rel="stylesheet" href="styles/pages/performance.css" />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+</head>
+<body>
+
+  <!-- ============================================================
+       Mobile top bar
+       ============================================================ -->
+  <div class="mobile-topbar">
+    <div class="mobile-logo">
+      <img src="logo.png" alt="K. Treppides &amp; Co" class="mobile-logo-img" />
+    </div>
+    <button class="burger" id="burger-btn" aria-label="Toggle navigation">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="3" y1="6"  x2="21" y2="6"/>
+        <line x1="3" y1="12" x2="21" y2="12"/>
+        <line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
+  </div>
+  <nav class="mobile-nav" id="mobile-nav">
+    <a class="nav-item" href="index.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+      </svg>
+      Hub Home
+    </a>
+    <a class="nav-item active" href="performance.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="20" x2="18" y2="10"/>
+        <line x1="12" y1="20" x2="12" y2="4"/>
+        <line x1="6"  y1="20" x2="6"  y2="14"/>
+      </svg>
+      Performance
+    </a>
+  </nav>
+
+  <!-- ============================================================
+       App shell
+       ============================================================ -->
+  <div class="app-shell">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <img src="logo.png" alt="K. Treppides &amp; Co" class="sidebar-logo-img" />
+        <span class="sidebar-portal-label">Internal Portal</span>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-label">Navigation</div>
+
+        <a class="nav-item" href="index.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          </svg>
+          Hub Home
+        </a>
+
+        <div class="nav-label" style="margin-top:8px;">Reports</div>
+
+        <a class="nav-item active" href="performance.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="20" x2="18" y2="10"/>
+            <line x1="12" y1="20" x2="12" y2="4"/>
+            <line x1="6"  y1="20" x2="6"  y2="14"/>
+          </svg>
+          Performance
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <span class="version">Treppides Hub</span>
+      </div>
+    </aside>
+
+    <!-- Main content -->
+    <main class="main">
+
+      <!-- Top header bar -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1>Performance Report</h1>
+          <p id="topbar-subtitle">Chargeability — current month</p>
+        </div>
+        <div class="topbar-right">
+          <button id="hub-signout" class="topbar-signout" title="Sign out">↪ Sign out</button>
+        </div>
+      </header>
+
+      <!-- Page body -->
+      <div class="perf-page" id="perf-page">
+
+        <div class="perf-header">
+          <div class="perf-header-left">
+            <h2 id="perf-section-heading">My Performance</h2>
+            <p id="perf-period-label">Loading period…</p>
+          </div>
+          <div class="period-toggle">
+            <button class="period-btn active" id="btn-month" data-period="month">Current Month</button>
+            <button class="period-btn"        id="btn-ytd"   data-period="ytd">Year to Date</button>
+          </div>
+        </div>
+
+        <!-- Self card mount point -->
+        <div class="perf-self-section" id="self-section">
+          <div class="perf-loading">
+            <div class="spinner"></div>
+            Loading your data…
+          </div>
+        </div>
+
+        <!-- Team section (hidden until we know manager status) -->
+        <div class="perf-team-section" id="team-section" style="display:none;"></div>
+
+      </div><!-- /perf-page -->
+
+    </main>
+  </div><!-- /app-shell -->
+
+  <!-- Dev switcher — injected by JS only on localhost -->
+  <div id="dev-switcher" style="display:none;">
+    <div class="dev-label">Dev: Impersonate</div>
+    <select id="dev-employee-select">
+      <option value="">Loading employees…</option>
+    </select>
+  </div>
+
+  <script type="module" src="js/performance.js"></script>
+
+  <script>
+    // Burger toggle for mobile nav
+    document.getElementById("burger-btn")?.addEventListener("click", () => {
+      document.getElementById("mobile-nav")?.classList.toggle("open");
+    });
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,294 @@
+// ============================================================
+// js/performance.js — Employee Performance Report page.
+// Fetches chargeability data from TM backend and renders cards.
+// Dev mode: dev switcher shown on localhost, sends X-Dev-User-Code.
+// ============================================================
+
+import { initAuth, signOut } from './auth.js';
+
+const TM_BASE = window.location.hostname === 'localhost'
+  ? 'http://localhost:8080'
+  : '/projects';
+
+const IS_DEV = window.location.hostname === 'localhost';
+
+let devUserCode = null;
+let currentPeriod = 'month';
+
+// ---- Boot --------------------------------------------------
+
+(async function boot() {
+  const user = await initAuth();
+  if (!user) return; // redirect in flight
+
+  document.getElementById('hub-signout')?.addEventListener('click', signOut);
+
+  // Show dev switcher and populate it
+  if (IS_DEV) {
+    initDevSwitcher();
+  }
+
+  // Wire period toggle buttons
+  document.getElementById('btn-month')?.addEventListener('click', () => setPeriod('month'));
+  document.getElementById('btn-ytd')?.addEventListener('click',   () => setPeriod('ytd'));
+
+  await loadAndRender();
+})();
+
+// ---- Period toggle -----------------------------------------
+
+function setPeriod(period) {
+  currentPeriod = period;
+  document.getElementById('btn-month')?.classList.toggle('active', period === 'month');
+  document.getElementById('btn-ytd')?.classList.toggle('active',   period === 'ytd');
+  const subtitle = document.getElementById('topbar-subtitle');
+  if (subtitle) subtitle.textContent = period === 'ytd'
+    ? 'Chargeability — year to date'
+    : 'Chargeability — current month';
+  loadAndRender();
+}
+
+// ---- Main load/render loop ---------------------------------
+
+async function loadAndRender() {
+  setSelfLoading();
+  clearTeam();
+
+  let card;
+  try {
+    card = await apiFetch(`/api/reports/performance/me?period=${currentPeriod}`);
+  } catch (err) {
+    setSelfError(err.message);
+    return;
+  }
+
+  renderSelfCard(card);
+  updatePeriodLabel(card);
+
+  if (card.isManager) {
+    setTeamLoading();
+    try {
+      const teamCard = await apiFetch(`/api/reports/performance/team?period=${currentPeriod}`);
+      renderTeamSection(teamCard);
+    } catch (err) {
+      setTeamError(err.message);
+    }
+  }
+}
+
+// ---- API helper --------------------------------------------
+
+async function apiFetch(path) {
+  const headers = { 'X-Requested-With': 'XMLHttpRequest' };
+  if (IS_DEV && devUserCode) {
+    headers['X-Dev-User-Code'] = devUserCode;
+  }
+
+  const res = await fetch(`${TM_BASE}${path}`, { credentials: 'include', headers });
+
+  if (res.status === 401) {
+    sessionStorage.setItem('hub_pre_login_url', window.location.href);
+    window.location.href = '/login.html';
+    throw new Error('Redirecting to login');
+  }
+  if (res.status === 403) throw new Error('FORBIDDEN');
+  if (res.status === 404) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.message === 'NON_CHARGEABLE_ROLE'
+      ? 'NON_CHARGEABLE_ROLE'
+      : 'NOT_FOUND');
+  }
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+// ---- Render: self card -------------------------------------
+
+function renderSelfCard(card) {
+  const section = document.getElementById('self-section');
+  if (!section) return;
+
+  if (card.badge === 'EXEMPT') {
+    section.innerHTML = `
+      <div class="perf-exempt">
+        <strong>${esc(card.employeeName)}</strong> is currently on maternity leave.
+        No chargeability report for this period.
+      </div>`;
+    return;
+  }
+
+  section.innerHTML = `
+    <div class="perf-card" role="region" aria-label="My chargeability">
+      <div class="perf-card-body">
+        <div class="perf-card-name">${esc(card.employeeName)}</div>
+        <div class="perf-card-meta">
+          <span>${esc(card.jobTitle)}</span>
+          <span>${esc(card.team)}</span>
+          <span>${esc(card.location)}</span>
+        </div>
+        <div class="perf-card-meta" style="margin-top:2px;">
+          <span>EL: ${esc(card.engagementLeader)}</span>
+          <span>Level: ${esc(card.level)}</span>
+          <span>${card.weeksInPeriod} weeks</span>
+        </div>
+        <div class="perf-hrs-row">
+          <div class="perf-hrs-item">
+            <span class="perf-hrs-label">Actual</span>
+            <span class="perf-hrs-value">${card.actualHrs.toFixed(1)} h</span>
+          </div>
+          <div class="perf-hrs-item">
+            <span class="perf-hrs-label">Available</span>
+            <span class="perf-hrs-value">${card.availableHrsPeriod.toFixed(1)} h</span>
+          </div>
+          <div class="perf-hrs-item">
+            <span class="perf-hrs-label">Target</span>
+            <span class="perf-hrs-value">${card.targetHrsPeriod.toFixed(1)} h</span>
+          </div>
+        </div>
+        <div class="perf-target-line">
+          Target chargeability: <strong>${card.targetPct.toFixed(1)}%</strong>
+        </div>
+      </div>
+      <div class="perf-gauge-wrap">
+        <div class="perf-pct ${card.badge}">${card.chargeabilityPct.toFixed(1)}%</div>
+        <span class="perf-badge ${card.badge}">${card.badge}</span>
+      </div>
+    </div>`;
+}
+
+// ---- Render: team section ----------------------------------
+
+function renderTeamSection(teamCard) {
+  const section = document.getElementById('team-section');
+  if (!section) return;
+  section.style.display = '';
+
+  const summary = teamCard.teamSummary || {};
+  const reports = teamCard.directReports || [];
+
+  const summaryHtml = `
+    <div class="perf-summary-bar">
+      <span class="perf-summary-chip green">${summary.greenCount ?? 0} Green</span>
+      <span class="perf-summary-chip amber">${summary.amberCount ?? 0} Amber</span>
+      <span class="perf-summary-chip red">${summary.redCount ?? 0} Red</span>
+    </div>`;
+
+  const cardsHtml = reports.map(r => {
+    const pctDisplay = r.badge === 'EXEMPT'
+      ? `<div class="perf-mini-pct EXEMPT">Exempt</div>`
+      : `<div class="perf-mini-pct ${r.badge}">${r.chargeabilityPct.toFixed(1)}%</div>
+         <span class="perf-badge ${r.badge}" style="font-size:10px;">${r.badge}</span>`;
+    return `
+      <div class="perf-mini-card">
+        <div class="perf-mini-info">
+          <div class="perf-mini-name">${esc(r.employeeName)}</div>
+          <div class="perf-mini-title">${esc(r.jobTitle || r.level)}</div>
+          <div class="perf-mini-hrs">${r.actualHrs.toFixed(1)} / ${r.availableHrsPeriod.toFixed(1)} h</div>
+        </div>
+        <div class="perf-mini-gauge">
+          ${pctDisplay}
+        </div>
+      </div>`;
+  }).join('');
+
+  section.innerHTML = `
+    <div class="perf-section-title">My Team</div>
+    <div class="perf-team-header">
+      <h3>${reports.length} Direct Report${reports.length !== 1 ? 's' : ''}</h3>
+      <div class="perf-team-avg">
+        Team avg:
+        <strong class="perf-pct ${summary.badge || ''}"
+                style="font-size:16px;">${(summary.teamAvgPct || 0).toFixed(1)}%</strong>
+        <span class="perf-badge ${summary.badge || ''}" style="font-size:11px;">${summary.badge || ''}</span>
+      </div>
+    </div>
+    ${summaryHtml}
+    <div class="perf-team-grid">${cardsHtml}</div>`;
+}
+
+// ---- Period label ------------------------------------------
+
+function updatePeriodLabel(card) {
+  const label = document.getElementById('perf-period-label');
+  if (!label || !card.period) return;
+  const [start, end] = card.period.split('/');
+  const fmt = d => new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  label.textContent = `${fmt(start)} – ${fmt(end)}`;
+}
+
+// ---- State helpers -----------------------------------------
+
+function setSelfLoading() {
+  const el = document.getElementById('self-section');
+  if (el) el.innerHTML = `<div class="perf-loading"><div class="spinner"></div>Loading your data…</div>`;
+}
+
+function setSelfError(msg) {
+  const el = document.getElementById('self-section');
+  if (!el) return;
+  if (msg === 'NON_CHARGEABLE_ROLE') {
+    el.innerHTML = `<div class="perf-exempt">Your role is not included in the chargeability report.</div>`;
+  } else {
+    el.innerHTML = `<div class="perf-error">Could not load performance data. Please try again later.<br><small>${esc(msg)}</small></div>`;
+  }
+}
+
+function clearTeam() {
+  const el = document.getElementById('team-section');
+  if (el) { el.innerHTML = ''; el.style.display = 'none'; }
+}
+
+function setTeamLoading() {
+  const el = document.getElementById('team-section');
+  if (el) {
+    el.style.display = '';
+    el.innerHTML = `<div class="perf-loading"><div class="spinner"></div>Loading team data…</div>`;
+  }
+}
+
+function setTeamError(msg) {
+  const el = document.getElementById('team-section');
+  if (el) el.innerHTML = `<div class="perf-error">Could not load team data. (${esc(msg)})</div>`;
+}
+
+// ---- Dev switcher ------------------------------------------
+
+async function initDevSwitcher() {
+  const panel = document.getElementById('dev-switcher');
+  if (!panel) return;
+  panel.style.display = '';
+
+  let employees;
+  try {
+    employees = await fetch(`${TM_BASE}/api/reports/performance/employees`, {
+      credentials: 'include',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    }).then(r => r.ok ? r.json() : []);
+  } catch {
+    employees = [];
+  }
+
+  const select = document.getElementById('dev-employee-select');
+  if (!select) return;
+
+  select.innerHTML = `<option value="">— Real login —</option>` +
+    employees.map(e =>
+      `<option value="${esc(e.esoft_code)}">${esc(e.employee_name)} (${esc(e.esoft_code)})</option>`
+    ).join('');
+
+  select.addEventListener('change', () => {
+    devUserCode = select.value || null;
+    loadAndRender();
+  });
+}
+
+// ---- Utility -----------------------------------------------
+
+function esc(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
