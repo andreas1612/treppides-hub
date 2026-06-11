@@ -3,20 +3,18 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Performance Report — Treppides Hub</title>
+  <title>Manager KPI — Treppides Hub</title>
 
   <link rel="stylesheet" href="styles/theme.css" />
   <link rel="stylesheet" href="styles/base.css" />
   <link rel="stylesheet" href="styles/layout.css" />
   <link rel="stylesheet" href="styles/cards.css" />
-  <link rel="stylesheet" href="styles/pages/performance.css" />
+  <link rel="stylesheet" href="styles/pages/manager-kpi.css" />
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
 </head>
 <body>
 
-  <!-- ============================================================
-       Mobile top bar
-       ============================================================ -->
+  <!-- Mobile top bar -->
   <div class="mobile-topbar">
     <div class="mobile-logo">
       <img src="logo.png" alt="K. Treppides &amp; Co" class="mobile-logo-img" />
@@ -38,7 +36,7 @@
       </svg>
       Hub Home
     </a>
-    <a class="nav-item active" href="performance.html">
+    <a class="nav-item" href="performance.html">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
            stroke-linecap="round" stroke-linejoin="round">
         <line x1="18" y1="20" x2="18" y2="10"/>
@@ -47,7 +45,7 @@
       </svg>
       Performance
     </a>
-    <a class="nav-item" href="manager-kpi.html">
+    <a class="nav-item active" href="manager-kpi.html">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
            stroke-linecap="round" stroke-linejoin="round">
         <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
@@ -56,9 +54,7 @@
     </a>
   </nav>
 
-  <!-- ============================================================
-       App shell
-       ============================================================ -->
+  <!-- App shell -->
   <div class="app-shell">
 
     <!-- Sidebar -->
@@ -81,7 +77,7 @@
 
         <div class="nav-label" style="margin-top:8px;">Reports</div>
 
-        <a class="nav-item active" href="performance.html">
+        <a class="nav-item" href="performance.html">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                stroke-linecap="round" stroke-linejoin="round">
             <line x1="18" y1="20" x2="18" y2="10"/>
@@ -91,7 +87,7 @@
           Performance
         </a>
 
-        <a class="nav-item" href="manager-kpi.html">
+        <a class="nav-item active" href="manager-kpi.html">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
@@ -108,61 +104,38 @@
     <!-- Main content -->
     <main class="main">
 
-      <!-- Top header bar -->
       <header class="topbar">
         <div class="topbar-left">
-          <h1>Performance Report</h1>
-          <p id="topbar-subtitle">Chargeability — current month</p>
+          <h1>Manager KPI</h1>
+          <p id="topbar-subtitle">Budget vs Invoiced</p>
         </div>
         <div class="topbar-right">
-          <button id="hub-signout" class="topbar-signout" title="Sign out">↪ Sign out</button>
+          <select class="kpi-year-select" id="year-select"></select>
+          <button id="hub-signout" class="topbar-signout" title="Sign out">&#8618; Sign out</button>
         </div>
       </header>
 
-      <!-- Page body -->
-      <div class="perf-page" id="perf-page">
+      <div class="kpi-page" id="kpi-page">
 
-        <div class="perf-header">
-          <div class="perf-header-left">
-            <h2 id="perf-section-heading">My Performance</h2>
-            <p id="perf-period-label">Loading period…</p>
-          </div>
-          <div class="period-toggle">
-            <select class="period-select" id="period-select">
-              <option value="month">Current Month</option>
-            </select>
-            <button class="period-btn" id="btn-ytd" data-period="ytd">Year to Date</button>
-          </div>
-        </div>
-
-        <!-- Self card mount point -->
-        <div class="perf-self-section" id="self-section">
+        <!-- Summary card -->
+        <div class="kpi-summary-section" id="summary-section">
           <div class="perf-loading">
             <div class="spinner"></div>
-            Loading your data…
+            Loading your KPI data...
           </div>
         </div>
 
-        <!-- Team section (hidden until we know manager status) -->
-        <div class="perf-team-section" id="team-section" style="display:none;"></div>
+        <!-- Monthly breakdown table -->
+        <div class="kpi-table-section" id="table-section"></div>
 
-      </div><!-- /perf-page -->
+      </div>
 
     </main>
-  </div><!-- /app-shell -->
-
-  <!-- Dev switcher — injected by JS only on localhost -->
-  <div id="dev-switcher" style="display:none;">
-    <div class="dev-label">Dev: Impersonate</div>
-    <select id="dev-employee-select">
-      <option value="">Loading employees…</option>
-    </select>
   </div>
 
-  <script type="module" src="js/performance.js"></script>
+  <script type="module" src="js/manager-kpi.js"></script>
 
   <script>
-    // Burger toggle for mobile nav
     document.getElementById("burger-btn")?.addEventListener("click", () => {
       document.getElementById("mobile-nav")?.classList.toggle("open");
     });

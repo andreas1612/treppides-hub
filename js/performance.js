@@ -8,12 +8,14 @@ import { initAuth, signOut } from './auth.js';
 
 const TM_BASE = window.location.hostname === 'localhost'
   ? 'http://localhost:8080'
-  : '/projects';
+  : 'https://tasks.treppides.com';
 
 const IS_DEV = window.location.hostname === 'localhost';
 
 let devUserCode = null;
 let currentPeriod = 'month';
+let currentYear = null;
+let currentMonth = null;
 
 // ---- Boot --------------------------------------------------
 
@@ -28,9 +30,29 @@ let currentPeriod = 'month';
     initDevSwitcher();
   }
 
-  // Wire period toggle buttons
-  document.getElementById('btn-month')?.addEventListener('click', () => setPeriod('month'));
-  document.getElementById('btn-ytd')?.addEventListener('click',   () => setPeriod('ytd'));
+  // Build month picker options
+  initMonthPicker();
+
+  // Wire period toggle
+  document.getElementById('period-select')?.addEventListener('change', (e) => {
+    const val = e.target.value;
+    if (val === 'month') {
+      currentYear = null;
+      currentMonth = null;
+    } else {
+      const [y, m] = val.split('-');
+      currentYear = parseInt(y);
+      currentMonth = parseInt(m);
+    }
+    setPeriod('month');
+  });
+  document.getElementById('btn-ytd')?.addEventListener('click', () => {
+    currentYear = null;
+    currentMonth = null;
+    const sel = document.getElementById('period-select');
+    if (sel) sel.value = 'month';
+    setPeriod('ytd');
+  });
 
   await loadAndRender();
 })();
@@ -39,13 +61,36 @@ let currentPeriod = 'month';
 
 function setPeriod(period) {
   currentPeriod = period;
-  document.getElementById('btn-month')?.classList.toggle('active', period === 'month');
-  document.getElementById('btn-ytd')?.classList.toggle('active',   period === 'ytd');
+  const select = document.getElementById('period-select');
+  const ytdBtn = document.getElementById('btn-ytd');
+  if (select) select.classList.toggle('active', period === 'month');
+  if (ytdBtn) ytdBtn.classList.toggle('active', period === 'ytd');
   const subtitle = document.getElementById('topbar-subtitle');
-  if (subtitle) subtitle.textContent = period === 'ytd'
-    ? 'Chargeability — year to date'
-    : 'Chargeability — current month';
+  if (subtitle) {
+    if (period === 'ytd') {
+      subtitle.textContent = 'Chargeability — year to date';
+    } else if (currentYear && currentMonth) {
+      const dt = new Date(currentYear, currentMonth - 1);
+      subtitle.textContent = `Chargeability — ${dt.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}`;
+    } else {
+      subtitle.textContent = 'Chargeability — current month';
+    }
+  }
   loadAndRender();
+}
+
+function initMonthPicker() {
+  const select = document.getElementById('period-select');
+  if (!select) return;
+  const now = new Date();
+  const months = [];
+  for (let i = 1; i <= 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i);
+    months.push({ year: d.getFullYear(), month: d.getMonth() + 1, label: d.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }) });
+  }
+  select.innerHTML = `<option value="month">Current Month</option>` +
+    months.map(m => `<option value="${m.year}-${m.month}">${m.label}</option>`).join('');
+  select.classList.add('active');
 }
 
 // ---- Main load/render loop ---------------------------------
@@ -54,9 +99,14 @@ async function loadAndRender() {
   setSelfLoading();
   clearTeam();
 
+  let qs = `period=${currentPeriod}`;
+  if (currentPeriod === 'month' && currentYear && currentMonth) {
+    qs += `&year=${currentYear}&month=${currentMonth}`;
+  }
+
   let card;
   try {
-    card = await apiFetch(`/api/reports/performance/me?period=${currentPeriod}`);
+    card = await apiFetch(`/api/reports/performance/me?${qs}`);
   } catch (err) {
     setSelfError(err.message);
     return;
@@ -68,7 +118,7 @@ async function loadAndRender() {
   if (card.isManager) {
     setTeamLoading();
     try {
-      const teamCard = await apiFetch(`/api/reports/performance/team?period=${currentPeriod}`);
+      const teamCard = await apiFetch(`/api/reports/performance/team?${qs}`);
       renderTeamSection(teamCard);
     } catch (err) {
       setTeamError(err.message);
@@ -117,6 +167,18 @@ function renderSelfCard(card) {
     return;
   }
 
+  const breakdownHtml = (card.companyBreakdown && card.companyBreakdown.length > 0)
+    ? `<div class="perf-breakdown">
+        <div class="perf-breakdown-title">Hours by Client</div>
+        <div class="perf-breakdown-list">
+          ${card.companyBreakdown.map(c => `
+            <div class="perf-breakdown-row">
+              <span class="perf-breakdown-company">${esc(c.company)}</span>
+              <span class="perf-breakdown-hrs">${c.hours.toFixed(1)} h</span>
+            </div>`).join('')}
+        </div>
+      </div>` : '';
+
   section.innerHTML = `
     <div class="perf-card" role="region" aria-label="My chargeability">
       <div class="perf-card-body">
@@ -148,6 +210,7 @@ function renderSelfCard(card) {
         <div class="perf-target-line">
           Target chargeability: <strong>${card.targetPct.toFixed(1)}%</strong>
         </div>
+        ${breakdownHtml}
       </div>
       <div class="perf-gauge-wrap">
         <div class="perf-pct ${card.badge}">${card.chargeabilityPct.toFixed(1)}%</div>

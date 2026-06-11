@@ -10,7 +10,7 @@
 
 const TM_BASE = window.location.hostname === "localhost"
   ? "http://localhost:8080"
-  : "/projects";
+  : "https://tasks.treppides.com";
 
 let _user = null;
 
