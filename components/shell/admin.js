@@ -18,7 +18,7 @@ function textToHtml(text) {
   return text
     .trim()
     .split(/\n{2,}/)
-    .map(para => `<p>${para.trim().replace(/\n/g, "<br>")}</p>`)
+    .map(para => `<p>${escapeHtml(para.trim()).replace(/\n/g, "<br>")}</p>`)
     .join("\n");
 }
 

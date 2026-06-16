@@ -38,6 +38,15 @@ function sanitizeHtml(htmlString) {
   // Remove script and style tags
   doc.querySelectorAll("script, style").forEach(el => el.remove());
 
+  // Strip event-handler attributes (onerror, onclick, onload, etc.)
+  doc.body.querySelectorAll("*").forEach(el => {
+    for (const attr of [...el.attributes]) {
+      if (attr.name.toLowerCase().startsWith("on")) {
+        el.removeAttribute(attr.name);
+      }
+    }
+  });
+
   // Walk every element
   doc.body.querySelectorAll("*").forEach(el => {
     // Strip inline style attributes
@@ -187,7 +196,12 @@ function esc(str) {
     .replace(/>/g, "&gt;");
 }
 function escAttr(str) {
-  return String(str || "").replace(/"/g, "&quot;");
+  return String(str || "")
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 // ── Count pages in a book contents array ─────────────────────

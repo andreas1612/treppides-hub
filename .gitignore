@@ -32,8 +32,9 @@ DATABASE_INSTRUCTIONS.md
 # Local working-session notes (handoff scratchpad) — not for the repo.
 LOCAL_SESSION.md
 
-# Raw data files
+# Raw data files — PII, never commit
 staff.xlsx
+staff.json
 media/images/
 media/videos/
 

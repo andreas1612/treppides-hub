@@ -6,7 +6,7 @@ import { initAuth, signOut } from './auth.js';
 
 const TM_BASE = window.location.hostname === 'localhost'
   ? 'http://localhost:8080'
-  : 'https://tasks.treppides.com';
+  : '/projects';
 
 let currentYear = new Date().getFullYear();
 

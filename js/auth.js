@@ -10,7 +10,7 @@
 
 const TM_BASE = window.location.hostname === "localhost"
   ? "http://localhost:8080"
-  : "https://tasks.treppides.com";
+  : "/projects";
 
 let _user = null;
 
@@ -46,9 +46,9 @@ export async function initAuth() {
     return null;
 
   } catch {
-    // TM unreachable (local dev with TM stopped) — fail open so hub still loads.
-    console.warn("[hub-auth] Task Manager unreachable — running unauthenticated.");
-    return { email: "", name: "" };
+    console.error("[hub-auth] Task Manager unreachable.");
+    document.body.innerHTML = '<div style="padding:2rem;text-align:center"><h2>Service unavailable</h2><p>Authentication service is unreachable. Please try again later.</p></div>';
+    throw new Error("Auth service unreachable");
   }
 }
 

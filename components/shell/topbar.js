@@ -7,6 +7,7 @@
 import CONFIG from "../../config.js";
 import { searchPages } from "../../api/bookstack.js";
 import { signOut } from "../../js/auth.js";
+import { escapeHtml } from "../../utils/dom.js";
 
 const SEARCH_STYLES = `
   .search-wrap {
@@ -105,8 +106,8 @@ function renderResults(results) {
   }
   return results.slice(0, 5).map((r, i) => `
     <div class="sd-item" role="button" tabindex="0" data-idx="${i}">
-      <span class="sd-title">${r.name || r.title || "Untitled"}</span>
-      <span class="sd-book">${r.book_title || r.book?.name || ""}</span>
+      <span class="sd-title">${escapeHtml(r.name || r.title || "Untitled")}</span>
+      <span class="sd-book">${escapeHtml(r.book_title || r.book?.name || "")}</span>
     </div>`).join("");
 }
 

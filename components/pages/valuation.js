@@ -3215,13 +3215,24 @@ function bootValuation() {
         // re-importing yesterday's snapshot shows yesterday's numbers,
         // even if Damodaran data has changed since.
         if (snapshot.outputs) {
+            // Sanitize imported HTML to prevent XSS from crafted snapshots
+            const sanitizeSnapshotHtml = (raw) => {
+                const doc = new DOMParser().parseFromString(raw, "text/html");
+                doc.querySelectorAll("script, style").forEach(n => n.remove());
+                doc.body.querySelectorAll("*").forEach(n => {
+                    for (const a of [...n.attributes]) {
+                        if (a.name.toLowerCase().startsWith("on")) n.removeAttribute(a.name);
+                    }
+                });
+                return doc.body.innerHTML;
+            };
             Object.entries(snapshot.outputs.tables || {}).forEach(([id, html]) => {
                 const el = document.getElementById(id);
-                if (el) el.innerHTML = html;
+                if (el) el.innerHTML = sanitizeSnapshotHtml(html);
             });
             Object.entries(snapshot.outputs.texts || {}).forEach(([id, html]) => {
                 const el = document.getElementById(id);
-                if (el) el.innerHTML = html;
+                if (el) el.innerHTML = sanitizeSnapshotHtml(html);
             });
         }
 
