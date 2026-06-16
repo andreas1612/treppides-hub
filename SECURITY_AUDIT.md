@@ -1443,7 +1443,7 @@ curl -s --connect-timeout 3 http://192.168.0.221:8080/ 2>&1 | head -1           
 | 41 | MEDIUM | Backup copies secrets in plaintext | PENDING | | |
 | 42 | MEDIUM | SSH config perms + git SSL verify | DONE | 2026-06-16 | chmod 600, git sslVerify=true |
 | 43 | MEDIUM | No CSRF on Flask fee adjustments | PENDING | | |
-| 44 | MEDIUM | Orphan Flask processes | DONE | 2026-06-16 | All killed, ports 9091/9092 freed |
+| 44 | MEDIUM | Orphan Flask processes | DONE | 2026-06-16 | Killed. Flask tester needs to be re-integrated into hub as admin-only feature |
 | 45 | LOW | chmod 600 on credential files | DONE | 2026-06-16 | All 8 files set to 600 |
 | 46 | LOW | System.out.println in production | PENDING | | |
 | 47 | LOW | spring-boot-devtools in pom.xml | PENDING | | |
