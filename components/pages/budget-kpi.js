@@ -174,10 +174,10 @@ async function loadManagers() {
   const prevCode = selectedCode;
   select.innerHTML = `<option value="">Select manager...</option>` +
     managers.map(m =>
-      `<option value="${escapeHtml(m.esoft_code)}">${escapeHtml(m.manager_name)} (${escapeHtml(m.department || "")})</option>`
+      `<option value="${escapeHtml(m.invoice_code)}">${escapeHtml(m.manager_name)} (${escapeHtml(m.department || "")})</option>`
     ).join("");
 
-  if (prevCode && managers.some(m => m.esoft_code === prevCode)) {
+  if (prevCode && managers.some(m => m.invoice_code === prevCode)) {
     select.value = prevCode;
     selectedCode = prevCode;
   } else if (prevCode) {
