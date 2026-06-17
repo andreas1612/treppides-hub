@@ -1172,7 +1172,7 @@ Using `System.out.println` instead of SLF4J bypasses log level controls and rota
 | Step | Fix # | Description | Where |
 |---|---|---|---|
 | A1 | 45 | `chmod 600` on all credential-bearing files | Shell |
-| A2 | 32 | Block `config.js` from nginx (`location = /config.js { deny all; }`) | nginx |
+| A2 | 32 | ~~Block `config.js` from nginx~~ REVERTED — breaks SPA, admin-only auth mitigates | nginx |
 | A3 | 44 | Kill orphan Flask processes | Shell |
 | A4 | 29 | Add `server.address=127.0.0.1` to application.properties | TM properties |
 | A5 | 31 | Set `show-sql=false` | TM properties |
@@ -1230,7 +1230,7 @@ Using `System.out.println` instead of SLF4J bypasses log level controls and rota
 | E3 | 38,39 | Add CSP + Permissions-Policy to tasks.treppides.com | nginx |
 | E4 | 12 | Remove deprecated X-XSS-Protection | nginx |
 | E5 | 30 | Rotate Docker service credentials | bookstack + openproject |
-| E6 | 18,19 | Fix Flask tester (bind localhost, default prod auth) | `~/performance-tester` |
+| E6 | 18,19 | ~~Fix Flask tester~~ N/A — Flask tester killed, replaced by hub | N/A |
 | E7 | 3 | Enable CSRF (do separately, test carefully) | TM Java |
 | E8 | 37 | Remove trustServerCertificate=true from JDBC | TM properties |
 
@@ -1417,8 +1417,8 @@ curl -s --connect-timeout 3 http://192.168.0.221:8080/ 2>&1 | head -1           
 | 15 | CRITICAL | IDOR — add authorization to TaskController | PENDING | | |
 | 16 | CRITICAL | Derive changedBy/createdBy from session | PENDING | | |
 | 17 | CRITICAL | Remove credentials from markdown docs | PENDING | | |
-| 18 | CRITICAL | Flask tester zero auth + all interfaces | PENDING | | |
-| 19 | CRITICAL | Flask dev auth defaults to on | PENDING | | |
+| 18 | CRITICAL | Flask tester zero auth + all interfaces | N/A | 2026-06-16 | Flask tester killed — replaced by hub |
+| 19 | CRITICAL | Flask dev auth defaults to on | N/A | 2026-06-16 | Flask tester killed — replaced by hub |
 | 20 | CRITICAL | BookStack tokens + PIN in config.js | DEFERRED | 2026-06-16 | Will rotate after app is feature-complete |
 | 21 | HIGH | XSS — reader sanitizeHtml event handlers | DONE | 2026-06-16 | Strip all on* attributes via DOM walk |
 | 22 | HIGH | XSS — topbar search results | DONE | 2026-06-16 | escapeHtml() on result names/titles |
@@ -1431,7 +1431,7 @@ curl -s --connect-timeout 3 http://192.168.0.221:8080/ 2>&1 | head -1           
 | 29 | HIGH | Spring Boot bound to all interfaces | DONE | 2026-06-16 | server.address=127.0.0.1, verified loopback only |
 | 30 | HIGH | Docker weak/placeholder credentials | PENDING | | |
 | 31 | HIGH | show-sql=true in production | DONE | 2026-06-16 | Set to false |
-| 32 | HIGH | config.js servable from web root | DONE | 2026-06-16 | nginx location = /config.js deny all; returns 403 |
+| 32 | HIGH | config.js servable from web root | REVERTED | 2026-06-16 | Broke SPA (main.js imports config.js). Admin-only auth mitigates. |
 | 33 | MEDIUM | No input validation on DTOs | PENDING | | |
 | 34 | MEDIUM | RuntimeException leaks internal details | PENDING | | |
 | 35 | MEDIUM | Incomplete escAttr() | DONE | 2026-06-16 | Full HTML entity escaping for &, ", ', <, > |
@@ -1443,7 +1443,7 @@ curl -s --connect-timeout 3 http://192.168.0.221:8080/ 2>&1 | head -1           
 | 41 | MEDIUM | Backup copies secrets in plaintext | PENDING | | |
 | 42 | MEDIUM | SSH config perms + git SSL verify | DONE | 2026-06-16 | chmod 600, git sslVerify=true |
 | 43 | MEDIUM | No CSRF on Flask fee adjustments | PENDING | | |
-| 44 | MEDIUM | Orphan Flask processes | DONE | 2026-06-16 | Killed. Flask tester needs to be re-integrated into hub as admin-only feature |
+| 44 | MEDIUM | Orphan Flask processes | DONE | 2026-06-16 | Killed. All features ported to hub (performance, budget KPI, fee adjustments) |
 | 45 | LOW | chmod 600 on credential files | DONE | 2026-06-16 | All 8 files set to 600 |
 | 46 | LOW | System.out.println in production | PENDING | | |
 | 47 | LOW | spring-boot-devtools in pom.xml | PENDING | | |
