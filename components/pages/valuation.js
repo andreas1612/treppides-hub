@@ -7,6 +7,8 @@
 // Mounts into: #section-valuation
 // ============================================================
 
+import { initValuationTour } from "./valuation-tour.js";
+
 const SECTION_ID  = "section-valuation";
 const BACK_BTN_ID = "valuation-back-btn";
 
@@ -3402,4 +3404,7 @@ function bootValuation() {
 
     // Boot — check for a draft once everything else is wired.
     checkForDraft();
+
+    // Guided tour: inject the Tutorial button + offer it to first-time users.
+    try { initValuationTour(); } catch (err) { console.error("Valuation: tour init failed", err); }
 }

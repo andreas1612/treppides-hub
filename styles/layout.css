@@ -308,6 +308,20 @@
 .main.valuation-active .reader-overlay   { display: none !important; }
 .main.valuation-active #section-valuation { display: block !important; }
 
+/* ============================================================
+   TB RATIO TOOL — dedicated full-page view
+   Upload an E-Soft trial balance → P&L, Balance Sheet & ratios.
+   Same show/hide pattern as kb-active / valuation-active.
+   ============================================================ */
+#section-tbratio {
+  display: none;
+  padding: var(--page-gutter, 32px);
+}
+
+.main.tbratio-active .page-content   { display: none !important; }
+.main.tbratio-active .reader-overlay { display: none !important; }
+.main.tbratio-active #section-tbratio { display: block !important; }
+
 .valuation-header-left {
   display: flex;
   align-items: center;

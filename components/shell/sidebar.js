@@ -159,6 +159,14 @@ const ICONS = {
              <line x1="12" y1="1" x2="12" y2="23"/>
              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
            </svg>`,
+
+  ledger: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+             <polyline points="14 2 14 8 20 8"/>
+             <line x1="8" y1="13" x2="16" y2="13"/>
+             <line x1="8" y1="17" x2="13" y2="17"/>
+           </svg>`,
 };
 
 // ---- Component ------------------------------------------------
@@ -213,6 +221,10 @@ export default async function init(config) {
           ${ICONS.search} Group Dashboard
         </button>
 
+        <button class="nav-item nav-btn" id="sb-tbratio">
+          ${ICONS.ledger} TB Ratio Tool
+        </button>
+
         <div class="nav-label" style="margin-top:12px;">Admin</div>
 
         <button class="nav-item nav-btn" id="sb-performance">
@@ -246,6 +258,7 @@ export default async function init(config) {
       if (window.__hub_projects)  window.__hub_projects.hide();
       if (window.__hub_valuation) window.__hub_valuation.hide();
       if (window.__hub_companies)    window.__hub_companies.hide();
+      if (window.__hub_tbratio)      window.__hub_tbratio.hide();
       if (window.__hub_performance)  window.__hub_performance.hide();
       if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
       if (window.__hub_reader)       window.__hub_reader.goHome();
@@ -261,6 +274,7 @@ export default async function init(config) {
       if (window.__hub_projects)  window.__hub_projects.hide();
       if (window.__hub_valuation) window.__hub_valuation.hide();
       if (window.__hub_companies)    window.__hub_companies.hide();
+      if (window.__hub_tbratio)      window.__hub_tbratio.hide();
       if (window.__hub_performance)  window.__hub_performance.hide();
       if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
       if (window.__hub_kb)           window.__hub_kb.show();
@@ -276,6 +290,7 @@ export default async function init(config) {
       if (window.__hub_projects)  window.__hub_projects.hide();
       if (window.__hub_valuation) window.__hub_valuation.hide();
       if (window.__hub_companies)    window.__hub_companies.hide();
+      if (window.__hub_tbratio)      window.__hub_tbratio.hide();
       if (window.__hub_performance)  window.__hub_performance.hide();
       if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
       if (window.__hub_staff)        window.__hub_staff.show();
@@ -292,6 +307,7 @@ export default async function init(config) {
       if (window.__hub_projects)  window.__hub_projects.hide();
       if (window.__hub_valuation) window.__hub_valuation.hide();
       if (window.__hub_companies)    window.__hub_companies.hide();
+      if (window.__hub_tbratio)      window.__hub_tbratio.hide();
       if (window.__hub_performance)  window.__hub_performance.hide();
       if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
       if (window.__hub_aml)          window.__hub_aml.show();
@@ -307,6 +323,7 @@ export default async function init(config) {
       if (window.__hub_kb)       window.__hub_kb.hide();
       if (window.__hub_valuation) window.__hub_valuation.hide();
       if (window.__hub_companies)    window.__hub_companies.hide();
+      if (window.__hub_tbratio)      window.__hub_tbratio.hide();
       if (window.__hub_performance)  window.__hub_performance.hide();
       if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
       if (window.__hub_projects)     window.__hub_projects.show();
@@ -322,6 +339,7 @@ export default async function init(config) {
       if (window.__hub_kb)        window.__hub_kb.hide();
       if (window.__hub_projects)  window.__hub_projects.hide();
       if (window.__hub_companies)    window.__hub_companies.hide();
+      if (window.__hub_tbratio)      window.__hub_tbratio.hide();
       if (window.__hub_performance)  window.__hub_performance.hide();
       if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
       if (window.__hub_valuation)    window.__hub_valuation.show();
@@ -337,6 +355,9 @@ export default async function init(config) {
       if (window.__hub_kb)        window.__hub_kb.hide();
       if (window.__hub_projects)  window.__hub_projects.hide();
       if (window.__hub_valuation) window.__hub_valuation.hide();
+      if (window.__hub_tbratio)      window.__hub_tbratio.hide();
+      if (window.__hub_performance)  window.__hub_performance.hide();
+      if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
       if (window.__hub_companies)    window.__hub_companies.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
@@ -351,6 +372,7 @@ export default async function init(config) {
       if (window.__hub_projects)     window.__hub_projects.hide();
       if (window.__hub_valuation)    window.__hub_valuation.hide();
       if (window.__hub_companies)    window.__hub_companies.hide();
+      if (window.__hub_tbratio)      window.__hub_tbratio.hide();
       if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
       if (window.__hub_performance)  window.__hub_performance.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -366,8 +388,25 @@ export default async function init(config) {
       if (window.__hub_projects)     window.__hub_projects.hide();
       if (window.__hub_valuation)    window.__hub_valuation.hide();
       if (window.__hub_companies)    window.__hub_companies.hide();
+      if (window.__hub_tbratio)      window.__hub_tbratio.hide();
       if (window.__hub_performance)  window.__hub_performance.hide();
       if (window.__hub_budgetkpi)    window.__hub_budgetkpi.show();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+
+    // TB Ratio Tool: open dedicated full-page trial-balance importer
+    document.getElementById("sb-tbratio")?.addEventListener("click", () => {
+      if (window.__hub_reader)    window.__hub_reader.goHome();
+      if (window.__hub_fees)      window.__hub_fees.hide();
+      if (window.__hub_aml)       window.__hub_aml.hide();
+      if (window.__hub_staff)     window.__hub_staff.hide();
+      if (window.__hub_kb)        window.__hub_kb.hide();
+      if (window.__hub_projects)  window.__hub_projects.hide();
+      if (window.__hub_valuation) window.__hub_valuation.hide();
+      if (window.__hub_companies) window.__hub_companies.hide();
+      if (window.__hub_performance) window.__hub_performance.hide();
+      if (window.__hub_budgetkpi) window.__hub_budgetkpi.hide();
+      if (window.__hub_tbratio)   window.__hub_tbratio.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
   }
@@ -412,6 +451,9 @@ export default async function init(config) {
         <button class="nav-item nav-btn" id="mb-companies">
           ${ICONS.search} Group Dashboard
         </button>
+        <button class="nav-item nav-btn" id="mb-tbratio">
+          ${ICONS.ledger} TB Ratio Tool
+        </button>
         <button class="nav-item nav-btn" id="mb-performance">
           ${ICONS.trendUp} Performance
         </button>
@@ -438,6 +480,7 @@ export default async function init(config) {
       if (window.__hub_projects)  window.__hub_projects.hide();
       if (window.__hub_valuation) window.__hub_valuation.hide();
       if (window.__hub_companies)    window.__hub_companies.hide();
+      if (window.__hub_tbratio)      window.__hub_tbratio.hide();
       if (window.__hub_performance)  window.__hub_performance.hide();
       if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
       if (window.__hub_reader)       window.__hub_reader.goHome();
@@ -453,6 +496,7 @@ export default async function init(config) {
       if (window.__hub_projects)  window.__hub_projects.hide();
       if (window.__hub_valuation) window.__hub_valuation.hide();
       if (window.__hub_companies)    window.__hub_companies.hide();
+      if (window.__hub_tbratio)      window.__hub_tbratio.hide();
       if (window.__hub_performance)  window.__hub_performance.hide();
       if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
       if (window.__hub_kb)           window.__hub_kb.show();
@@ -468,6 +512,7 @@ export default async function init(config) {
       if (window.__hub_projects)  window.__hub_projects.hide();
       if (window.__hub_valuation) window.__hub_valuation.hide();
       if (window.__hub_companies)    window.__hub_companies.hide();
+      if (window.__hub_tbratio)      window.__hub_tbratio.hide();
       if (window.__hub_performance)  window.__hub_performance.hide();
       if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
       if (window.__hub_staff)        window.__hub_staff.show();
@@ -484,6 +529,7 @@ export default async function init(config) {
       if (window.__hub_projects)  window.__hub_projects.hide();
       if (window.__hub_valuation) window.__hub_valuation.hide();
       if (window.__hub_companies)    window.__hub_companies.hide();
+      if (window.__hub_tbratio)      window.__hub_tbratio.hide();
       if (window.__hub_performance)  window.__hub_performance.hide();
       if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
       if (window.__hub_aml)          window.__hub_aml.show();
@@ -500,6 +546,7 @@ export default async function init(config) {
       if (window.__hub_kb)           window.__hub_kb.hide();
       if (window.__hub_valuation)    window.__hub_valuation.hide();
       if (window.__hub_companies)    window.__hub_companies.hide();
+      if (window.__hub_tbratio)      window.__hub_tbratio.hide();
       if (window.__hub_performance)  window.__hub_performance.hide();
       if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
       if (window.__hub_projects)     window.__hub_projects.show();
@@ -516,6 +563,7 @@ export default async function init(config) {
       if (window.__hub_kb)        window.__hub_kb.hide();
       if (window.__hub_projects)  window.__hub_projects.hide();
       if (window.__hub_companies)    window.__hub_companies.hide();
+      if (window.__hub_tbratio)      window.__hub_tbratio.hide();
       if (window.__hub_performance)  window.__hub_performance.hide();
       if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
       if (window.__hub_valuation)    window.__hub_valuation.show();
@@ -532,6 +580,7 @@ export default async function init(config) {
       if (window.__hub_kb)           window.__hub_kb.hide();
       if (window.__hub_projects)     window.__hub_projects.hide();
       if (window.__hub_valuation)    window.__hub_valuation.hide();
+      if (window.__hub_tbratio)      window.__hub_tbratio.hide();
       if (window.__hub_performance)  window.__hub_performance.hide();
       if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
       if (window.__hub_companies)    window.__hub_companies.show();
@@ -549,6 +598,7 @@ export default async function init(config) {
       if (window.__hub_projects)     window.__hub_projects.hide();
       if (window.__hub_valuation)    window.__hub_valuation.hide();
       if (window.__hub_companies)    window.__hub_companies.hide();
+      if (window.__hub_tbratio)      window.__hub_tbratio.hide();
       if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
       if (window.__hub_performance)  window.__hub_performance.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -565,8 +615,26 @@ export default async function init(config) {
       if (window.__hub_projects)     window.__hub_projects.hide();
       if (window.__hub_valuation)    window.__hub_valuation.hide();
       if (window.__hub_companies)    window.__hub_companies.hide();
+      if (window.__hub_tbratio)      window.__hub_tbratio.hide();
       if (window.__hub_performance)  window.__hub_performance.hide();
       if (window.__hub_budgetkpi)    window.__hub_budgetkpi.show();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+
+    // Mobile TB Ratio Tool link
+    document.getElementById("mb-tbratio")?.addEventListener("click", () => {
+      document.getElementById("mobile-nav")?.classList.remove("open");
+      if (window.__hub_reader)    window.__hub_reader.goHome();
+      if (window.__hub_fees)      window.__hub_fees.hide();
+      if (window.__hub_aml)       window.__hub_aml.hide();
+      if (window.__hub_staff)     window.__hub_staff.hide();
+      if (window.__hub_kb)        window.__hub_kb.hide();
+      if (window.__hub_projects)  window.__hub_projects.hide();
+      if (window.__hub_valuation) window.__hub_valuation.hide();
+      if (window.__hub_companies) window.__hub_companies.hide();
+      if (window.__hub_performance) window.__hub_performance.hide();
+      if (window.__hub_budgetkpi) window.__hub_budgetkpi.hide();
+      if (window.__hub_tbratio)   window.__hub_tbratio.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
@@ -592,13 +660,14 @@ export default async function init(config) {
       fees:      ["sb-fees",      "mb-fees"],     // dashboard view → same highlight
       valuation:   ["sb-valuation",   "mb-valuation"],
       companies:   ["sb-companies",   "mb-companies"],
+      tbratio:     ["sb-tbratio",     "mb-tbratio"],
       performance: ["sb-performance", "mb-performance"],
       budgetkpi:   ["sb-budgetkpi",   "mb-budgetkpi"],
     };
     [
-      "sb-home","sb-kb","sb-staff","sb-proj","sb-fees","sb-valuation","sb-companies",
+      "sb-home","sb-kb","sb-staff","sb-proj","sb-fees","sb-valuation","sb-companies","sb-tbratio",
       "sb-performance","sb-budgetkpi",
-      "mb-home","mb-kb","mb-staff","mb-proj","mb-fees","mb-valuation","mb-companies",
+      "mb-home","mb-kb","mb-staff","mb-proj","mb-fees","mb-valuation","mb-companies","mb-tbratio",
       "mb-performance","mb-budgetkpi",
     ].forEach(id => {
       document.getElementById(id)?.classList.remove("active");

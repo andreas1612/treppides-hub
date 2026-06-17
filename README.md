@@ -44,11 +44,120 @@ Internal company portal replacing SharePoint. Staff land here daily for announce
 | Fees Dashboard | ClickUp -> FastAPI | Chart, drilldown with badges, CSV export |
 | Valuation Tool | FastAPI + SQLite | DCF builder, historical Damodaran archive 2008-2026, edition picker, FX rates, draft auto-save + JSON export/import, PDF report |
 | Group Dashboard | ClickUp -> FastAPI + SQLite | Unified company list, Chart view (by company/UBO), Custom Total, cascading filters, color-coded services, subtask linking. Master DB via companies-api (port 8003) |
+| TB Ratio Tool | 100% client-side (SheetJS) | Upload an E-Soft trial balance (.xlsx/.csv) -> mapped Profit & Loss, Balance Sheet & financial ratios -> .xlsx export. No backend; the file never leaves the browser. See [TB Ratio Tool](#tb-ratio-tool) below |
 | Task Manager | Spring Boot + SQL Server | Full project/task management --- dashboard, my tasks, team tasks, create/detail views. Azure AD SSO. Accessible via hub at `/projects` or directly at `tasks.treppides.com` |
 | Staff Directory | /staff.json | Accordion, search, dept filter |
 | Admin Panel | BookStack API + upload API | PIN-protected, photo/video/YouTube media composer |
 | IT Support Modal | FormSubmit -> email | -> apieri@treppides.com |
 | Search | BookStack full-text | Topbar, 400ms debounce |
+
+---
+
+## TB Ratio Tool
+
+Turns an **E-Soft trial-balance export** into a Profit & Loss statement, a Balance
+Sheet, and a panel of financial ratios — then exports all three to `.xlsx`.
+
+**Flow:** open *TB Ratio Tool* in the sidebar -> drop an `.xlsx`/`.csv` -> the tool
+parses it, validates that debits = credits, maps each account to a statement line,
+renders the P&L / Balance Sheet / Ratios, and offers an `.xlsx` download. You can
+review and reassign any account in the mapping panel and re-run, and optionally upload
+a second TB to fill the prior-year comparative columns.
+
+**100% client-side — no backend.** Unlike the other hub features, there is no FastAPI
+service, systemd unit, or nginx route: there is nothing for a server to do. The upload
+is parsed in the browser and never leaves it. [SheetJS](https://sheetjs.com) is
+vendored at `vendor/xlsx.full.min.js` (no CDN, lazy-loaded on first open, same pattern
+as jsPDF/html2canvas) and handles both reading the upload and writing the export.
+
+### How parsing works
+
+The E-Soft export is a formatted sheet, not a clean table. The parser
+(in `components/pages/tbratio.js`) locates the data table by finding the header row that
+contains *Code / Name / Type*, resolves columns by header text (tolerating extra or
+trailing columns and label variants), skips metadata and roll-up rows (capturing the
+roll-ups only to validate), and derives every figure from the **posting rows** — never
+from the printed subtotals. Accounts are grouped by their 1-digit top-level code
+(1 Fixed Assets … 8 Taxation). Signed nets use the convention *Debit positive, Credit
+negative*.
+
+### How accounts are detected (and overridden)
+
+Each account is assigned to a statement line **automatically**, by built-in group-code +
+name-keyword rules that live inline in `components/pages/tbratio.js` (the `DEFAULT_MAPPING`
+block — `PNL_TARGETS`, `BS_TARGETS`, `rules`, `GROUP4_SPLIT`, `derived`). There is no
+separate config file. The rules are matched **first-match-wins**, most specific first
+(e.g. depreciation before the general group-7 expenses rule); `GROUP4_SPLIT` decides which
+group-4 "Capital Employed" accounts are long-term **liabilities** (loans) vs **equity**.
+
+Because auto-detection isn't always foolproof, the **review & adjust mapping panel** lets
+the user reassign any account to the correct line and re-run — these overrides apply to the
+current upload (held in memory, not saved to a file). Anything that matches no rule appears
+in the **unmapped accounts** panel, so nothing is silently dropped.
+
+### Defaults shipped
+
+- **P&L** (group activity): Revenue (grp 5), Cost of Sales (grp 6), Operating Expenses
+  (grp 7), Depreciation & Amortisation (broken onto its own line by name keyword,
+  wherever it sits), Taxation (grp 8).
+- **Balance Sheet** (closing = current year, opening = prior year): Tangible/Intangible
+  fixed assets (grp 1); Bank, Trade Debtors, Stock, Prepayments (grp 2); Trade
+  Creditors, Short-term Loans, VAT/PAYE, Accruals (grp 3); Long-term Loans
+  (`GROUP4_SPLIT`); Share Capital, Retained Earnings (grp 4).
+- **The bridge:** closing retained earnings = opening retained earnings + P&L net
+  profit, implemented explicitly so total assets = total liabilities + equity.
+
+### Comparative years
+
+One trial balance holds two balance dates: the **current** column comes from closing
+balances, the **prior** column from opening balances. If the opening balances are all
+zero/absent (a first-period or single-year export), the prior column is left **blank** —
+never fabricated — and prior-year ratios are guarded against divide-by-zero. The P&L
+yields only one period from a single TB; upload a second TB to fill the prior column.
+
+### Financial ratios
+
+Ratios are shown in **two separate panels** (and two export sheets):
+
+- **Profit & Loss Ratios** — profitability (gross / operating / net margin, return on
+  equity), as a plain Year 1 / Year 2 list. (A status + commentary treatment will be added
+  once the firm supplies its P&L ratio sheet.)
+- **Balance Sheet Ratios** — the firm's five: **Debt ratio**, **Current ratio**,
+  **Working capital** (shown as a money amount, Current Assets − Current Liabilities),
+  **Assets to Equity**, and **Debt to Equity**. Each is computed for Year 1 / Year 2 and
+  given a **Good / Caution / Bad** status per year, plus the matching **commentary** and
+  **advice** — mirroring the firm's Excel ratio + comments sheets.
+
+The ratio inputs are taken from the **detected balance-sheet figures** (no separate input
+table). Here **"debt" means interest-bearing loans** (long-term + short-term loans), not
+total liabilities — matching the firm's formula `Debt-to-Equity = (loans) / total equity`.
+The formulas, thresholds, and commentary/advice text live inline in
+`components/pages/tbratio.js` (the `BS_RATIO_DEFS` block); edit there to retune a threshold
+or reword commentary. Prior-year status is blank when there's no comparative period, and
+all ratios guard against divide-by-zero.
+
+### Validation & UX
+
+The tool warns if the TB does not balance, shows whether the produced balance sheet
+balances (with the difference if not), lists any **unmapped accounts** so nothing is
+silently dropped, and lets you adjust the mapping and re-run before exporting.
+
+### Testing
+
+Test it the same way as the rest of the hub: serve the repo locally and open the tool.
+On `localhost` the auth gate fails open (Task Manager isn't reachable), so the hub loads
+unauthenticated:
+
+```bash
+python -m http.server 8099 --bind 127.0.0.1
+# then open http://localhost:8099/index.html → sidebar → TB Ratio Tool
+```
+
+Upload an E-Soft `.xlsx`/`.csv` and check: the TB-balanced banner, the mapping review +
+unmapped panel, the rendered P&L / Balance Sheet / Ratios, the balance-sheet check, and
+the `.xlsx` export. Verify the edge cases — a single-period TB (prior column stays blank,
+ratios don't divide by zero), an unbalanced TB (clear warning), and the
+retained-earnings bridge keeping total assets = liabilities + equity.
 
 ---
 
@@ -159,6 +268,7 @@ treppides-hub/
 +-- components/
 |   +-- shell/    sidebar.js, topbar.js, admin.js, support.js
 |   +-- pages/    aml.js, companies.js, fees.js, knowledgebase.js, projects.js, reader.js, staff.js, valuation.js
+|   |             tbratio.js            TB Ratio Tool — parser + mapper + ratios + export + UI (self-contained, no config files)
 |   +-- widgets/  announcements.js, policies.js, training.js, quicklinks.js
 |
 +-- api/
@@ -183,7 +293,7 @@ treppides-hub/
 |
 +-- styles/
 |   +-- theme.css, base.css, layout.css, cards.css, modals.css
-|   +-- pages/    aml.css, fees.css, knowledgebase.css, reader.css, staff.css, valuation.css, companies.css
+|   +-- pages/    aml.css, fees.css, knowledgebase.css, reader.css, staff.css, valuation.css, companies.css, tbratio.css
 |   +-- widgets/  announcements.css
 |
 +-- utils/
@@ -192,7 +302,7 @@ treppides-hub/
 |
 +-- media/                              Uploaded images + videos (gitignored)
 |
-+-- vendor/                             Chart.js, jsPDF, html2canvas (bundled, no CDN)
++-- vendor/                             Chart.js, jsPDF, html2canvas, xlsx (SheetJS) (bundled, no CDN)
 
 ~/taskmanager/                          Spring Boot Task Manager (separate repo/directory)
 +-- src/                                Java source

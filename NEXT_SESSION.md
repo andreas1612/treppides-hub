@@ -21,13 +21,43 @@
 
 ## Deploy status
 
-Latest commit (`6202295`, 2026-06-09) is **fully deployed** — Dashboard TID `--full`
-re-sync run, `companies-api` + `clickup-fees` restarted, frontend hard-refreshed.
-No deploy steps pending.
+**Pending deploy** as of 2026-06-17. This session's commit adds the Valuation guided
+tour (new files + 2 edited frontend files) and an in-progress TB Ratio Tool, on top of
+the pulled `origin/main` security batch (`0f005e1`). **Frontend-only, no-build** — deploy
+is `git pull && hard-refresh`. No backend/systemd restart needed for the tour. See
+**Server deploy steps** at the bottom of this file.
+
+Prior baseline: commit `6202295` (2026-06-09) was fully deployed (Dashboard TID `--full`
+re-sync, `companies-api` + `clickup-fees` restarted, frontend hard-refreshed).
 
 ---
 
-## Last Session --- 2026-06-09 (Dashboard TID chart grouping + security fixes + BookStack)
+## Last Session --- 2026-06-17 (Valuation guided tour + pull reconcile + TB Ratio WIP)
+
+**What was done (this local checkout):**
+- **Pulled `origin/main`** (was 8 commits behind → `0f005e1`, the Batch A–D security work +
+  admin-only auth + Performance / Budget KPI sections + `staff.json` removal). Reconciled via
+  stash → ff-pull → re-apply; resolved 22 additive merge conflicts in `sidebar.js` / `main.js`
+  / `index.html` (kept Performance + Budget KPI **and** the local TB Ratio nav wiring).
+- **Valuation Tool — on-site guided tour** (new feature). Coachmark/spotlight overlay that
+  walks a user through the DCF workflow (17 steps), launched from a new **Tutorial** button in
+  the tool header and auto-offered to first-time users (localStorage `treppides:valuation:tourSeen:v1`).
+  - New: [`components/pages/valuation-tour.js`](components/pages/valuation-tour.js) (zero-dep,
+    no-build ES module), [`styles/pages/valuation-tour.css`](styles/pages/valuation-tour.css).
+  - Edited: `components/pages/valuation.js` (import + guarded `initValuationTour()` at end of
+    `bootValuation()`), `index.html` (stylesheet link).
+  - Robust to JS-populated result tables that are empty (0-size) before data is entered —
+    `resolveAnchor()` climbs to the nearest visible ancestor; result-tab steps open their
+    accordions before positioning.
+  - **Verified structurally** (anchor resolution, brace balance, wiring) via a throwaway local
+    harness; **not yet run against the live auth'd app + backends.** Harness file removed.
+- **TB Ratio Tool** — in-progress (untracked WIP carried through the reconcile): nav entry,
+  `components/pages/tbratio.js`, `styles/pages/tbratio.css`, vendored `vendor/xlsx.full.min.js`.
+  Not yet feature-complete.
+
+---
+
+## Earlier Session --- 2026-06-09 (Dashboard TID chart grouping + security fixes + BookStack)
 
 **What was done:**
 - **Chart 'by company' now groups on `Dashboard TID` (GID)** — a new ClickUp custom field
@@ -118,3 +148,26 @@ sudo fail2ban-client status
 8. **Never hardcode redirect-uri** --- Task Manager auto-generates from Host header. Hardcoding breaks hub vs direct access.
 9. **TM backend changes need rebuild** --- `cd ~/taskmanager && ./mvnw package -DskipTests && sudo systemctl restart taskmanager`.
 10. **Auth proxy paths are critical** --- `/projects/*`, `/oauth2/*`, `/login/oauth2/*` must all proxy to port 8080.
+
+---
+
+## Server deploy steps (for the 2026-06-17 commit)
+
+This commit is **frontend-only** (vanilla JS/CSS/HTML, no build step), so deploy is the
+standard pull + refresh — **no systemd restart, no DB rebuild** for the Valuation tour:
+
+```bash
+cd ~/treppides-hub
+git pull
+# Hard-refresh the hub in the browser (Ctrl-Shift-R) — nginx serves the repo dir directly.
+```
+
+Notes:
+- nginx serves the repo directory as static files, so the new `valuation-tour.js` /
+  `valuation-tour.css` and the edited `valuation.js` / `index.html` go live on pull.
+- No change to `valuation-api` (port 8002) or its SQLite DB — the tour is pure frontend
+  and points only at existing DOM; it makes no new API calls.
+- The TB Ratio Tool WIP ships in the same commit but is **not finished** — confirm it's
+  acceptable to deploy partially, or finish it first.
+- Sanity check after refresh: open Valuation Tool → a **Tutorial** button appears in the
+  header; first-time load shows the tour prompt bottom-right.

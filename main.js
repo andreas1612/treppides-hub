@@ -23,6 +23,7 @@ import initValuation     from "./components/pages/valuation.js";
 import initCompanies      from "./components/pages/companies.js";
 import initPerformance    from "./components/pages/performance.js";
 import initBudgetKpi      from "./components/pages/budget-kpi.js";
+import initTbratio        from "./components/pages/tbratio.js";
 
 async function boot() {
   // Auth gate — redirects to Microsoft login if no active session.
@@ -70,6 +71,10 @@ async function boot() {
 
   // Budget KPI — admin-only manager budget vs invoiced viewer.
   await initBudgetKpi(CONFIG);
+
+  // TB Ratio Tool must be ready before sidebar clicks fire — sidebar.js
+  // calls window.__hub_tbratio.show(), which tbratio.js exposes during init.
+  await initTbratio(CONFIG);
 
   // Content sections — initialise in visual page order.
   // Each runs independently; a failure in one does not block others.
