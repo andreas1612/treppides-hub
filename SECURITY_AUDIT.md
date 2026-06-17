@@ -1195,16 +1195,19 @@ Using `System.out.println` instead of SLF4J bypasses log level controls and rota
 
 **Deploy**: All batch B → one commit + one TM restart.
 
-### Batch C — Authorization & Input Validation (one TM restart)
+### Batch C — Auth Refactor + Authorization & Input Validation (one TM restart)
 
 | Step | Fix # | Description | Where |
 |---|---|---|---|
+| C0 | — | Move auth files to `auth/` package (reusable auth boundary) | TM Java (package move) |
 | C1 | 15 | Add authorization checks to TaskController | TM Java |
 | C2 | 16 | Derive changedBy/createdBy from session | TM Java |
 | C3 | 27 | Sanitize email subjects (strip newlines) | TM Java |
 | C4 | 33 | Add Bean Validation to DTOs | TM Java + pom.xml |
 | C5 | 34 | Add `@ControllerAdvice` global exception handler | TM Java |
 | C6 | 46 | Replace System.out with SLF4J | TM Java |
+
+**C0 first**: move SecurityConfig, DomainFilter, AdminService, AuthController into `com.treppides.taskmanager.auth`. C1/C2 import from new paths.
 
 **Deploy**: All batch C → one commit + one TM restart.
 
