@@ -38,6 +38,8 @@ let currentYear = new Date().getFullYear();
 let currentMonth = new Date().getMonth() + 1;
 let cachedData = null;
 let cachedYear = null;
+let selectedInvoiceCode = null;
+let selectedManagerName = null;
 
 // ---- Init ---------------------------------------------------
 
@@ -66,6 +68,7 @@ export default async function init() {
       <div id="kpi-period-bar" class="kpi-period-bar"></div>
       <div id="kpi-summary-section"></div>
       <div id="kpi-table-section"></div>
+      <div id="kpi-fee-section"></div>
     </div>`;
 
   document.getElementById("kpi-back-btn")?.addEventListener("click", hidePage);
@@ -205,7 +208,10 @@ async function loadAndRender() {
 
   cachedData = data;
   cachedYear = currentYear;
+  selectedInvoiceCode = data.invoiceCode;
+  selectedManagerName = data.managerName;
   renderFromCache();
+  loadFeeEntries();
 }
 
 function renderFromCache() {
@@ -316,11 +322,15 @@ function renderTable(data, upTo) {
   const rows = months.map(m => {
     const isFuture = m.month > cm;
     const rowClass = isFuture ? "kpi-row-future" : "";
+    const hasFees = (m.auditFees || 0) !== 0 || (m.taxFees || 0) !== 0;
+    const feeDetail = hasFees
+      ? `<div class="kpi-fee-detail">eSoft: &euro;${fmt(m.esoftInvoiced || 0)}${m.auditFees ? ` + Audit: &euro;${fmt(m.auditFees)}` : ''}${m.taxFees ? ` + Tax: &euro;${fmt(m.taxFees)}` : ''}</div>`
+      : '';
     return `
       <tr class="${rowClass}">
         <td class="kpi-cell-month">${escapeHtml(m.monthName)}</td>
         <td class="kpi-cell-num">&euro;${fmt(m.budget)}</td>
-        <td class="kpi-cell-num">&euro;${fmt(m.invoiced)}</td>
+        <td class="kpi-cell-num">&euro;${fmt(m.invoiced)}${feeDetail}</td>
         <td class="kpi-cell-pct">
           <span class="kpi-pct-inline ${m.badge}">${m.completionPct.toFixed(1)}%</span>
         </td>
@@ -368,6 +378,154 @@ function setSummaryError(msg) {
 function clearTable() {
   const el = document.getElementById("kpi-table-section");
   if (el) el.innerHTML = "";
+}
+
+// ---- Fee Adjustments ----------------------------------------
+
+async function loadFeeEntries() {
+  const section = document.getElementById("kpi-fee-section");
+  if (!section || !selectedInvoiceCode) { if (section) section.innerHTML = ""; return; }
+
+  let entries = [];
+  try {
+    entries = await apiFetch(`/api/reports/budget-kpi/fee-adjustments/${selectedInvoiceCode}?year=${currentYear}`);
+  } catch { /* InvoiceAllocation DB may be unavailable */ }
+
+  renderFeePanel(entries);
+}
+
+function renderFeePanel(entries) {
+  const section = document.getElementById("kpi-fee-section");
+  if (!section) return;
+
+  const entryRows = entries.map(e => {
+    const amtClass = e.amount >= 0 ? 'fee-pos' : 'fee-neg';
+    const dateStr = e.entered_at ? new Date(e.entered_at).toLocaleDateString('en-GB') : '';
+    return `
+      <tr>
+        <td>${escapeHtml(e.fee_type)}</td>
+        <td>${MONTH_NAMES[(e.month_num || 1) - 1]}</td>
+        <td class="${amtClass}">&euro;${Number(e.amount).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+        <td>${escapeHtml(e.entity_name || '')}</td>
+        <td>${escapeHtml(e.country || '')}</td>
+        <td>${escapeHtml(e.entered_by || '')}</td>
+        <td>${dateStr}</td>
+        <td><button class="fee-delete-btn" data-id="${e.id}" title="Delete">&times;</button></td>
+      </tr>`;
+  }).join('');
+
+  section.innerHTML = `
+    <div class="kpi-section-title" style="margin-top:28px">Fee Adjustments</div>
+    <div class="fee-form-card">
+      <div class="fee-form-grid">
+        <div class="fee-field fee-field-manager">
+          <label>Target Manager</label>
+          <select id="fee-manager">
+            ${managers.map(m => {
+              const sel = m.invoice_code === selectedInvoiceCode ? 'selected' : '';
+              return `<option value="${escapeHtml(m.invoice_code)}" data-name="${escapeHtml(m.manager_name)}" ${sel}>${escapeHtml(m.manager_name)}</option>`;
+            }).join('')}
+          </select>
+        </div>
+        <div class="fee-field">
+          <label>Type</label>
+          <select id="fee-type">
+            <option value="AUDIT">Audit</option>
+            <option value="TAX">Tax</option>
+          </select>
+        </div>
+        <div class="fee-field">
+          <label>Month</label>
+          <select id="fee-month">
+            ${MONTH_NAMES.map((n, i) => `<option value="${i + 1}">${n}</option>`).join('')}
+          </select>
+        </div>
+        <div class="fee-field">
+          <label>Year</label>
+          <input type="number" id="fee-year" value="${currentYear}" min="2025" max="2030" />
+        </div>
+        <div class="fee-field">
+          <label>Amount (EUR)</label>
+          <input type="number" id="fee-amount" step="0.01" placeholder="0.00" />
+        </div>
+        <div class="fee-field">
+          <label>Description</label>
+          <input type="text" id="fee-entity" placeholder="Entity / invoice #" />
+        </div>
+        <div class="fee-field">
+          <label>Country</label>
+          <select id="fee-country">
+            <option value="Cyprus">Cyprus</option>
+            <option value="Malta">Malta</option>
+            <option value="UK">UK</option>
+          </select>
+        </div>
+        <div class="fee-field">
+          <label>&nbsp;</label>
+          <button class="fee-add-button" id="fee-add-btn">Add</button>
+        </div>
+      </div>
+    </div>
+    ${entries.length > 0 ? `
+    <div class="kpi-table-wrap" style="margin-top:12px">
+      <table class="kpi-table fee-entries-table">
+        <thead>
+          <tr><th>Type</th><th>Month</th><th>Amount</th><th>Description</th><th>Country</th><th>By</th><th>Date</th><th></th></tr>
+        </thead>
+        <tbody>${entryRows}</tbody>
+      </table>
+    </div>` : '<p style="color:var(--text-secondary);font-size:12px;margin-top:8px">No fee adjustments for this manager / year.</p>'}`;
+
+  document.getElementById("fee-add-btn")?.addEventListener("click", addFeeEntry);
+  section.querySelectorAll(".fee-delete-btn").forEach(btn => {
+    btn.addEventListener("click", () => deleteFeeEntry(parseInt(btn.dataset.id)));
+  });
+}
+
+async function addFeeEntry() {
+  const managerSelect = document.getElementById("fee-manager");
+  const invoiceCode = managerSelect?.value;
+  const managerName = managerSelect?.selectedOptions[0]?.dataset.name || '';
+  const feeType = document.getElementById("fee-type")?.value;
+  const monthNum = parseInt(document.getElementById("fee-month")?.value);
+  const year = parseInt(document.getElementById("fee-year")?.value);
+  const amount = parseFloat(document.getElementById("fee-amount")?.value);
+  const entityName = document.getElementById("fee-entity")?.value || '';
+  const country = document.getElementById("fee-country")?.value || '';
+
+  if (!amount || isNaN(amount) || !invoiceCode) return;
+
+  try {
+    await fetch(`${TM_BASE}/api/reports/budget-kpi/fee-adjustments`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json", "X-Requested-With": "XMLHttpRequest" },
+      body: JSON.stringify({
+        feeType, invoiceCode, managerName,
+        monthNum, year, amount, entityName, country
+      })
+    });
+    cachedData = null;
+    cachedYear = null;
+    await loadAndRender();
+  } catch (err) {
+    console.error("Failed to add fee adjustment:", err);
+  }
+}
+
+async function deleteFeeEntry(id) {
+  try {
+    await fetch(`${TM_BASE}/api/reports/budget-kpi/fee-adjustments/${id}`, {
+      method: "DELETE",
+      credentials: "include",
+      headers: { "X-Requested-With": "XMLHttpRequest" }
+    });
+    cachedData = null;
+    cachedYear = null;
+    await loadAndRender();
+  } catch (err) {
+    console.error("Failed to delete fee adjustment:", err);
+  }
 }
 
 // ---- Utility ------------------------------------------------
