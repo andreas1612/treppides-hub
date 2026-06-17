@@ -18,6 +18,8 @@
   <link rel="stylesheet" href="styles/pages/knowledgebase.css" />
   <link rel="stylesheet" href="styles/pages/valuation.css" />
   <link rel="stylesheet" href="styles/pages/companies.css" />
+  <link rel="stylesheet" href="styles/pages/performance.css" />
+  <link rel="stylesheet" href="styles/pages/manager-kpi.css" />
   <link rel="stylesheet" href="styles/widgets/announcements.css" />
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
 </head>
@@ -100,6 +102,16 @@
            Populated by: components/pages/valuation.js -->
       <div id="section-valuation"></div>
 
+      <!-- Performance Report — dedicated full-page admin view.
+           Employee chargeability card + breakdown + team view.
+           Populated by: components/pages/performance.js -->
+      <div id="section-performance"></div>
+
+      <!-- Budget KPI — dedicated full-page admin view.
+           Manager budget vs invoiced, monthly breakdown, averages.
+           Populated by: components/pages/budget-kpi.js -->
+      <div id="section-budgetkpi"></div>
+
       <!-- Company Task Finder — dedicated full-page view.
            Search a company → all its tasks across every ClickUp space.
            Populated by: components/pages/companies.js -->
@@ -110,7 +122,7 @@
   </div><!-- /app-shell -->
 
   <!-- Single ES module entry point — all logic lives in JS files -->
-  <script type="module" src="main.js"></script>
+  <script type="module" src="main.js?v=3"></script>
 
 </body>
 </html>

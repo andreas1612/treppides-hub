@@ -17,6 +17,12 @@
   gap: 12px;
 }
 
+.perf-header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
 .perf-header-left h2 {
   font-size: 20px;
   font-weight: 700;

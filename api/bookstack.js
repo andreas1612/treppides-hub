@@ -50,6 +50,7 @@ export async function fetchPages(bookId, count = 3) {
     `&count=${count}`;
 
   const response = await fetch(url, {
+    credentials: "omit",
     headers: {
       Authorization: authHeader(),
       "Content-Type": "application/json",
@@ -77,6 +78,7 @@ export async function fetchShelfBooks(shelfId) {
   const url = `${CONFIG.BASE_URL}/api/shelves/${shelfId}`;
 
   const response = await fetch(url, {
+    credentials: "omit",
     headers: {
       Authorization: authHeader(),
       "Content-Type": "application/json",
@@ -103,6 +105,7 @@ export async function fetchBook(bookId) {
   const url = `${CONFIG.BASE_URL}/api/books/${bookId}`;
 
   const response = await fetch(url, {
+    credentials: "omit",
     headers: {
       Authorization: authHeader(),
       "Content-Type": "application/json",
@@ -128,6 +131,7 @@ export async function fetchChapter(chapterId) {
   const url = `${CONFIG.BASE_URL}/api/chapters/${chapterId}`;
 
   const response = await fetch(url, {
+    credentials: "omit",
     headers: {
       Authorization: authHeader(),
       "Content-Type": "application/json",
@@ -153,6 +157,7 @@ export async function fetchPageContent(pageId) {
   const url = `${CONFIG.BASE_URL}/api/pages/${pageId}`;
 
   const response = await fetch(url, {
+    credentials: "omit",
     headers: {
       Authorization: authHeader(),
       "Content-Type": "application/json",
@@ -194,6 +199,7 @@ export async function searchPages(query) {
     `&count=10`;
 
   const response = await fetch(url, {
+    credentials: "omit",
     headers: {
       Authorization: authHeader(),
       "Content-Type": "application/json",
@@ -223,6 +229,7 @@ export async function fetchAttachments(pageId) {
     `&count=50`;
 
   const response = await fetch(url, {
+    credentials: "omit",
     headers: {
       Authorization: authHeader(),
       "Content-Type": "application/json",
@@ -253,6 +260,7 @@ export async function createPage(bookId, title, htmlContent) {
 
   const response = await fetch(url, {
     method: "POST",
+    credentials: "omit",
     headers: {
       Authorization: authHeader(),
       "Content-Type": "application/json",
@@ -279,6 +287,7 @@ export async function createPage(bookId, title, htmlContent) {
 export async function deletePage(pageId) {
   const response = await fetch(`${CONFIG.BASE_URL}/api/pages/${pageId}`, {
     method: "DELETE",
+    credentials: "omit",
     headers: { Authorization: authHeader() },
   });
   if (!response.ok) {
@@ -304,6 +313,7 @@ export async function uploadAttachment(pageId, name, file) {
 
   const response = await fetch(`${CONFIG.BASE_URL}/api/attachments`, {
     method: "POST",
+    credentials: "omit",
     headers: { Authorization: authHeader() },
     // Do NOT set Content-Type — browser sets it with the correct boundary for FormData
     body: form,
@@ -327,6 +337,7 @@ export async function fetchAttachmentBlob(attachmentId, mimeType) {
   const url = `${CONFIG.BASE_URL}/attachments/${attachmentId}`;
 
   const response = await fetch(url, {
+    credentials: "omit",
     headers: { Authorization: authHeader() },
   });
 

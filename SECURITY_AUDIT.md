@@ -1400,17 +1400,17 @@ curl -s --connect-timeout 3 http://192.168.0.221:8080/ 2>&1 | head -1           
 
 | Fix # | Severity | Short Description | Status | Session Date | Notes |
 |---|---|---|---|---|---|
-| 1 | CRITICAL | Domain filter (block external users) | PENDING | | |
-| 2 | CRITICAL | Move secrets to env vars | PENDING | | |
+| 1 | CRITICAL | Domain filter (block external users) | DONE | 2026-06-16 | DomainFilter.java blocks non-@treppides.com, registered in SecurityConfig |
+| 2 | CRITICAL | Move secrets to env vars | DONE | 2026-06-16 | 4 secrets moved to systemd Environment= vars |
 | 3 | HIGH | Enable CSRF | PENDING | | Do separately, test carefully |
 | 4 | HIGH | Reduce logging to WARN | DONE | 2026-06-16 | Set to WARN, removed azure.spring=DEBUG |
 | 5 | HIGH | Seed SQL domain mismatch | DONE | 2026-06-16 | 103 occurrences fixed in seed SQL |
-| 6 | MEDIUM | Explicit OAuth2 redirect URI | PENDING | | |
-| 7 | MEDIUM | Session timeout 8h | PENDING | | |
-| 8 | MEDIUM | SameSite cookie | PENDING | | |
-| 9 | MEDIUM | Remove localhost CORS | PENDING | | |
-| 10 | MEDIUM | Email case .toLowerCase() | PENDING | | |
-| 11 | LOW | Remove stale Azure config comments | PENDING | | |
+| 6 | MEDIUM | Explicit OAuth2 redirect URI | DONE | 2026-06-16 | Added {baseUrl}/login/oauth2/code/{registrationId} |
+| 7 | MEDIUM | Session timeout 8h | DONE | 2026-06-16 | server.servlet.session.timeout=8h |
+| 8 | MEDIUM | SameSite cookie | DONE | 2026-06-16 | server.servlet.session.cookie.same-site=lax |
+| 9 | MEDIUM | Remove localhost CORS | DONE | 2026-06-16 | Only https://hub.treppides.com in CORS origins |
+| 10 | MEDIUM | Email case .toLowerCase() | DONE | 2026-06-16 | resolveEmail() in both controllers + AuthController |
+| 11 | LOW | Remove stale Azure config comments | DONE | 2026-06-16 | Deleted lines 29-33 from application.properties |
 | 12 | LOW | Remove X-XSS-Protection header | PENDING | | |
 | 13 | INFO | Flask tester port docs | PENDING | | |
 | 14 | INFO | Stale nginx sites-available | PENDING | | |
@@ -1425,7 +1425,7 @@ curl -s --connect-timeout 3 http://192.168.0.221:8080/ 2>&1 | head -1           
 | 23 | HIGH | XSS — admin textToHtml | DONE | 2026-06-16 | escapeHtml() before wrapping in <p> |
 | 24 | HIGH | XSS — valuation JSON import | DONE | 2026-06-16 | DOMParser sanitizer on snapshot HTML |
 | 25 | HIGH | Auth fail-open when TM unreachable | DONE | 2026-06-16 | Fail-closed with error page + throw |
-| 26 | HIGH | Remove @CrossOrigin from controllers | PENDING | | |
+| 26 | HIGH | Remove @CrossOrigin from controllers | DONE | 2026-06-16 | Removed from TaskController + EmployeeController |
 | 27 | HIGH | Email header injection via task titles | PENDING | | |
 | 28 | HIGH | staff.json committed to GitHub (PII) | DONE | 2026-06-16 | Added to .gitignore, git rm --cached |
 | 29 | HIGH | Spring Boot bound to all interfaces | DONE | 2026-06-16 | server.address=127.0.0.1, verified loopback only |
@@ -1474,9 +1474,9 @@ After updating the local copy, regenerate the redacted version:
 # Create redacted copy (replace all known secrets with <REDACTED>)
 sed \
   -e 's/<REDACTED>/<REDACTED>/g' \
+  -e 's/PTEuF\*R5%GcOrts34GHfeOL/<REDACTED>/g' \
   -e 's/<REDACTED>/<REDACTED>/g' \
-  -e 's/<REDACTED>/<REDACTED>/g' \
-  -e 's/<REDACTED>/<REDACTED>/g' \
+  -e 's/i~X8Q~CKB2sDufDt5lD\.c~kN_my9jotK_PWKxdez/<REDACTED>/g' \
   -e 's/<REDACTED>/<REDACTED>/g' \
   -e 's/<REDACTED>/<REDACTED>/g' \
   -e 's/<REDACTED>/<REDACTED>/g' \

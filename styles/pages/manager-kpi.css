@@ -6,22 +6,59 @@
   padding: 32px;
 }
 
-/* ---- Year selector ---------------------------------------- */
-.kpi-year-select {
-  padding: 6px 12px;
-  font-size: 13px;
-  font-weight: 600;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--card-bg);
-  color: var(--text-primary);
-  cursor: pointer;
-  outline: none;
-  margin-right: 12px;
+/* ---- Period bar (matches Flask tester) -------------------- */
+.kpi-period-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
 }
 
-.kpi-year-select:focus {
+.kpi-period-bar .year-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-right: 2px;
+}
+
+.kpi-period-bar button {
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.1s;
+}
+
+.kpi-period-bar button:hover {
+  background: var(--border);
+  color: var(--text-primary);
+}
+
+.kpi-period-bar button.active {
+  background: var(--accent);
   border-color: var(--accent);
+  color: #fff;
+}
+
+.kpi-period-bar button.ytd-btn {
+  margin-left: 6px;
+  border-color: #6366f1;
+}
+
+.kpi-period-bar button.ytd-btn.active {
+  background: #6366f1;
+  border-color: #6366f1;
+  color: #fff;
+}
+
+.kpi-period-bar .spacer {
+  display: inline-block;
+  width: 14px;
 }
 
 /* ---- Summary card ----------------------------------------- */

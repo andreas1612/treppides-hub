@@ -147,6 +147,18 @@ const ICONS = {
              <circle cx="11" cy="11" r="8"/>
              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
            </svg>`,
+
+  trendUp: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+              <polyline points="17 6 23 6 23 12"/>
+            </svg>`,
+
+  dollar: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+             <line x1="12" y1="1" x2="12" y2="23"/>
+             <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+           </svg>`,
 };
 
 // ---- Component ------------------------------------------------
@@ -201,6 +213,16 @@ export default async function init(config) {
           ${ICONS.search} Group Dashboard
         </button>
 
+        <div class="nav-label" style="margin-top:12px;">Admin</div>
+
+        <button class="nav-item nav-btn" id="sb-performance">
+          ${ICONS.trendUp} Performance
+        </button>
+
+        <button class="nav-item nav-btn" id="sb-budgetkpi">
+          ${ICONS.dollar} Budget KPI
+        </button>
+
         <div class="nav-label" style="margin-top:12px;">Support</div>
 
         <button class="nav-item nav-btn" id="sb-support">
@@ -223,8 +245,10 @@ export default async function init(config) {
       if (window.__hub_kb)        window.__hub_kb.hide();
       if (window.__hub_projects)  window.__hub_projects.hide();
       if (window.__hub_valuation) window.__hub_valuation.hide();
-      if (window.__hub_companies)  window.__hub_companies.hide();
-      if (window.__hub_reader)    window.__hub_reader.goHome();
+      if (window.__hub_companies)    window.__hub_companies.hide();
+      if (window.__hub_performance)  window.__hub_performance.hide();
+      if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
+      if (window.__hub_reader)       window.__hub_reader.goHome();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
@@ -236,8 +260,10 @@ export default async function init(config) {
       if (window.__hub_staff)     window.__hub_staff.hide();
       if (window.__hub_projects)  window.__hub_projects.hide();
       if (window.__hub_valuation) window.__hub_valuation.hide();
-      if (window.__hub_companies)  window.__hub_companies.hide();
-      if (window.__hub_kb)        window.__hub_kb.show();
+      if (window.__hub_companies)    window.__hub_companies.hide();
+      if (window.__hub_performance)  window.__hub_performance.hide();
+      if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
+      if (window.__hub_kb)           window.__hub_kb.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
@@ -249,8 +275,10 @@ export default async function init(config) {
       if (window.__hub_kb)        window.__hub_kb.hide();
       if (window.__hub_projects)  window.__hub_projects.hide();
       if (window.__hub_valuation) window.__hub_valuation.hide();
-      if (window.__hub_companies)  window.__hub_companies.hide();
-      if (window.__hub_staff)     window.__hub_staff.show();
+      if (window.__hub_companies)    window.__hub_companies.hide();
+      if (window.__hub_performance)  window.__hub_performance.hide();
+      if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
+      if (window.__hub_staff)        window.__hub_staff.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
@@ -263,8 +291,10 @@ export default async function init(config) {
       if (window.__hub_kb)        window.__hub_kb.hide();
       if (window.__hub_projects)  window.__hub_projects.hide();
       if (window.__hub_valuation) window.__hub_valuation.hide();
-      if (window.__hub_companies)  window.__hub_companies.hide();
-      if (window.__hub_aml)       window.__hub_aml.show();
+      if (window.__hub_companies)    window.__hub_companies.hide();
+      if (window.__hub_performance)  window.__hub_performance.hide();
+      if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
+      if (window.__hub_aml)          window.__hub_aml.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
@@ -276,8 +306,10 @@ export default async function init(config) {
       if (window.__hub_staff)    window.__hub_staff.hide();
       if (window.__hub_kb)       window.__hub_kb.hide();
       if (window.__hub_valuation) window.__hub_valuation.hide();
-      if (window.__hub_companies)  window.__hub_companies.hide();
-      if (window.__hub_projects) window.__hub_projects.show();
+      if (window.__hub_companies)    window.__hub_companies.hide();
+      if (window.__hub_performance)  window.__hub_performance.hide();
+      if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
+      if (window.__hub_projects)     window.__hub_projects.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
@@ -289,8 +321,10 @@ export default async function init(config) {
       if (window.__hub_staff)     window.__hub_staff.hide();
       if (window.__hub_kb)        window.__hub_kb.hide();
       if (window.__hub_projects)  window.__hub_projects.hide();
-      if (window.__hub_companies)  window.__hub_companies.hide();
-      if (window.__hub_valuation) window.__hub_valuation.show();
+      if (window.__hub_companies)    window.__hub_companies.hide();
+      if (window.__hub_performance)  window.__hub_performance.hide();
+      if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
+      if (window.__hub_valuation)    window.__hub_valuation.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
@@ -303,7 +337,37 @@ export default async function init(config) {
       if (window.__hub_kb)        window.__hub_kb.hide();
       if (window.__hub_projects)  window.__hub_projects.hide();
       if (window.__hub_valuation) window.__hub_valuation.hide();
-      if (window.__hub_companies) window.__hub_companies.show();
+      if (window.__hub_companies)    window.__hub_companies.show();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+
+    // Performance Report
+    document.getElementById("sb-performance")?.addEventListener("click", () => {
+      if (window.__hub_reader)       window.__hub_reader.goHome();
+      if (window.__hub_fees)         window.__hub_fees.hide();
+      if (window.__hub_aml)          window.__hub_aml.hide();
+      if (window.__hub_staff)        window.__hub_staff.hide();
+      if (window.__hub_kb)           window.__hub_kb.hide();
+      if (window.__hub_projects)     window.__hub_projects.hide();
+      if (window.__hub_valuation)    window.__hub_valuation.hide();
+      if (window.__hub_companies)    window.__hub_companies.hide();
+      if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
+      if (window.__hub_performance)  window.__hub_performance.show();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+
+    // Budget KPI
+    document.getElementById("sb-budgetkpi")?.addEventListener("click", () => {
+      if (window.__hub_reader)       window.__hub_reader.goHome();
+      if (window.__hub_fees)         window.__hub_fees.hide();
+      if (window.__hub_aml)          window.__hub_aml.hide();
+      if (window.__hub_staff)        window.__hub_staff.hide();
+      if (window.__hub_kb)           window.__hub_kb.hide();
+      if (window.__hub_projects)     window.__hub_projects.hide();
+      if (window.__hub_valuation)    window.__hub_valuation.hide();
+      if (window.__hub_companies)    window.__hub_companies.hide();
+      if (window.__hub_performance)  window.__hub_performance.hide();
+      if (window.__hub_budgetkpi)    window.__hub_budgetkpi.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
   }
@@ -348,6 +412,12 @@ export default async function init(config) {
         <button class="nav-item nav-btn" id="mb-companies">
           ${ICONS.search} Group Dashboard
         </button>
+        <button class="nav-item nav-btn" id="mb-performance">
+          ${ICONS.trendUp} Performance
+        </button>
+        <button class="nav-item nav-btn" id="mb-budgetkpi">
+          ${ICONS.dollar} Budget KPI
+        </button>
         <button class="nav-item nav-btn" id="mb-support">
           ${ICONS.phone} IT Support
         </button>
@@ -367,8 +437,10 @@ export default async function init(config) {
       if (window.__hub_kb)        window.__hub_kb.hide();
       if (window.__hub_projects)  window.__hub_projects.hide();
       if (window.__hub_valuation) window.__hub_valuation.hide();
-      if (window.__hub_companies)  window.__hub_companies.hide();
-      if (window.__hub_reader)    window.__hub_reader.goHome();
+      if (window.__hub_companies)    window.__hub_companies.hide();
+      if (window.__hub_performance)  window.__hub_performance.hide();
+      if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
+      if (window.__hub_reader)       window.__hub_reader.goHome();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
@@ -380,8 +452,10 @@ export default async function init(config) {
       if (window.__hub_staff)     window.__hub_staff.hide();
       if (window.__hub_projects)  window.__hub_projects.hide();
       if (window.__hub_valuation) window.__hub_valuation.hide();
-      if (window.__hub_companies)  window.__hub_companies.hide();
-      if (window.__hub_kb)        window.__hub_kb.show();
+      if (window.__hub_companies)    window.__hub_companies.hide();
+      if (window.__hub_performance)  window.__hub_performance.hide();
+      if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
+      if (window.__hub_kb)           window.__hub_kb.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
@@ -393,8 +467,10 @@ export default async function init(config) {
       if (window.__hub_kb)        window.__hub_kb.hide();
       if (window.__hub_projects)  window.__hub_projects.hide();
       if (window.__hub_valuation) window.__hub_valuation.hide();
-      if (window.__hub_companies)  window.__hub_companies.hide();
-      if (window.__hub_staff)     window.__hub_staff.show();
+      if (window.__hub_companies)    window.__hub_companies.hide();
+      if (window.__hub_performance)  window.__hub_performance.hide();
+      if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
+      if (window.__hub_staff)        window.__hub_staff.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
@@ -407,22 +483,26 @@ export default async function init(config) {
       if (window.__hub_kb)        window.__hub_kb.hide();
       if (window.__hub_projects)  window.__hub_projects.hide();
       if (window.__hub_valuation) window.__hub_valuation.hide();
-      if (window.__hub_companies)  window.__hub_companies.hide();
-      if (window.__hub_aml)       window.__hub_aml.show();
+      if (window.__hub_companies)    window.__hub_companies.hide();
+      if (window.__hub_performance)  window.__hub_performance.hide();
+      if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
+      if (window.__hub_aml)          window.__hub_aml.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
     // Mobile Projects link
     document.getElementById("mb-proj")?.addEventListener("click", () => {
       document.getElementById("mobile-nav")?.classList.remove("open");
-      if (window.__hub_reader)    window.__hub_reader.goHome();
-      if (window.__hub_fees)      window.__hub_fees.hide();
-      if (window.__hub_aml)       window.__hub_aml.hide();
-      if (window.__hub_staff)     window.__hub_staff.hide();
-      if (window.__hub_kb)        window.__hub_kb.hide();
-      if (window.__hub_valuation) window.__hub_valuation.hide();
-      if (window.__hub_companies)  window.__hub_companies.hide();
-      if (window.__hub_projects)  window.__hub_projects.show();
+      if (window.__hub_reader)       window.__hub_reader.goHome();
+      if (window.__hub_fees)         window.__hub_fees.hide();
+      if (window.__hub_aml)          window.__hub_aml.hide();
+      if (window.__hub_staff)        window.__hub_staff.hide();
+      if (window.__hub_kb)           window.__hub_kb.hide();
+      if (window.__hub_valuation)    window.__hub_valuation.hide();
+      if (window.__hub_companies)    window.__hub_companies.hide();
+      if (window.__hub_performance)  window.__hub_performance.hide();
+      if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
+      if (window.__hub_projects)     window.__hub_projects.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
@@ -435,22 +515,58 @@ export default async function init(config) {
       if (window.__hub_staff)     window.__hub_staff.hide();
       if (window.__hub_kb)        window.__hub_kb.hide();
       if (window.__hub_projects)  window.__hub_projects.hide();
-      if (window.__hub_companies)  window.__hub_companies.hide();
-      if (window.__hub_valuation) window.__hub_valuation.show();
+      if (window.__hub_companies)    window.__hub_companies.hide();
+      if (window.__hub_performance)  window.__hub_performance.hide();
+      if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
+      if (window.__hub_valuation)    window.__hub_valuation.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
     // Mobile Company Finder link
     document.getElementById("mb-companies")?.addEventListener("click", () => {
       document.getElementById("mobile-nav")?.classList.remove("open");
-      if (window.__hub_reader)    window.__hub_reader.goHome();
-      if (window.__hub_fees)      window.__hub_fees.hide();
-      if (window.__hub_aml)       window.__hub_aml.hide();
-      if (window.__hub_staff)     window.__hub_staff.hide();
-      if (window.__hub_kb)        window.__hub_kb.hide();
-      if (window.__hub_projects)  window.__hub_projects.hide();
-      if (window.__hub_valuation) window.__hub_valuation.hide();
-      if (window.__hub_companies) window.__hub_companies.show();
+      if (window.__hub_reader)       window.__hub_reader.goHome();
+      if (window.__hub_fees)         window.__hub_fees.hide();
+      if (window.__hub_aml)          window.__hub_aml.hide();
+      if (window.__hub_staff)        window.__hub_staff.hide();
+      if (window.__hub_kb)           window.__hub_kb.hide();
+      if (window.__hub_projects)     window.__hub_projects.hide();
+      if (window.__hub_valuation)    window.__hub_valuation.hide();
+      if (window.__hub_performance)  window.__hub_performance.hide();
+      if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
+      if (window.__hub_companies)    window.__hub_companies.show();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+
+    // Mobile Performance Report link
+    document.getElementById("mb-performance")?.addEventListener("click", () => {
+      document.getElementById("mobile-nav")?.classList.remove("open");
+      if (window.__hub_reader)       window.__hub_reader.goHome();
+      if (window.__hub_fees)         window.__hub_fees.hide();
+      if (window.__hub_aml)          window.__hub_aml.hide();
+      if (window.__hub_staff)        window.__hub_staff.hide();
+      if (window.__hub_kb)           window.__hub_kb.hide();
+      if (window.__hub_projects)     window.__hub_projects.hide();
+      if (window.__hub_valuation)    window.__hub_valuation.hide();
+      if (window.__hub_companies)    window.__hub_companies.hide();
+      if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
+      if (window.__hub_performance)  window.__hub_performance.show();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+
+    // Mobile Budget KPI link
+    document.getElementById("mb-budgetkpi")?.addEventListener("click", () => {
+      document.getElementById("mobile-nav")?.classList.remove("open");
+      if (window.__hub_reader)       window.__hub_reader.goHome();
+      if (window.__hub_fees)         window.__hub_fees.hide();
+      if (window.__hub_aml)          window.__hub_aml.hide();
+      if (window.__hub_staff)        window.__hub_staff.hide();
+      if (window.__hub_kb)           window.__hub_kb.hide();
+      if (window.__hub_projects)     window.__hub_projects.hide();
+      if (window.__hub_valuation)    window.__hub_valuation.hide();
+      if (window.__hub_companies)    window.__hub_companies.hide();
+      if (window.__hub_performance)  window.__hub_performance.hide();
+      if (window.__hub_budgetkpi)    window.__hub_budgetkpi.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
@@ -474,12 +590,16 @@ export default async function init(config) {
       projects:  ["sb-proj",      "mb-proj"],
       aml:       ["sb-fees",      "mb-fees"],     // landing → highlight AML Dashboard
       fees:      ["sb-fees",      "mb-fees"],     // dashboard view → same highlight
-      valuation: ["sb-valuation", "mb-valuation"],
-      companies: ["sb-companies", "mb-companies"],
+      valuation:   ["sb-valuation",   "mb-valuation"],
+      companies:   ["sb-companies",   "mb-companies"],
+      performance: ["sb-performance", "mb-performance"],
+      budgetkpi:   ["sb-budgetkpi",   "mb-budgetkpi"],
     };
     [
       "sb-home","sb-kb","sb-staff","sb-proj","sb-fees","sb-valuation","sb-companies",
+      "sb-performance","sb-budgetkpi",
       "mb-home","mb-kb","mb-staff","mb-proj","mb-fees","mb-valuation","mb-companies",
+      "mb-performance","mb-budgetkpi",
     ].forEach(id => {
       document.getElementById(id)?.classList.remove("active");
     });

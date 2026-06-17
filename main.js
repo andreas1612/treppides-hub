@@ -21,6 +21,8 @@ import initAml           from "./components/pages/aml.js";
 import initProjects      from "./components/pages/projects.js";
 import initValuation     from "./components/pages/valuation.js";
 import initCompanies      from "./components/pages/companies.js";
+import initPerformance    from "./components/pages/performance.js";
+import initBudgetKpi      from "./components/pages/budget-kpi.js";
 
 async function boot() {
   // Auth gate — redirects to Microsoft login if no active session.
@@ -62,6 +64,12 @@ async function boot() {
   // Company Task Finder must be ready before sidebar clicks fire — sidebar.js
   // calls window.__hub_companies.show(), which companies.js exposes during init.
   await initCompanies(CONFIG);
+
+  // Performance Report — admin-only employee chargeability viewer.
+  await initPerformance(CONFIG);
+
+  // Budget KPI — admin-only manager budget vs invoiced viewer.
+  await initBudgetKpi(CONFIG);
 
   // Content sections — initialise in visual page order.
   // Each runs independently; a failure in one does not block others.

@@ -6,6 +6,9 @@
 //   2. If 401 — redirect to hub login page → Azure AD SSO.
 //   3. After Azure login, Spring redirects to /dashboard.html which
 //      loads the hub SPA — auth.js restores the original URL.
+//
+// Admin gate: only users with isAdmin=true can access the hub.
+// Non-admins see a "not eligible" message.
 // ============================================================
 
 const TM_BASE = window.location.hostname === "localhost"
@@ -16,7 +19,8 @@ let _user = null;
 
 /**
  * Call once at the top of boot().
- * Returns { email, name } if authenticated, or null while redirect is in flight.
+ * Returns user object if authenticated admin, or null while redirect is in flight.
+ * Blocks non-admins with a "not eligible" message.
  */
 export async function initAuth() {
   try {
@@ -26,7 +30,24 @@ export async function initAuth() {
     });
 
     if (res.ok) {
-      _user = await res.json();   // { email, name }
+      _user = await res.json();
+
+      // Admin gate — block non-admins
+      if (!_user.isAdmin) {
+        document.body.innerHTML = `
+          <div style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f8f9fa">
+            <div style="text-align:center;max-width:440px;padding:2rem">
+              <div style="font-size:48px;margin-bottom:16px">🔒</div>
+              <h2 style="margin:0 0 12px;font-size:22px;color:#1a1a2e">Access Restricted</h2>
+              <p style="margin:0 0 24px;color:#666;line-height:1.6">
+                You are not eligible to access the Hub yet.<br>
+                Contact IT if you believe this is an error.
+              </p>
+              <p style="margin:0;color:#999;font-size:13px">Signed in as ${_user.email || ""}</p>
+            </div>
+          </div>`;
+        return null;
+      }
 
       // After login, Spring redirects to /dashboard.html — restore the original page.
       const savedUrl = sessionStorage.getItem("hub_pre_login_url");
@@ -61,3 +82,6 @@ export function getCurrentUser() {
 export function signOut() {
   window.location.href = `${TM_BASE}/logout`;
 }
+
+/** TM base URL for API calls from other components. */
+export { TM_BASE };

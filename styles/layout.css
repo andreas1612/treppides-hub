@@ -336,6 +336,116 @@
 }
 .valuation-back-btn svg { width: 18px; height: 18px; }
 
+/* ============================================================
+   PERFORMANCE REPORT — dedicated full-page admin view
+   ============================================================ */
+#section-performance {
+  display: none;
+  padding: var(--page-gutter, 32px);
+}
+
+.main.performance-active .page-content       { display: none !important; }
+.main.performance-active .reader-overlay     { display: none !important; }
+.main.performance-active #section-performance { display: block !important; }
+
+.perf-back-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+  flex-shrink: 0;
+}
+.perf-back-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+  background: rgba(0, 0, 0, .02);
+}
+.perf-back-btn svg { width: 18px; height: 18px; }
+
+.perf-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.perf-select {
+  padding: 7px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card-bg);
+  color: var(--text-primary);
+  cursor: pointer;
+  outline: none;
+  min-width: 220px;
+  max-width: 360px;
+}
+.perf-select:focus { border-color: var(--accent); }
+
+/* ============================================================
+   BUDGET KPI — dedicated full-page admin view
+   ============================================================ */
+#section-budgetkpi {
+  display: none;
+  padding: var(--page-gutter, 32px);
+}
+
+.main.budgetkpi-active .page-content       { display: none !important; }
+.main.budgetkpi-active .reader-overlay     { display: none !important; }
+.main.budgetkpi-active #section-budgetkpi   { display: block !important; }
+
+.kpi-back-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+  flex-shrink: 0;
+}
+.kpi-back-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+  background: rgba(0, 0, 0, .02);
+}
+.kpi-back-btn svg { width: 18px; height: 18px; }
+
+.kpi-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.kpi-select {
+  padding: 7px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card-bg);
+  color: var(--text-primary);
+  cursor: pointer;
+  outline: none;
+  min-width: 220px;
+  max-width: 360px;
+}
+.kpi-select:focus { border-color: var(--accent); }
+
 /* Task Manager launcher card */
 .projects-launcher {
   display: flex;
