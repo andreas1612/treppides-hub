@@ -926,16 +926,20 @@ spring.jpa.show-sql=false
 
 ---
 
-### 32. HIGH — config.js Servable Over HTTPS from Web Root
+### 32. ~~HIGH~~ REVERTED — config.js Servable Over HTTPS from Web Root
 
 **The problem**: The nginx `location /` block serves from `/home/tech-admin/treppides-hub` with `try_files`. The `config.js` file sits at the root. The `location ~ /\.(?!well-known)` block only protects dotfiles (names starting with `.`), not `config.js`.
 
 Any LAN user can fetch `https://hub.treppides.com/config.js` and obtain the BookStack API token and admin PIN.
 
-**Fix**: Add to the nginx `hub.treppides.com` server block:
+**Original fix** (now reverted):
 ```nginx
 location = /config.js { deny all; }
 ```
+
+**Why reverted**: The hub SPA has no build step — `main.js` imports `config.js` as an ES module. Blocking it via nginx kills the entire frontend. The hub is now admin-only (Azure AD + 7 hardcoded emails) and LAN-only, so the original threat (any LAN user reads tokens) is mitigated by the auth gate. The BookStack token is read-only.
+
+**Status**: REVERTED 2026-06-16. Mitigated by admin-only auth model. Future: move tokens to a server-side proxy if the hub is ever exposed beyond LAN.
 
 ---
 
@@ -1417,8 +1421,8 @@ curl -s --connect-timeout 3 http://192.168.0.221:8080/ 2>&1 | head -1           
 | 12 | LOW | Remove X-XSS-Protection header | PENDING | | |
 | 13 | INFO | Flask tester port docs | PENDING | | |
 | 14 | INFO | Stale nginx sites-available | PENDING | | |
-| 15 | CRITICAL | IDOR — add authorization to TaskController | PENDING | | |
-| 16 | CRITICAL | Derive changedBy/createdBy from session | PENDING | | |
+| 15 | CRITICAL | IDOR — add authorization to TaskController | DONE | 2026-06-17 | Ownership checks (creator/assigned/admin) on all TaskController endpoints |
+| 16 | CRITICAL | Derive changedBy/createdBy from session | DONE | 2026-06-17 | All changedBy/createdBy derived from OidcUser principal, client values ignored |
 | 17 | CRITICAL | Remove credentials from markdown docs | PENDING | | |
 | 18 | CRITICAL | Flask tester zero auth + all interfaces | N/A | 2026-06-16 | Flask tester killed — replaced by hub |
 | 19 | CRITICAL | Flask dev auth defaults to on | N/A | 2026-06-16 | Flask tester killed — replaced by hub |
@@ -1429,14 +1433,14 @@ curl -s --connect-timeout 3 http://192.168.0.221:8080/ 2>&1 | head -1           
 | 24 | HIGH | XSS — valuation JSON import | DONE | 2026-06-16 | DOMParser sanitizer on snapshot HTML |
 | 25 | HIGH | Auth fail-open when TM unreachable | DONE | 2026-06-16 | Fail-closed with error page + throw |
 | 26 | HIGH | Remove @CrossOrigin from controllers | DONE | 2026-06-16 | Removed from TaskController + EmployeeController |
-| 27 | HIGH | Email header injection via task titles | PENDING | | |
+| 27 | HIGH | Email header injection via task titles | DONE | 2026-06-17 | Strip \\r\\n from titles in both email subject methods |
 | 28 | HIGH | staff.json committed to GitHub (PII) | DONE | 2026-06-16 | Added to .gitignore, git rm --cached |
 | 29 | HIGH | Spring Boot bound to all interfaces | DONE | 2026-06-16 | server.address=127.0.0.1, verified loopback only |
 | 30 | HIGH | Docker weak/placeholder credentials | PENDING | | |
 | 31 | HIGH | show-sql=true in production | DONE | 2026-06-16 | Set to false |
 | 32 | HIGH | config.js servable from web root | REVERTED | 2026-06-16 | Broke SPA (main.js imports config.js). Admin-only auth mitigates. |
-| 33 | MEDIUM | No input validation on DTOs | PENDING | | |
-| 34 | MEDIUM | RuntimeException leaks internal details | PENDING | | |
+| 33 | MEDIUM | No input validation on DTOs | DONE | 2026-06-17 | hibernate-validator added, @Valid/@NotBlank/@Size on all 6 DTOs |
+| 34 | MEDIUM | RuntimeException leaks internal details | DONE | 2026-06-17 | @ControllerAdvice GlobalExceptionHandler — clean JSON errors, no stack traces |
 | 35 | MEDIUM | Incomplete escAttr() | DONE | 2026-06-16 | Full HTML entity escaping for &, ", ', <, > |
 | 36 | MEDIUM | Valuation data in localStorage | PENDING | | |
 | 37 | MEDIUM | trustServerCertificate=true on JDBC | PENDING | | |
@@ -1448,7 +1452,7 @@ curl -s --connect-timeout 3 http://192.168.0.221:8080/ 2>&1 | head -1           
 | 43 | MEDIUM | No CSRF on Flask fee adjustments | PENDING | | |
 | 44 | MEDIUM | Orphan Flask processes | DONE | 2026-06-16 | Killed. All features ported to hub (performance, budget KPI, fee adjustments) |
 | 45 | LOW | chmod 600 on credential files | DONE | 2026-06-16 | All 8 files set to 600 |
-| 46 | LOW | System.out.println in production | PENDING | | |
+| 46 | LOW | System.out.println in production | DONE | 2026-06-17 | SLF4J logger in NotificationService + TaskReminderScheduler |
 | 47 | LOW | spring-boot-devtools in pom.xml | PENDING | | |
 | 48 | LOW | No rate limiting on task endpoints | PENDING | | |
 
