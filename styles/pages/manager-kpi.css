@@ -381,6 +381,103 @@
   margin-top: 2px;
 }
 
+/* ---- Invoice detail drill-down ----------------------------- */
+
+.kpi-row-clickable {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.kpi-row-clickable:hover {
+  background: var(--bg-hover, rgba(99, 102, 241, 0.06));
+}
+
+.kpi-row-expanded {
+  background: var(--bg-hover, rgba(99, 102, 241, 0.06));
+}
+
+.kpi-expand-icon {
+  display: inline-block;
+  width: 14px;
+  font-size: 10px;
+  color: var(--text-secondary);
+  margin-right: 4px;
+}
+
+.kpi-detail-row td {
+  padding: 0 !important;
+  background: var(--bg-surface, #252536);
+  border-top: none !important;
+}
+
+.kpi-detail-wrap {
+  padding: 8px 12px 12px;
+  overflow-x: auto;
+}
+
+.kpi-detail-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  color: #fff;
+}
+
+.kpi-detail-table th {
+  text-align: left;
+  padding: 4px 8px;
+  font-weight: 600;
+  color: #94a3b8;
+  border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,0.08));
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.kpi-detail-table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,0.04));
+  white-space: nowrap;
+  color: #fff !important;
+}
+
+.kpi-detail-table tr.inv-credit td {
+  color: #ef4444;
+}
+
+.kpi-detail-table .inv-desc {
+  white-space: normal;
+  max-width: 200px;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.kpi-detail-sum td {
+  border-top: 2px solid var(--border-subtle, rgba(255,255,255,0.15));
+  border-bottom: none;
+  padding-top: 6px;
+}
+
+.kpi-detail-loading,
+.kpi-detail-empty {
+  padding: 12px 8px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.kpi-detail-loading .spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255,255,255,0.2);
+  border-top-color: var(--accent, #6366f1);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
 /* ---- Responsive ------------------------------------------- */
 @media (max-width: 767px) {
   .kpi-page {

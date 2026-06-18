@@ -40,6 +40,8 @@ let cachedData = null;
 let cachedYear = null;
 let selectedInvoiceCode = null;
 let selectedManagerName = null;
+let expandedMonth = null;       // month number whose detail row is open
+let invoiceDetailCache = {};    // { year: [ ...rows ] }
 
 // ---- Init ---------------------------------------------------
 
@@ -80,6 +82,8 @@ export default async function init() {
     selectedCode = e.target.value || null;
     cachedData = null;
     cachedYear = null;
+    expandedMonth = null;
+    invoiceDetailCache = {};
     if (selectedCode) {
       loadAndRender();
     } else {
@@ -135,6 +139,8 @@ function buildPeriodBar() {
       if (yearChanged) {
         cachedData = null;
         cachedYear = null;
+        expandedMonth = null;
+        invoiceDetailCache = {};
         loadManagers().then(() => { if (selectedCode) loadAndRender(); });
       } else if (cachedData) {
         renderFromCache();
@@ -322,13 +328,17 @@ function renderTable(data, upTo) {
   const rows = months.map(m => {
     const isFuture = m.month > cm;
     const rowClass = isFuture ? "kpi-row-future" : "";
+    const isExpanded = expandedMonth === m.month;
     const hasFees = (m.auditFees || 0) !== 0 || (m.taxFees || 0) !== 0;
     const feeDetail = hasFees
       ? `<div class="kpi-fee-detail">eSoft: &euro;${fmt(m.esoftInvoiced || 0)}${m.auditFees ? ` + Audit: &euro;${fmt(m.auditFees)}` : ''}${m.taxFees ? ` + Tax: &euro;${fmt(m.taxFees)}` : ''}</div>`
       : '';
-    return `
-      <tr class="${rowClass}">
-        <td class="kpi-cell-month">${escapeHtml(m.monthName)}</td>
+    let html = `
+      <tr class="${rowClass} kpi-row-clickable ${isExpanded ? 'kpi-row-expanded' : ''}" data-month="${m.month}">
+        <td class="kpi-cell-month">
+          <span class="kpi-expand-icon">${isExpanded ? '&#9660;' : '&#9654;'}</span>
+          ${escapeHtml(m.monthName)}
+        </td>
         <td class="kpi-cell-num">&euro;${fmt(m.budget)}</td>
         <td class="kpi-cell-num">&euro;${fmt(m.invoiced)}${feeDetail}</td>
         <td class="kpi-cell-pct">
@@ -338,10 +348,14 @@ function renderTable(data, upTo) {
           <span class="kpi-badge-sm ${m.badge}">${m.badge}</span>
         </td>
       </tr>`;
+    if (isExpanded) {
+      html += renderInvoiceDetailRow(m.month, data.year);
+    }
+    return html;
   }).join("");
 
   section.innerHTML = `
-    <div class="kpi-section-title" style="margin-top:28px">Monthly Breakdown</div>
+    <div class="kpi-section-title" style="margin-top:28px">Monthly Breakdown <span style="font-size:11px;color:var(--text-secondary);font-weight:400">(click month to see invoices)</span></div>
     <div class="kpi-table-wrap">
       <table class="kpi-table">
         <thead>
@@ -356,6 +370,106 @@ function renderTable(data, upTo) {
         <tbody>${rows}</tbody>
       </table>
     </div>`;
+
+  // Attach click handlers
+  section.querySelectorAll('.kpi-row-clickable').forEach(tr => {
+    tr.addEventListener('click', () => {
+      const mo = parseInt(tr.dataset.month);
+      if (expandedMonth === mo) {
+        expandedMonth = null;
+      } else {
+        expandedMonth = mo;
+        ensureInvoiceDetails(data.year);
+      }
+      renderTable(data, upTo);
+    });
+  });
+}
+
+function renderInvoiceDetailRow(month, year) {
+  const cacheKey = `${year}`;
+  const allRows = invoiceDetailCache[cacheKey];
+
+  if (!allRows) {
+    return `<tr class="kpi-detail-row"><td colspan="5"><div class="kpi-detail-loading"><div class="spinner"></div> Loading invoices...</div></td></tr>`;
+  }
+
+  const rows = allRows.filter(r => toNum(r.month_num) === month);
+  if (rows.length === 0) {
+    return `<tr class="kpi-detail-row"><td colspan="5"><div class="kpi-detail-empty">No invoices for this month.</div></td></tr>`;
+  }
+
+  let totalNet = 0;
+  let totalPbiValue = 0;
+  const lines = rows.map(r => {
+    const net = toNum(r.net);
+    const pbiVal = toNum(r.pbi_value);
+    totalNet += net;
+    totalPbiValue += pbiVal;
+    const docDate = r.doc_date ? new Date(r.doc_date).toLocaleDateString('en-GB') : '';
+    const sign = toNum(r.sign);
+    return `
+      <tr>
+        <td>${escapeHtml(r.invoice_no || '')}</td>
+        <td>${docDate}</td>
+        <td>${escapeHtml(r.client || '')}</td>
+        <td class="kpi-cell-num">&euro;${fmtDec(toNum(r.gross))}</td>
+        <td class="kpi-cell-num">&euro;${fmtDec(toNum(r.vat))}</td>
+        <td class="kpi-cell-num">&euro;${fmtDec(net)}</td>
+        <td class="kpi-cell-num">&euro;${fmtDec(pbiVal)}</td>
+        <td>${escapeHtml(r.doc_type || '')}</td>
+        <td>${sign}</td>
+        <td class="inv-desc">${escapeHtml((r.description || '').substring(0, 60))}</td>
+      </tr>`;
+  }).join('');
+
+  return `
+    <tr class="kpi-detail-row">
+      <td colspan="5">
+        <div class="kpi-detail-wrap">
+          <table class="kpi-detail-table">
+            <thead>
+              <tr><th>Invoice #</th><th>Date</th><th>Client</th><th>Gross</th><th>VAT</th><th>Net</th><th>Value (PBI)</th><th>Type</th><th>Sign</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              ${lines}
+              <tr class="kpi-detail-sum">
+                <td colspan="5" style="text-align:right;font-weight:600">Sum:</td>
+                <td class="kpi-cell-num" style="font-weight:600">&euro;${fmtDec(totalNet)}</td>
+                <td class="kpi-cell-num" style="font-weight:600">&euro;${fmtDec(totalPbiValue)}</td>
+                <td colspan="3"></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </td>
+    </tr>`;
+}
+
+async function ensureInvoiceDetails(year) {
+  const cacheKey = `${year}`;
+  if (invoiceDetailCache[cacheKey]) return;
+  if (!selectedInvoiceCode) return;
+
+  try {
+    const data = await apiFetch(`/api/reports/budget-kpi/invoice-details/${selectedInvoiceCode}?year=${year}`);
+    invoiceDetailCache[cacheKey] = data;
+    // Re-render to replace "Loading..."
+    if (cachedData) renderFromCache();
+  } catch (err) {
+    invoiceDetailCache[cacheKey] = [];
+    if (cachedData) renderFromCache();
+  }
+}
+
+function toNum(v) {
+  if (v == null) return 0;
+  const n = Number(v);
+  return isNaN(n) ? 0 : n;
+}
+
+function fmtDec(n) {
+  return Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 // ---- State helpers ------------------------------------------
