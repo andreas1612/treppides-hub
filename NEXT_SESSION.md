@@ -21,18 +21,46 @@
 
 ## Deploy status
 
-**Pending deploy** as of 2026-06-17. This session's commit adds the Valuation guided
-tour (new files + 2 edited frontend files) and an in-progress TB Ratio Tool, on top of
-the pulled `origin/main` security batch (`0f005e1`). **Frontend-only, no-build** — deploy
-is `git pull && hard-refresh`. No backend/systemd restart needed for the tour. See
-**Server deploy steps** at the bottom of this file.
+**Pending deploy** as of 2026-06-18. Latest local commit adds the TB Ratio Tool tabbed
+results layout + Valuation tutorial copy tweaks, on top of `origin/main`'s Budget KPI
+month drill-down (`ea1347a`) and the earlier Valuation guided tour + TB Ratio WIP. Also
+unpushed before this: the Valuation guided tour (`7ac725e`) and TB Ratio WIP (`453555d`).
+**All frontend-only, no-build** — deploy is `git pull && hard-refresh`. No backend/systemd
+restart needed. See **Server deploy steps** at the bottom of this file.
 
 Prior baseline: commit `6202295` (2026-06-09) was fully deployed (Dashboard TID `--full`
 re-sync, `companies-api` + `clickup-fees` restarted, frontend hard-refreshed).
 
 ---
 
-## Last Session --- 2026-06-17 (Valuation guided tour + pull reconcile + TB Ratio WIP)
+## Last Session --- 2026-06-18 (TB Ratio tabbed results + Valuation copy tweaks)
+
+**What was done (this local checkout):**
+- **TB Ratio Tool — split results onto two tabs.** The Balance Sheet and Profit & Loss
+  results (statement + calculation/ratio tables) now sit on **separate tabs driven by the
+  two existing BS / P&L buttons** that previously only switched the mapping view. Each tab
+  now shows that statement's mapping panel **and** its statement + ratios together; the old
+  cluttered "mapping → P&L results → BS results" stack is gone.
+  - `components/pages/tbratio.js`: `render()` restructured into one shared top tab strip
+    (`.tbr-tabs`) + two `.tbr-tabpane` panes; `renderMappingPanel(m, which)` now renders one
+    statement's buckets (internal tab strip removed); `wireMappingPanel()` toggles the combined
+    panes and calls `_pnlChart.resize()` when revealing the P&L pane (Chart.js can't size a
+    canvas while its container is `display:none`); `onExportPdf()` temporarily un-hides both
+    panes during `html2canvas` capture so the **PDF still contains both** statements.
+  - `styles/pages/tbratio.css`: added `.tbr-tabs` / `.tbr-tabpane[hidden]`; removed the now-dead
+    `.tbr-map-tabs` rule.
+  - **Verified locally** via a throwaway auth-free harness (imported `tbratio.js` directly, no
+    `main.js`/`initAuth`, no backend — the tool is fully client-side), fed a synthetic E-Soft TB
+    through the real upload path, and headless-Chrome screenshotted: BS tab, P&L tab (chart sizes
+    correctly), and single-period mode all confirmed. Harness + screenshots removed afterward.
+- **Valuation Tool — copy tweaks** (`components/pages/valuation.js`): Box 3 tour text "that
+  matches" → "that is closest to"; Box 4 "company name" → "name of the company under valuation";
+  the input accordion tab **and** the PDF report Section I heading / sub-heading / TOC entry
+  renamed "Company Overview" → "Company Under Valuation Overview".
+
+---
+
+## Earlier Session --- 2026-06-17 (Valuation guided tour + pull reconcile + TB Ratio WIP)
 
 **What was done (this local checkout):**
 - **Pulled `origin/main`** (was 8 commits behind → `0f005e1`, the Batch A–D security work +

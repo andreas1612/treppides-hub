@@ -1440,22 +1440,33 @@ function render() {
   const m = state.model;
   if (!m) return;
 
+  const bsActive = _mapTab === "bs";
   status.innerHTML = renderValidation(m);
   out.innerHTML = `
-    ${renderMappingPanel(m)}
+    <div class="tbr-tabs" role="tablist">
+      <button class="tbr-map-tab ${bsActive ? "active" : ""}" data-maptab="bs" role="tab">Balance Sheet</button>
+      <button class="tbr-map-tab ${bsActive ? "" : "active"}" data-maptab="pnl" role="tab">Profit &amp; Loss</button>
+    </div>
+
     ${renderUnmappedPanel(m)}
 
     <div id="tbr-statements">
-      <section class="tbr-group">
-        <h2 class="tbr-group-title">Profit &amp; Loss</h2>
-        ${renderStatement("Statement", m.pnl.lines, m)}
-        ${renderPnlRatios(m)}
+      <section class="tbr-tabpane" data-pane="bs" ${bsActive ? "" : "hidden"}>
+        ${renderMappingPanel(m, "bs")}
+        <section class="tbr-group">
+          <h2 class="tbr-group-title">Balance Sheet</h2>
+          ${renderBalanceSheet(m)}
+          ${renderBalanceSheetRatios(m)}
+        </section>
       </section>
 
-      <section class="tbr-group">
-        <h2 class="tbr-group-title">Balance Sheet</h2>
-        ${renderBalanceSheet(m)}
-        ${renderBalanceSheetRatios(m)}
+      <section class="tbr-tabpane" data-pane="pnl" ${bsActive ? "hidden" : ""}>
+        ${renderMappingPanel(m, "pnl")}
+        <section class="tbr-group">
+          <h2 class="tbr-group-title">Profit &amp; Loss</h2>
+          ${renderStatement("Statement", m.pnl.lines, m)}
+          ${renderPnlRatios(m)}
+        </section>
       </section>
     </div>
 
@@ -1496,13 +1507,19 @@ function clearSavedOverrides() {
 /** Wire the tabbed drag-and-drop mapping panel: tab switching + DnD remap. */
 function wireMappingPanel(out) {
   // ---- Tab switching (no full re-render; just toggle panes) ----
+  // One shared tab strip drives BOTH the mapping buckets and the rendered
+  // statement/ratios for that statement — each lives inside the same .tbr-tabpane.
   out.querySelectorAll(".tbr-map-tab").forEach(btn => {
     btn.addEventListener("click", () => {
       _mapTab = btn.getAttribute("data-maptab");
       out.querySelectorAll(".tbr-map-tab").forEach(b =>
         b.classList.toggle("active", b.getAttribute("data-maptab") === _mapTab));
-      out.querySelectorAll(".tbr-map-pane").forEach(p =>
+      out.querySelectorAll(".tbr-tabpane").forEach(p =>
         p.hidden = p.getAttribute("data-pane") !== _mapTab);
+      // The profitability chart's canvas sits in the P&L pane; Chart.js can't
+      // size a canvas while its container is display:none, so nudge it to
+      // resize once the pane becomes visible.
+      if (_mapTab === "pnl" && _pnlChart) _pnlChart.resize();
     });
   });
 
@@ -1614,7 +1631,19 @@ async function onExportPdf() {
     if (!window.jspdf || !window.html2canvas) throw new Error("PDF engine not loaded.");
     if (btn) { btn.disabled = true; btn.textContent = "Preparing PDF…"; }
 
-    const canvas = await window.html2canvas(target, { scale: 2, backgroundColor: "#ffffff", logging: false });
+    // Both statements live in tab panes, one of which is hidden on screen.
+    // html2canvas won't render a hidden element, so temporarily reveal every
+    // pane for the capture, then restore the on-screen tab state afterwards.
+    const panes = Array.from(target.querySelectorAll(".tbr-tabpane"));
+    const wasHidden = panes.map(p => p.hidden);
+    panes.forEach(p => { p.hidden = false; });
+
+    let canvas;
+    try {
+      canvas = await window.html2canvas(target, { scale: 2, backgroundColor: "#ffffff", logging: false });
+    } finally {
+      panes.forEach((p, i) => { p.hidden = wasHidden[i]; });
+    }
 
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
@@ -1732,11 +1761,14 @@ function renderValidation(m) {
 let _mapTab = "bs";
 
 /**
- * Tabbed drag-and-drop mapping panel. Accounts are auto-detected on upload,
- * then the user can drag any account chip into any statement line (a "bucket"),
- * across statements, or into "Unmapped". Dropping remaps immediately.
+ * Drag-and-drop mapping panel for ONE statement (`which` = "bs" | "pnl").
+ * Accounts are auto-detected on upload, then the user can drag any account chip
+ * into any statement line (a "bucket"), across to the other statement's tab if
+ * needed, or into "Unmapped". Dropping remaps immediately. The statement shown
+ * is driven by the shared top-level tab strip (see render()), so this panel no
+ * longer carries its own tab buttons.
  */
-function renderMappingPanel(m) {
+function renderMappingPanel(m, which) {
   // One record per posting row (mapped + unmapped), keyed by rowIndex.
   const accounts = [
     ...m.assignments.map(a => ({ rowIndex: a.rowIndex, code: a.code, name: a.name, value: a.closingNet, targetId: a.targetId })),
@@ -1779,30 +1811,21 @@ function renderMappingPanel(m) {
       <div class="tbr-bucket-body" data-target="__unmapped__">${byTarget("__unmapped__").map(chip).join("")}</div>
     </div>`;
 
-  const bsActive = _mapTab === "bs";
+  const targets = which === "pnl" ? DEFAULT_MAPPING.pnlTargets : DEFAULT_MAPPING.bsTargets;
+  const otherName = which === "pnl" ? "Balance Sheet" : "Profit &amp; Loss";
   return `
     <div class="tbr-card tbr-mapping">
       <div class="tbr-map-head">
         <div>
           <h3 class="tbr-map-title">Account Mapping</h3>
           <p class="tbr-hint">Auto-detected on upload. <strong>Drag any account</strong> into the
-            right line — across Balance Sheet and Profit &amp; Loss if needed. Statements and
-            ratios update instantly.</p>
-        </div>
-        <div class="tbr-map-tabs" role="tablist">
-          <button class="tbr-map-tab ${bsActive ? "active" : ""}" data-maptab="bs">Balance Sheet</button>
-          <button class="tbr-map-tab ${bsActive ? "" : "active"}" data-maptab="pnl">Profit &amp; Loss</button>
+            right line. Need a line on the ${otherName} statement? Switch tabs above — your drag
+            is saved either way. Statements and ratios update instantly.</p>
         </div>
       </div>
 
-      <div class="tbr-map-pane" data-pane="bs" ${bsActive ? "" : 'hidden'}>
-        <div class="tbr-buckets">${statementCols(DEFAULT_MAPPING.bsTargets)}</div>
-        ${unmappedBucket}
-      </div>
-      <div class="tbr-map-pane" data-pane="pnl" ${bsActive ? 'hidden' : ""}>
-        <div class="tbr-buckets">${statementCols(DEFAULT_MAPPING.pnlTargets)}</div>
-        ${unmappedBucket}
-      </div>
+      <div class="tbr-buckets">${statementCols(targets)}</div>
+      ${unmappedBucket}
     </div>`;
 }
 

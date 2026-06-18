@@ -124,6 +124,16 @@
   margin: 0 0 8px;
 }
 
+/* ---- Top-level results/mapping tab strip (Balance Sheet | Profit & Loss) ---- */
+#section-tbratio .tbr-tabs {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin: 16px 0 4px;
+}
+#section-tbratio .tbr-tabpane[hidden] { display: none; }
+
 /* ---- Mapping panel (tabbed drag-and-drop) ---- */
 #section-tbratio .tbr-map-head {
   display: flex;
@@ -138,13 +148,6 @@
   font-weight: 700;
   color: var(--text-primary);
   margin: 0 0 4px;
-}
-#section-tbratio .tbr-map-tabs {
-  display: inline-flex;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  overflow: hidden;
-  flex-shrink: 0;
 }
 #section-tbratio .tbr-map-tab {
   border: none;

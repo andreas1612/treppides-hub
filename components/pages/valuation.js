@@ -165,10 +165,10 @@ const SHELL_HTML = `
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
                           <span>Enter your assumptions here &mdash; results update automatically in the Cash Flow, DCF and Summary tabs.</span>
                       </div>
-                      <!-- Section 1: Company Overview -->
+                      <!-- Section 1: Company Under Valuation Overview -->
                       <details class="accordion-item native-details" open>
                           <summary class="accordion-header">
-                              <span class="accordion-title">1. Company Overview</span>
+                              <span class="accordion-title">1. Company Under Valuation Overview</span>
                               <span class="accordion-icon">
                                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
                               </span>
@@ -2570,7 +2570,7 @@ function bootValuation() {
         doc.addPage();
         sectionPages.I = doc.internal.getCurrentPageInfo().pageNumber;
         let y = margin + 8;
-        y = drawSectionHeading('I. Scope of the Valuation Exercise and Company Overview', margin, y);
+        y = drawSectionHeading('I. Scope of the Valuation Exercise and Company Under Valuation Overview', margin, y);
         y += 4;
 
         // --- Compose Section I paragraphs from live inputs ---
@@ -2628,7 +2628,7 @@ function bootValuation() {
                 { type: 'body', text: scopeP4 },
             ],
             [
-                { type: 'sub', text: 'Company Overview' },
+                { type: 'sub', text: 'Company Under Valuation Overview' },
                 { type: 'body', text: overviewP1 },
                 { type: 'body', text: overviewP2 },
                 { type: 'body', text: overviewP3 },
@@ -2978,7 +2978,7 @@ function bootValuation() {
         y += 12;
 
         const tocItems = [
-            { label: 'I. Scope of the Valuation Exercise and Company Overview', page: sectionPages.I, indent: 0, bold: true },
+            { label: 'I. Scope of the Valuation Exercise and Company Under Valuation Overview', page: sectionPages.I, indent: 0, bold: true },
             { label: 'II. Equity Valuation Results', page: sectionPages.II, indent: 0, bold: true },
             { label: 'Equity value range', page: sectionPages.II, indent: 6, bold: false, italic: true },
             { label: 'III. Methodology and Assumptions', page: sectionPages.III, indent: 0, bold: true },
