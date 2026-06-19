@@ -1524,36 +1524,98 @@ function wireMappingPanel(out) {
   });
 
   // ---- Drag and drop ----
+  // _dragRow / _dropHandled let us implement "drop in empty space → Unmapped":
+  // a successful bucket drop sets _dropHandled; if dragend fires with it still
+  // false, the chip was released outside any bucket, so we unmap it.
   out.querySelectorAll(".tbr-chip").forEach(chip => {
     chip.addEventListener("dragstart", e => {
+      _dragRow = Number(chip.getAttribute("data-rowindex"));
+      _dropHandled = false;
       e.dataTransfer.setData("text/plain", chip.getAttribute("data-rowindex"));
       e.dataTransfer.effectAllowed = "move";
       chip.classList.add("dragging");
     });
-    chip.addEventListener("dragend", () => chip.classList.remove("dragging"));
+    chip.addEventListener("dragend", () => {
+      chip.classList.remove("dragging");
+      stopAutoScroll();
+      // Released outside any drop target → move to Unmapped.
+      if (!_dropHandled && Number.isFinite(_dragRow)) {
+        applyOverride(_dragRow, "__unmapped__");
+      }
+      _dragRow = null;
+    });
   });
 
-  out.querySelectorAll(".tbr-bucket-body").forEach(body => {
+  // Auto-scroll the window while dragging near the top/bottom edge, so buckets
+  // off-screen in a long mapping list are reachable without dropping first.
+  out.addEventListener("dragover", e => {
+    e.preventDefault();          // allow drop anywhere in the panel
+    autoScrollNearEdges(e.clientY);
+  });
+
+  // Only the bucket BODIES with a data-target are real drop targets. The
+  // "Mapped elsewhere" body is read-only (data-readonly) — a source, not a sink.
+  out.querySelectorAll(".tbr-bucket-body[data-target]").forEach(body => {
     body.addEventListener("dragover", e => { e.preventDefault(); body.classList.add("dragover"); });
     body.addEventListener("dragleave", () => body.classList.remove("dragover"));
     body.addEventListener("drop", e => {
       e.preventDefault();
+      e.stopPropagation();
       body.classList.remove("dragover");
+      _dropHandled = true;
+      stopAutoScroll();
       const rowIndex = Number(e.dataTransfer.getData("text/plain"));
       if (!Number.isFinite(rowIndex)) return;
-      const targetId = body.getAttribute("data-target");
-      // Record the choice as an explicit override — including "__unmapped__",
-      // so an account that WOULD auto-detect stays excluded once the user drags
-      // it to Unmapped (deleting the override would let auto-detection re-map it).
-      state.overrides[rowIndex] = targetId;
-      // A manual edit supersedes the "restored from previous upload" notice.
-      state.restoredCount = 0;
-      // Persist for this company so the manual mapping survives future uploads.
-      saveOverrides(state.primary);
-      // Re-map + re-render (preserves the active tab via _mapTab).
-      runMapping();
+      applyOverride(rowIndex, body.getAttribute("data-target"));
     });
   });
+}
+
+/**
+ * Record a manual mapping override and re-map. targetId is a statement-line id
+ * or "__unmapped__". Stored as an EXPLICIT override (including "__unmapped__")
+ * so an account that would auto-detect stays where the user put it.
+ */
+function applyOverride(rowIndex, targetId) {
+  state.overrides[rowIndex] = targetId;
+  // A manual edit supersedes the "restored from previous upload" notice.
+  state.restoredCount = 0;
+  // Persist for this company so the manual mapping survives future uploads.
+  saveOverrides(state.primary);
+  // Re-map + re-render (preserves the active tab via _mapTab).
+  runMapping();
+}
+
+// ---- Drag auto-scroll (reach off-screen buckets in long lists) -------------
+let _dragRow = null;        // rowIndex of the chip currently being dragged
+let _dropHandled = false;   // set true by a successful bucket drop
+let _autoScrollRAF = null;  // requestAnimationFrame id for the scroll loop
+let _autoScrollDir = 0;     // -1 up, +1 down, 0 idle
+
+const AUTOSCROLL_EDGE_PX = 90;   // distance from a viewport edge that triggers scroll
+const AUTOSCROLL_SPEED_PX = 18;  // pixels per animation frame
+
+/** Start/adjust the edge auto-scroll based on the pointer's Y in the viewport. */
+function autoScrollNearEdges(clientY) {
+  const h = window.innerHeight;
+  if (clientY < AUTOSCROLL_EDGE_PX) _autoScrollDir = -1;
+  else if (clientY > h - AUTOSCROLL_EDGE_PX) _autoScrollDir = 1;
+  else _autoScrollDir = 0;
+
+  if (_autoScrollDir === 0) { stopAutoScroll(); return; }
+  if (_autoScrollRAF != null) return; // already looping
+  const step = () => {
+    if (_autoScrollDir === 0) { _autoScrollRAF = null; return; }
+    window.scrollBy(0, _autoScrollDir * AUTOSCROLL_SPEED_PX);
+    _autoScrollRAF = requestAnimationFrame(step);
+  };
+  _autoScrollRAF = requestAnimationFrame(step);
+}
+
+/** Stop the auto-scroll loop (on drop, dragend, or when leaving an edge). */
+function stopAutoScroll() {
+  _autoScrollDir = 0;
+  if (_autoScrollRAF != null) { cancelAnimationFrame(_autoScrollRAF); _autoScrollRAF = null; }
 }
 
 // Holds the live Chart.js instance so we can destroy it before re-rendering.
@@ -1812,20 +1874,38 @@ function renderMappingPanel(m, which) {
     </div>`;
 
   const targets = which === "pnl" ? DEFAULT_MAPPING.pnlTargets : DEFAULT_MAPPING.bsTargets;
+  const otherTargets = which === "pnl" ? DEFAULT_MAPPING.bsTargets : DEFAULT_MAPPING.pnlTargets;
   const otherName = which === "pnl" ? "Balance Sheet" : "Profit &amp; Loss";
+
+  // EVERY detected account is reachable from BOTH tabs. Accounts assigned to a
+  // line on the OTHER statement are auto-detection's first guess, not a binding
+  // choice — so they appear here in a holding area, draggable onto any line in
+  // THIS statement (which moves them across). Without this, e.g. a "depreciation"
+  // account auto-classified to the P&L was invisible on the Balance Sheet tab and
+  // couldn't be reassigned to Fixed Assets.
+  const otherTargetIds = new Set(otherTargets.map(t => t.id));
+  const mappedElsewhere = accounts.filter(a => otherTargetIds.has(a.targetId));
+  const elsewhereBucket = mappedElsewhere.length ? `
+    <div class="tbr-bucket tbr-bucket-elsewhere">
+      <div class="tbr-bucket-head">Mapped on ${otherName} — drag onto a line here to move it across</div>
+      <div class="tbr-bucket-body tbr-bucket-body-readonly" data-readonly="1">${mappedElsewhere.map(chip).join("")}</div>
+    </div>` : "";
+
   return `
     <div class="tbr-card tbr-mapping">
       <div class="tbr-map-head">
         <div>
           <h3 class="tbr-map-title">Account Mapping</h3>
           <p class="tbr-hint">Auto-detected on upload. <strong>Drag any account</strong> into the
-            right line. Need a line on the ${otherName} statement? Switch tabs above — your drag
-            is saved either way. Statements and ratios update instantly.</p>
+            right line — or drop it in empty space to unmap it. Accounts the tool put on the
+            ${otherName} statement are shown below so you can pull them onto a line here too.
+            Statements and ratios update instantly.</p>
         </div>
       </div>
 
       <div class="tbr-buckets">${statementCols(targets)}</div>
       ${unmappedBucket}
+      ${elsewhereBucket}
     </div>`;
 }
 

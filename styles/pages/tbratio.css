@@ -214,6 +214,19 @@
 }
 #section-tbratio .tbr-bucket-unmapped .tbr-bucket-head { color: #78350f; border-bottom-color: #fcd34d; }
 
+/* "Mapped on the other statement" holding area — a source of chips you can pull
+   onto a line in the current tab. Read-only (not a drop target), so tinted blue
+   to read as informational rather than as the amber "unmapped" warning. */
+#section-tbratio .tbr-bucket-elsewhere {
+  margin-top: 14px;
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+#section-tbratio .tbr-bucket-elsewhere .tbr-bucket-head { color: #1e3a8a; border-bottom-color: #93c5fd; }
+/* The chips inside the elsewhere area are draggable sources; the body itself
+   is read-only so it shows no drop affordance. */
+#section-tbratio .tbr-bucket-body-readonly.dragover { background: transparent; outline: none; }
+
 /* Draggable account chip */
 #section-tbratio .tbr-chip {
   display: grid;

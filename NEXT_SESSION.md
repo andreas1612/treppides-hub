@@ -21,10 +21,10 @@
 
 ## Deploy status
 
-**Pending deploy** as of 2026-06-18. Latest local commit adds the TB Ratio Tool tabbed
-results layout + Valuation tutorial copy tweaks, on top of `origin/main`'s Budget KPI
-month drill-down (`ea1347a`) and the earlier Valuation guided tour + TB Ratio WIP. Also
-unpushed before this: the Valuation guided tour (`7ac725e`) and TB Ratio WIP (`453555d`).
+**Pending deploy** as of 2026-06-19. Latest local commit reworks the TB Ratio Tool account-
+mapping UX (drop-in-empty-space → unmap, drag auto-scroll, and accounts now reachable from
+BOTH statement tabs). Sits on top of the 2026-06-18 TB Ratio tabbed results + Valuation copy
+tweaks (`90d95c1`, already pushed) and `origin/main`'s Budget KPI month drill-down (`ea1347a`).
 **All frontend-only, no-build** — deploy is `git pull && hard-refresh`. No backend/systemd
 restart needed. See **Server deploy steps** at the bottom of this file.
 
@@ -33,7 +33,33 @@ re-sync, `companies-api` + `clickup-fees` restarted, frontend hard-refreshed).
 
 ---
 
-## Last Session --- 2026-06-18 (TB Ratio tabbed results + Valuation copy tweaks)
+## Last Session --- 2026-06-19 (TB Ratio account-mapping UX + cross-statement bug fix)
+
+**What was done (this local checkout):**
+- **TB Ratio Tool — three mapping-panel changes** (`components/pages/tbratio.js`,
+  `styles/pages/tbratio.css`):
+  1. **Drop in empty space → Unmapped.** Releasing a dragged account chip outside any bucket
+     now moves it to Unmapped (previously nothing happened). Implemented via a `_dropHandled`
+     flag: a real bucket drop sets it; if `dragend` fires with it still false, the chip is
+     unmapped. Drop logic extracted into a shared `applyOverride(rowIndex, targetId)`.
+  2. **Drag auto-scroll.** While dragging, the window auto-scrolls when the cursor nears the
+     top/bottom viewport edge (`AUTOSCROLL_EDGE_PX` 90 / `AUTOSCROLL_SPEED_PX` 18, via rAF), so
+     buckets off-screen in long mapping lists are reachable without dropping first.
+  3. **CRITICAL FIX — accounts were exclusive to one statement.** Each posting row rendered in
+     exactly ONE bucket on ONE tab, so e.g. a "depreciation"-named account auto-classified to the
+     P&L was invisible on the Balance Sheet tab and couldn't be dragged to Fixed Assets. Now EVERY
+     detected account is reachable from BOTH tabs: accounts mapped to the *other* statement appear
+     in a new blue **"Mapped on [other statement] — drag onto a line here to move it across"**
+     holding area (`.tbr-bucket-elsewhere`, read-only body), draggable onto any line in the current
+     tab (which reassigns it). Bidirectional.
+  - **Verified locally** via the auth-free harness + headless Chrome: bug #3 and the new hint text
+    confirmed on both tabs (TB with both a `Depreciation Charge` and an `Accumulated Depreciation`
+    asset — both reachable from BS and P&L). Auto-scroll + empty-space-drop are drag-runtime
+    behaviours screenshots can't exercise; code paths in place. Harness + screenshots removed.
+
+---
+
+## Earlier Session --- 2026-06-18 (TB Ratio tabbed results + Valuation copy tweaks)
 
 **What was done (this local checkout):**
 - **TB Ratio Tool — split results onto two tabs.** The Balance Sheet and Profit & Loss
