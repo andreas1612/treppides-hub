@@ -1393,6 +1393,10 @@ async function handleFile(file, slot) {
       state.prior = null;
       state.model = null;
       _mapTab = "bs"; // reset the mapping tab to the default
+      // Start the "No activity" (zero-balance) area collapsed for a fresh book;
+      // the user can expand it and that choice then sticks across re-renders.
+      _collapsed.clear();
+      _collapsed.add("__zero__");
     } else {
       state.prior = parsed;
     }
@@ -1400,7 +1404,7 @@ async function handleFile(file, slot) {
     runMapping();
   } catch (err) {
     console.error("TB Ratio Tool: parse failed", err);
-    const msg = err instanceof ParseError ? err.message : "Could not read this file. Make sure it is an E-Soft trial-balance export (.xlsx or .csv).";
+    const msg = err instanceof ParseError ? err.message : "Could not read this file. Make sure it is a trial balance sheet export (.xlsx or .csv).";
     status.innerHTML = errorBanner(escapeHtml(msg));
   }
 }
@@ -1526,10 +1530,12 @@ function wireMappingPanel(out) {
   // ---- Drag and drop ----
   // _dragRow / _dropHandled let us implement "drop in empty space → Unmapped":
   // a successful bucket drop sets _dropHandled; if dragend fires with it still
-  // false, the chip was released outside any bucket, so we unmap it.
+  // false, the chip was released outside any bucket, so we route it accordingly.
   out.querySelectorAll(".tbr-chip").forEach(chip => {
     chip.addEventListener("dragstart", e => {
+      _dragEl = chip;
       _dragRow = Number(chip.getAttribute("data-rowindex"));
+      _dragIsZero = Math.abs(rowClosingNet(_dragRow)) < EPSILON;
       _dropHandled = false;
       e.dataTransfer.setData("text/plain", chip.getAttribute("data-rowindex"));
       e.dataTransfer.effectAllowed = "move";
@@ -1538,11 +1544,22 @@ function wireMappingPanel(out) {
     chip.addEventListener("dragend", () => {
       chip.classList.remove("dragging");
       stopAutoScroll();
-      // Released outside any drop target → move to Unmapped.
+      // Released outside any drop target. A zero-balance chip goes to the
+      // "No activity" area (clear its override so isZeroParked re-parks it);
+      // a chip carrying a value goes to Unmapped. BUT if the chip is already in
+      // the area it would land in, do nothing — an accidental drag-and-release
+      // shouldn't record a (sticky/persisted) override for a non-move.
       if (!_dropHandled && Number.isFinite(_dragRow)) {
-        applyOverride(_dragRow, "__unmapped__");
+        const srcBox = _dragEl?.closest(".tbr-bucket");
+        if (_dragIsZero) {
+          if (!srcBox?.classList.contains("tbr-bucket-zero")) applyOverride(_dragRow, null);
+        } else {
+          if (!srcBox?.classList.contains("tbr-bucket-unmapped")) applyOverride(_dragRow, "__unmapped__");
+        }
       }
+      _dragEl = null;
       _dragRow = null;
+      _dragIsZero = false;
     });
   });
 
@@ -1566,18 +1583,135 @@ function wireMappingPanel(out) {
       stopAutoScroll();
       const rowIndex = Number(e.dataTransfer.getData("text/plain"));
       if (!Number.isFinite(rowIndex)) return;
+      // No-op if the chip is dropped back into the bucket it already sits in —
+      // don't record a (possibly sticky/persisted) override for a non-move.
+      // Use the dragged element itself (not a querySelector, which could match
+      // the duplicate chip in the hidden tab pane).
+      if (_dragEl && _dragEl.closest(".tbr-bucket-body") === body) return;
       applyOverride(rowIndex, body.getAttribute("data-target"));
     });
   });
+
+  // ---- Discoverability: live search, count + jump, collapse ----
+  // All of these mutate the DOM directly (classes / hidden) rather than
+  // re-rendering, so drag wiring, scroll position and input focus are kept.
+  // Each tab pane renders its own toolbar, so wire EVERY instance (querySelector
+  // would only catch the first pane's). Filtering operates across all panes.
+  out.querySelectorAll("#tbr-map-search").forEach(input => {
+    input.addEventListener("input", () => {
+      _search = input.value.trim().toLowerCase();
+      applyMapFilter(out);
+    });
+  });
+  out.querySelectorAll("#tbr-search-clear").forEach(btn => {
+    btn.addEventListener("click", () => {
+      _search = "";
+      out.querySelectorAll("#tbr-map-search").forEach(i => { i.value = ""; });
+      out.querySelector('.tbr-tabpane:not([hidden]) #tbr-map-search')?.focus();
+      applyMapFilter(out);
+    });
+  });
+  out.querySelectorAll("#tbr-search-jump").forEach(btn => {
+    btn.addEventListener("click", () => {
+      // Jump within the VISIBLE pane only.
+      const pane = out.querySelector(".tbr-tabpane:not([hidden])") || out;
+      const first = pane.querySelector(".tbr-chip.tbr-match");
+      if (first) {
+        first.closest(".tbr-bucket")?.classList.remove("collapsed"); // reveal if collapsed
+        first.scrollIntoView({ behavior: "smooth", block: "center" });
+        first.classList.add("tbr-flash");
+        setTimeout(() => first.classList.remove("tbr-flash"), 1200);
+      }
+    });
+  });
+
+  // Collapse / expand a bucket by clicking its head.
+  out.querySelectorAll(".tbr-bucket-head[data-collapse]").forEach(head => {
+    head.addEventListener("click", () => {
+      const id = head.getAttribute("data-collapse");
+      const box = head.closest(".tbr-bucket");
+      const nowCollapsed = box.classList.toggle("collapsed");
+      // Keep both panes' copies of this bucket in sync (id is shared across tabs
+      // only for __unmapped__/__zero__; line buckets are unique per pane).
+      if (nowCollapsed) _collapsed.add(id); else _collapsed.delete(id);
+    });
+  });
+
+  // "Collapse empty" — collapse every empty bucket in the VISIBLE pane; if all
+  // empties there are already collapsed, expand them again (toggle).
+  out.querySelectorAll("#tbr-collapse-empty").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const pane = btn.closest(".tbr-tabpane") || out;
+      const empties = [...pane.querySelectorAll(".tbr-bucket")]
+        .filter(b => !b.querySelector(".tbr-chip"));
+      const anyOpen = empties.some(b => !b.classList.contains("collapsed"));
+      empties.forEach(b => {
+        const id = b.getAttribute("data-bucket");
+        if (anyOpen) { b.classList.add("collapsed"); _collapsed.add(id); }
+        else { b.classList.remove("collapsed"); _collapsed.delete(id); }
+      });
+    });
+  });
+
+  // Re-apply any active filter on (re-)render so it survives drag-drops.
+  applyMapFilter(out);
+}
+
+/**
+ * Apply the live search filter to the mapping panel in `out` (DOM-only):
+ *  - chips whose data-search includes _search get .tbr-match; others get .tbr-dim
+ *  - buckets containing a match get .tbr-has-match (so you see WHERE it lives)
+ *  - the count readout + jump button update.
+ * With no search term, all marks are cleared.
+ */
+function applyMapFilter(out) {
+  const term = _search;
+  const chips = out.querySelectorAll(".tbr-chip");
+  // Each pane has its own toolbar copy — update them all.
+  const countEls = out.querySelectorAll("#tbr-search-count");
+  const jumpBtns = out.querySelectorAll("#tbr-search-jump");
+  const clearBtns = out.querySelectorAll("#tbr-search-clear");
+  const setHidden = (els, hide) => els.forEach(el => hide ? el.setAttribute("hidden", "") : el.removeAttribute("hidden"));
+
+  if (!term) {
+    chips.forEach(c => c.classList.remove("tbr-match", "tbr-dim"));
+    out.querySelectorAll(".tbr-bucket").forEach(b => b.classList.remove("tbr-has-match"));
+    countEls.forEach(el => { el.textContent = ""; });
+    setHidden(jumpBtns, true);
+    setHidden(clearBtns, true);
+    return;
+  }
+
+  let matches = 0;
+  chips.forEach(c => {
+    const hay = c.getAttribute("data-search") || "";
+    const hit = hay.includes(term);
+    c.classList.toggle("tbr-match", hit);
+    c.classList.toggle("tbr-dim", !hit);
+    if (hit) matches++;
+  });
+  out.querySelectorAll(".tbr-bucket").forEach(b => {
+    b.classList.toggle("tbr-has-match", !!b.querySelector(".tbr-chip.tbr-match"));
+  });
+  // matches counts chips across BOTH panes (every account renders in each tab),
+  // so report the per-pane figure: divide by the number of panes present.
+  const paneCount = out.querySelectorAll(".tbr-tabpane").length || 1;
+  const perPane = Math.round(matches / paneCount);
+  countEls.forEach(el => { el.textContent = `${perPane} match${perPane === 1 ? "" : "es"}`; });
+  setHidden(clearBtns, false);
+  setHidden(jumpBtns, matches === 0);
 }
 
 /**
  * Record a manual mapping override and re-map. targetId is a statement-line id
- * or "__unmapped__". Stored as an EXPLICIT override (including "__unmapped__")
- * so an account that would auto-detect stays where the user put it.
+ * or "__unmapped__" (stored as an EXPLICIT override so an account that would
+ * auto-detect stays where the user put it), OR null to CLEAR the override —
+ * reverting the row to auto-detection. Clearing a zero-balance row lets
+ * isZeroParked() send it back to the "No activity" area.
  */
 function applyOverride(rowIndex, targetId) {
-  state.overrides[rowIndex] = targetId;
+  if (targetId === null) delete state.overrides[rowIndex];
+  else state.overrides[rowIndex] = targetId;
   // A manual edit supersedes the "restored from previous upload" notice.
   state.restoredCount = 0;
   // Persist for this company so the manual mapping survives future uploads.
@@ -1586,8 +1720,16 @@ function applyOverride(rowIndex, targetId) {
   runMapping();
 }
 
+/** Closing net for a parsed row by its rowIndex (0 if not found). */
+function rowClosingNet(rowIndex) {
+  const row = (state.primary?.rows || []).find(r => r.rowIndex === rowIndex);
+  return row ? (row.closingNet || 0) : 0;
+}
+
 // ---- Drag auto-scroll (reach off-screen buckets in long lists) -------------
+let _dragEl = null;         // the chip element currently being dragged
 let _dragRow = null;        // rowIndex of the chip currently being dragged
+let _dragIsZero = false;    // whether the dragged chip has a zero closing balance
 let _dropHandled = false;   // set true by a successful bucket drop
 let _autoScrollRAF = null;  // requestAnimationFrame id for the scroll loop
 let _autoScrollDir = 0;     // -1 up, +1 down, 0 idle
@@ -1822,13 +1964,20 @@ function renderValidation(m) {
 // Which mapping tab is showing ("bs" | "pnl"); preserved across re-renders.
 let _mapTab = "bs";
 
+// Discoverability state, preserved across the re-renders that drag-drops trigger:
+//   _search    — current live-filter term (lowercased)
+//   _collapsed — set of bucket ids (data-bucket) the user has collapsed
+let _search = "";
+const _collapsed = new Set();
+
 /**
  * Drag-and-drop mapping panel for ONE statement (`which` = "bs" | "pnl").
- * Accounts are auto-detected on upload, then the user can drag any account chip
- * into any statement line (a "bucket"), across to the other statement's tab if
- * needed, or into "Unmapped". Dropping remaps immediately. The statement shown
- * is driven by the shared top-level tab strip (see render()), so this panel no
- * longer carries its own tab buttons.
+ * EVERY account is available on BOTH tabs: an account auto-mapped to a line on
+ * THIS statement shows in that line's bucket; anything else (auto-mapped to the
+ * other statement, or unmapped) sits in this tab's "Unmapped" bucket, ready to
+ * drag onto any line here. Zero-balance accounts park in the "No activity" area.
+ * Dropping remaps immediately. The statement shown is driven by the shared
+ * top-level tab strip (see render()), so this panel has no tab buttons of its own.
  */
 function renderMappingPanel(m, which) {
   // One record per posting row (mapped + unmapped), keyed by rowIndex.
@@ -1836,21 +1985,61 @@ function renderMappingPanel(m, which) {
     ...m.assignments.map(a => ({ rowIndex: a.rowIndex, code: a.code, name: a.name, value: a.closingNet, targetId: a.targetId })),
     ...m.unmapped.map(u => ({ rowIndex: u.rowIndex, code: u.code, name: u.name, value: u.closingNet, targetId: "__unmapped__" })),
   ];
-  const byTarget = (id) => accounts.filter(a => a.targetId === id);
 
+  // Accounts whose CLOSING balance nets to zero carry no debit/credit and add
+  // nothing to the statements. To keep the buckets uncluttered, pull them into a
+  // single collapsed "No activity" area at the bottom — UNLESS the user has
+  // explicitly mapped one (an override), in which case respect that and leave it
+  // on its line. This is display-only grouping; the model/statements are unchanged.
+  const isZeroParked = (a) =>
+    Math.abs(a.value || 0) < EPSILON &&
+    state.overrides[a.rowIndex] === undefined;     // not user-pinned to a line
+  const zeroAccounts = accounts.filter(isZeroParked);
+
+  // The line-id sets for each statement. An account whose target is NOT a line on
+  // THIS statement (i.e. it auto-mapped to the OTHER statement, or is unmapped)
+  // simply sits in this tab's Unmapped bucket — every account is freely draggable
+  // onto any line of the current tab. (No "move it across" holding area: that
+  // wrongly locked out, e.g., using Tax on the P&L because it sat on the BS.)
+  const thisTargets = which === "pnl" ? DEFAULT_MAPPING.pnlTargets : DEFAULT_MAPPING.bsTargets;
+  const thisTargetIds = new Set(thisTargets.map(t => t.id));
+
+  // byTarget for the live buckets EXCLUDES parked-zero chips.
+  const byTarget = (id) => accounts.filter(a => a.targetId === id && !isZeroParked(a));
+  // Accounts shown in THIS tab's Unmapped: explicitly unmapped OR mapped to a line
+  // on the OTHER statement (not reachable as a line here). Zero-parked excluded.
+  const unmappedHere = accounts.filter(a =>
+    !isZeroParked(a) && !thisTargetIds.has(a.targetId));
+
+  // data-search holds a lowercased code+name haystack for the live filter.
   const chip = (a) => `
-    <div class="tbr-chip" draggable="true" data-rowindex="${a.rowIndex}" title="${escapeHtml(a.name)}">
+    <div class="tbr-chip" draggable="true" data-rowindex="${a.rowIndex}"
+         data-search="${escapeHtml(((a.code || "") + " " + (a.name || "")).toLowerCase())}"
+         title="${escapeHtml(a.name)}">
       <span class="tbr-chip-code">${escapeHtml(a.code || "")}</span>
       <span class="tbr-chip-name">${escapeHtml(a.name || "(unnamed)")}</span>
       <span class="tbr-chip-val">${a.value === null || a.value === undefined ? "" : fmt(a.value)}</span>
     </div>`;
 
-  // A drop bucket for one statement line.
-  const bucket = (t) => `
-    <div class="tbr-bucket" data-target="${t.id}">
-      <div class="tbr-bucket-head">${escapeHtml(t.label)}</div>
-      <div class="tbr-bucket-body" data-target="${t.id}">${byTarget(t.id).map(chip).join("")}</div>
+  // A drop bucket for one statement line. The head carries a count badge and a
+  // collapse caret; collapsed state is keyed by data-bucket and restored across
+  // re-renders from _collapsed.
+  const bucketBox = (id, label, chips, extraClass = "", readonly = false) => {
+    const n = chips.length;
+    const collapsed = _collapsed.has(id);
+    const bodyAttrs = readonly ? 'data-readonly="1"' : `data-target="${id}"`;
+    return `
+    <div class="tbr-bucket ${extraClass} ${collapsed ? "collapsed" : ""}" data-bucket="${escapeHtml(id)}">
+      <div class="tbr-bucket-head" data-collapse="${escapeHtml(id)}">
+        <span class="tbr-bucket-caret" aria-hidden="true">▾</span>
+        <span class="tbr-bucket-label">${label}</span>
+        <span class="tbr-bucket-count" data-count>${n}</span>
+      </div>
+      <div class="tbr-bucket-body ${readonly ? "tbr-bucket-body-readonly" : ""}" ${bodyAttrs}>${chips.map(chip).join("")}</div>
     </div>`;
+  };
+
+  const bucket = (t) => bucketBox(t.id, escapeHtml(t.label), byTarget(t.id));
 
   // Buckets for one statement, grouped under their section headers.
   const statementCols = (targets) => {
@@ -1867,45 +2056,52 @@ function renderMappingPanel(m, which) {
       </div>`).join("");
   };
 
-  const unmappedBucket = `
-    <div class="tbr-bucket tbr-bucket-unmapped" data-target="__unmapped__">
-      <div class="tbr-bucket-head">Unmapped — excluded from the statements</div>
-      <div class="tbr-bucket-body" data-target="__unmapped__">${byTarget("__unmapped__").map(chip).join("")}</div>
+  const unmappedBucket = bucketBox(
+    "__unmapped__", "Unmapped — drag onto any line to include it",
+    unmappedHere, "tbr-bucket-unmapped");
+
+  const targets = thisTargets;
+
+  // Collapsed "No activity" area: accounts with a zero closing balance. Default-
+  // collapsed (don't add to _collapsed automatically — instead seed it once below).
+  const zeroBucket = zeroAccounts.length
+    ? bucketBox("__zero__",
+        "No activity — accounts with no debit or credit (zero balance)",
+        zeroAccounts, "tbr-bucket-zero", /* readonly */ true)
+    : "";
+
+  // Discoverability toolbar: live search (dims non-matches, marks buckets with a
+  // hit), a match count + jump-to-first, and a collapse-empty toggle. Wired in
+  // wireMappingPanel(); search term + collapsed state persist across re-renders.
+  const toolbar = `
+    <div class="tbr-map-tools">
+      <div class="tbr-search">
+        <svg class="tbr-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="search" id="tbr-map-search" placeholder="Search accounts by code or name…"
+               value="${escapeHtml(_search)}" autocomplete="off" spellcheck="false" />
+        <button type="button" class="tbr-search-clear" id="tbr-search-clear" title="Clear" aria-label="Clear search" ${_search ? "" : "hidden"}>×</button>
+      </div>
+      <span class="tbr-search-count" id="tbr-search-count" aria-live="polite"></span>
+      <button type="button" class="tbr-tool-btn" id="tbr-search-jump" ${_search ? "" : "hidden"}>Jump to match</button>
+      <button type="button" class="tbr-tool-btn" id="tbr-collapse-empty">Collapse empty</button>
     </div>`;
-
-  const targets = which === "pnl" ? DEFAULT_MAPPING.pnlTargets : DEFAULT_MAPPING.bsTargets;
-  const otherTargets = which === "pnl" ? DEFAULT_MAPPING.bsTargets : DEFAULT_MAPPING.pnlTargets;
-  const otherName = which === "pnl" ? "Balance Sheet" : "Profit &amp; Loss";
-
-  // EVERY detected account is reachable from BOTH tabs. Accounts assigned to a
-  // line on the OTHER statement are auto-detection's first guess, not a binding
-  // choice — so they appear here in a holding area, draggable onto any line in
-  // THIS statement (which moves them across). Without this, e.g. a "depreciation"
-  // account auto-classified to the P&L was invisible on the Balance Sheet tab and
-  // couldn't be reassigned to Fixed Assets.
-  const otherTargetIds = new Set(otherTargets.map(t => t.id));
-  const mappedElsewhere = accounts.filter(a => otherTargetIds.has(a.targetId));
-  const elsewhereBucket = mappedElsewhere.length ? `
-    <div class="tbr-bucket tbr-bucket-elsewhere">
-      <div class="tbr-bucket-head">Mapped on ${otherName} — drag onto a line here to move it across</div>
-      <div class="tbr-bucket-body tbr-bucket-body-readonly" data-readonly="1">${mappedElsewhere.map(chip).join("")}</div>
-    </div>` : "";
 
   return `
     <div class="tbr-card tbr-mapping">
       <div class="tbr-map-head">
         <div>
           <h3 class="tbr-map-title">Account Mapping</h3>
-          <p class="tbr-hint">Auto-detected on upload. <strong>Drag any account</strong> into the
-            right line — or drop it in empty space to unmap it. Accounts the tool put on the
-            ${otherName} statement are shown below so you can pull them onto a line here too.
-            Statements and ratios update instantly.</p>
+          <p class="tbr-hint">Auto-detected on upload. <strong>Drag any account</strong> onto any
+            line — or drop it in empty space to unmap it. Every account is available on both the
+            Balance Sheet and Profit &amp; Loss tabs; anything not auto-mapped to a line here sits
+            in <strong>Unmapped</strong>. Statements and ratios update instantly.</p>
         </div>
       </div>
+      ${toolbar}
 
       <div class="tbr-buckets">${statementCols(targets)}</div>
       ${unmappedBucket}
-      ${elsewhereBucket}
+      ${zeroBucket}
     </div>`;
 }
 
@@ -2104,7 +2300,7 @@ const SHELL_HTML = `
       </button>
       <div>
         <h2 class="tbr-page-title">TB Ratio Tool</h2>
-        <p class="tbr-subtitle">Upload an E-Soft trial balance &rarr; Profit &amp; Loss, Balance Sheet &amp; ratios.</p>
+        <p class="tbr-subtitle">Upload a trial balance sheet &rarr; Profit &amp; Loss, Balance Sheet &amp; ratios.</p>
       </div>
     </div>
 
@@ -2114,7 +2310,7 @@ const SHELL_HTML = `
         <polyline points="17 8 12 3 7 8"/>
         <line x1="12" y1="3" x2="12" y2="15"/>
       </svg>
-      <p><strong>Drop an E-Soft trial balance here</strong> or click to choose a file</p>
+      <p><strong>Drop a trial balance sheet here</strong> or click to choose a file</p>
       <p class="tbr-hint">.xlsx or .csv &middot; the file is processed in your browser and never uploaded</p>
       <input type="file" id="tbr-file" accept=".xlsx,.xls,.csv" hidden>
     </div>

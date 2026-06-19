@@ -193,6 +193,33 @@
   color: var(--text-primary);
   padding: 6px 8px;
   border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;        /* the head toggles collapse */
+  user-select: none;
+}
+#section-tbratio .tbr-bucket-label { flex: 1 1 auto; min-width: 0; }
+#section-tbratio .tbr-bucket-caret {
+  font-size: 10px;
+  color: var(--text-secondary);
+  transition: transform var(--transition);
+  flex-shrink: 0;
+}
+#section-tbratio .tbr-bucket.collapsed .tbr-bucket-caret { transform: rotate(-90deg); }
+#section-tbratio .tbr-bucket.collapsed .tbr-bucket-body { display: none; }
+#section-tbratio .tbr-bucket-count {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0 7px;
+  min-width: 20px;
+  text-align: center;
 }
 #section-tbratio .tbr-bucket-body {
   min-height: 38px;
@@ -214,18 +241,21 @@
 }
 #section-tbratio .tbr-bucket-unmapped .tbr-bucket-head { color: #78350f; border-bottom-color: #fcd34d; }
 
-/* "Mapped on the other statement" holding area — a source of chips you can pull
-   onto a line in the current tab. Read-only (not a drop target), so tinted blue
-   to read as informational rather than as the amber "unmapped" warning. */
-#section-tbratio .tbr-bucket-elsewhere {
-  margin-top: 14px;
-  border-color: #93c5fd;
-  background: #eff6ff;
-}
-#section-tbratio .tbr-bucket-elsewhere .tbr-bucket-head { color: #1e3a8a; border-bottom-color: #93c5fd; }
-/* The chips inside the elsewhere area are draggable sources; the body itself
-   is read-only so it shows no drop affordance. */
+/* A read-only bucket body (e.g. the "No activity" area) is a drag SOURCE, not a
+   drop target, so it shows no drop affordance. */
 #section-tbratio .tbr-bucket-body-readonly.dragover { background: transparent; outline: none; }
+
+/* "No activity" area — accounts with a zero closing balance, parked here (default
+   collapsed) so they don't clutter the live buckets. Neutral grey: they're inert,
+   not a warning. Still draggable onto a line if the user wants one included. */
+#section-tbratio .tbr-bucket-zero {
+  margin-top: 14px;
+  border-color: var(--border);
+  background: var(--page-bg);
+}
+#section-tbratio .tbr-bucket-zero .tbr-bucket-head { color: var(--text-secondary); }
+#section-tbratio .tbr-bucket-zero .tbr-chip { opacity: .7; }
+#section-tbratio .tbr-bucket-zero .tbr-chip-val { font-style: italic; }
 
 /* Draggable account chip */
 #section-tbratio .tbr-chip {
@@ -246,6 +276,92 @@
 #section-tbratio .tbr-chip-code { color: var(--text-secondary); font-variant-numeric: tabular-nums; font-size: 11px; }
 #section-tbratio .tbr-chip-name { color: var(--text-primary); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #section-tbratio .tbr-chip-val  { color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* ---- Mapping discoverability: search toolbar, filter highlight, jump ---- */
+#section-tbratio .tbr-map-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 4px 0 14px;
+}
+#section-tbratio .tbr-search {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex: 1 1 280px;
+  min-width: 220px;
+}
+#section-tbratio .tbr-search-icon {
+  position: absolute;
+  left: 9px;
+  width: 15px; height: 15px;
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+#section-tbratio #tbr-map-search {
+  width: 100%;
+  padding: 8px 30px 8px 30px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 13px;
+  background: var(--card-bg);
+  color: var(--text-primary);
+}
+#section-tbratio #tbr-map-search:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+#section-tbratio .tbr-search-clear {
+  position: absolute;
+  right: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+#section-tbratio .tbr-search-clear:hover { color: var(--text-primary); background: var(--page-bg); }
+#section-tbratio .tbr-search-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+#section-tbratio .tbr-tool-btn {
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  border-radius: var(--radius);
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition);
+}
+#section-tbratio .tbr-tool-btn:hover { border-color: var(--text-secondary); }
+
+/* Live-filter highlight: non-matching chips dim; matches stay bold; buckets
+   that contain a match get an accent ring so you can spot WHERE the field is. */
+#section-tbratio .tbr-chip.tbr-dim { opacity: .28; }
+#section-tbratio .tbr-chip.tbr-match {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+#section-tbratio .tbr-bucket.tbr-has-match {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+/* A collapsed bucket that still contains a match nudges the user to expand it. */
+#section-tbratio .tbr-bucket.collapsed.tbr-has-match .tbr-bucket-head { color: var(--accent-hover, #1a202c); }
+/* Brief flash when "Jump to match" scrolls a chip into view. */
+@keyframes tbr-flash { 0%, 100% { background: var(--card-bg); } 30% { background: #fff7c2; } }
+#section-tbratio .tbr-chip.tbr-flash { animation: tbr-flash 1.1s ease; }
 
 #section-tbratio .tbr-unmapped.ok { color: #14532d; background: #f0fdf4; border-color: #bbf7d0; }
 #section-tbratio .tbr-unmapped.warn { border-color: #fcd34d; }

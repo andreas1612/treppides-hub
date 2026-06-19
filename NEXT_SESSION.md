@@ -21,19 +21,56 @@
 
 ## Deploy status
 
-**Pending deploy** as of 2026-06-19. Latest local commit reworks the TB Ratio Tool account-
-mapping UX (drop-in-empty-space → unmap, drag auto-scroll, and accounts now reachable from
-BOTH statement tabs). Sits on top of the 2026-06-18 TB Ratio tabbed results + Valuation copy
-tweaks (`90d95c1`, already pushed) and `origin/main`'s Budget KPI month drill-down (`ea1347a`).
-**All frontend-only, no-build** — deploy is `git pull && hard-refresh`. No backend/systemd
-restart needed. See **Server deploy steps** at the bottom of this file.
+**Pending deploy** as of 2026-06-19. Latest local commit adds TB Ratio mapping discoverability
+(search/collapse/counts), a "No activity" zero-balance area, zero-aware empty-space drop, a
+no-op-on-same-bucket drop fix, the cross-statement rework (every account reachable from both
+tabs via Unmapped — the "move it across" area was removed), and "E-Soft" → "trial balance
+sheet" UI wording. Sits on `90d95c1` (already pushed) and `origin/main`'s Budget KPI drill-down
+(`ea1347a`). **All frontend-only, no-build** — deploy is `git pull && hard-refresh`. No
+backend/systemd restart needed. See **Server deploy steps** at the bottom of this file.
 
 Prior baseline: commit `6202295` (2026-06-09) was fully deployed (Dashboard TID `--full`
 re-sync, `companies-api` + `clickup-fees` restarted, frontend hard-refreshed).
 
 ---
 
-## Last Session --- 2026-06-19 (TB Ratio account-mapping UX + cross-statement bug fix)
+## Last Session --- 2026-06-19b (TB Ratio discoverability, zero area, cross-statement rework)
+
+**What was done (this local checkout) — all in `components/pages/tbratio.js` + `styles/pages/tbratio.css`:**
+- **Mapping discoverability toolbar.** Live search box (dims non-matches, accent-rings matching
+  chips AND the buckets containing them), a per-pane **match count** + **Jump to match** (scrolls
+  to & flashes the first hit, expanding its bucket if collapsed), **collapse/expand** any bucket by
+  its head, a **Collapse empty** toggle, and a **count badge** on every bucket head. Search term +
+  collapsed state persist across the re-renders drag-drops trigger (DOM-class toggles, no re-render).
+- **"No activity" area.** Accounts whose CLOSING balance is zero are pulled out of their line
+  buckets into a single collapsed `tbr-bucket-zero` area at the bottom (default-collapsed, seeded in
+  `handleFile`). Display-only grouping (model unchanged); still draggable onto a line; an explicitly
+  mapped zero account (has an override) stays on its line.
+- **Zero-aware empty-space drop.** Dropping a chip outside any bucket: a **zero**-balance chip goes
+  to the No-Activity area (via `applyOverride(row, null)` = CLEAR override → re-parks), a chip with a
+  value goes to Unmapped.
+- **No-op on same-bucket drop (bug fix).** Dropping a chip back into the bucket it already sits in
+  (or releasing it in empty space when already in Unmapped/No-Activity) no longer records a sticky,
+  persisted override. Uses the dragged element `_dragEl` to compare source vs target body.
+- **Cross-statement rework (SUPERSEDES the 2026-06-19a "Mapped elsewhere" design below).** The blue
+  "Mapped on [other statement] — move it across" holding area was REMOVED. Now every account is
+  available on both tabs: one auto-mapped to a line on THIS statement shows in that line bucket;
+  anything else (mapped to the other statement, or unmapped) sits in THIS tab's **Unmapped** bucket,
+  freely draggable onto any line here. (Old design wrongly locked out e.g. using Tax on the P&L
+  because it sat on the BS.) `tbr-bucket-elsewhere` CSS removed.
+- **Wording.** User-facing "E-Soft trial balance" → "trial balance sheet" (subtitle, drop-zone,
+  parse-error). Internal parser comments still reference the E-Soft export format (accurate for devs).
+- **Verified locally** via the auth-free harness + headless Chrome (search/collapse/counts, the
+  No-Activity area collapsed+expanded, and the cross-statement Unmapped placement on both tabs).
+  Drag-runtime behaviours (auto-scroll, empty-space routing, no-op drop) are in place but can't be
+  exercised by screenshots. Harness + screenshots removed.
+- **Note:** the bundled sample TB in the (now-deleted) test harness never balanced by design — it
+  was hand-written to exercise the UI, not to tie out. Not a tool bug; a real export should pass the
+  raw debits=credits check, and the balance-sheet check depends on correct mapping.
+
+---
+
+## Earlier Session --- 2026-06-19a (TB Ratio account-mapping UX + cross-statement first cut)
 
 **What was done (this local checkout):**
 - **TB Ratio Tool — three mapping-panel changes** (`components/pages/tbratio.js`,
