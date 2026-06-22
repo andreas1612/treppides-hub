@@ -1,0 +1,179 @@
+/* ============================================================
+   styles/pages/tbratio-tour.css
+   On-site guided tour (coachmark overlay) for the TB Ratio Tool.
+   Paired with components/pages/tbratio-tour.js.
+   Uses the hub design tokens so it matches the rest of the tool.
+   Ported from valuation-tour.css (tbr-tour-* class prefix).
+   ============================================================ */
+
+/* ---- Header "Tutorial" button ---- */
+.tbr-tour-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-left: 1rem;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm, 6px);
+  cursor: pointer;
+  transition: var(--transition, all 0.15s ease);
+  align-self: center;
+}
+.tbr-tour-btn:hover {
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
+  background: var(--bg-surface-hover);
+}
+.tbr-tour-btn svg { flex-shrink: 0; }
+
+/* ---- Backdrop + spotlight ---- */
+.tbr-tour-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: none;
+}
+.tbr-tour-backdrop.open { display: block; }
+
+/* The "hole" is the spotlight. Instead of cutting a real hole, we use a
+   massive box-shadow to dim everything around it — cheap and crisp. */
+.tbr-tour-hole {
+  position: fixed;
+  display: none;
+  border-radius: var(--radius-sm, 6px);
+  box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.62);
+  outline: 2px solid var(--accent-primary, #2f6feb);
+  outline-offset: 2px;
+  pointer-events: none;          /* clicks pass through to nothing useful */
+  transition: left 0.2s ease, top 0.2s ease, width 0.2s ease, height 0.2s ease;
+}
+
+/* When there's no anchor (welcome / final / upload-first step) the whole
+   screen dims. Toggled explicitly from JS rather than via :has() so it
+   doesn't depend on inline-style matching or browser :has support. */
+.tbr-tour-backdrop.tbr-tour-dim {
+  background: rgba(15, 23, 42, 0.62);
+}
+
+/* ---- Tooltip card ---- */
+.tbr-tour-tip {
+  position: fixed;
+  z-index: 2001;
+  width: min(340px, calc(100vw - 32px));
+  background: var(--bg-main, #fff);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md, 10px);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.28);
+  padding: 1rem 1.1rem 0.9rem;
+  transition: left 0.2s ease, top 0.2s ease;
+}
+
+.tbr-tour-progress {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.35rem;
+}
+.tbr-tour-title {
+  margin: 0 0 0.4rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.tbr-tour-body {
+  margin: 0 0 0.9rem;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.tbr-tour-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.tbr-tour-nav {
+  display: flex;
+  gap: 0.4rem;
+}
+
+/* ---- Tour buttons (self-contained so the overlay doesn't depend on
+        any global .btn classes) ---- */
+.tbr-tour-primary,
+.tbr-tour-secondary,
+.tbr-tour-x {
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.4rem 0.8rem;
+  border-radius: var(--radius-sm, 6px);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: var(--transition, all 0.15s ease);
+}
+.tbr-tour-primary {
+  color: #fff;
+  background: var(--accent-primary, #2f6feb);
+  border-color: var(--accent-primary, #2f6feb);
+}
+.tbr-tour-primary:hover { filter: brightness(1.06); }
+.tbr-tour-secondary {
+  color: var(--text-secondary);
+  background: var(--bg-surface, #f1f5f9);
+  border-color: var(--border-color);
+}
+.tbr-tour-secondary:hover:not(:disabled) {
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+.tbr-tour-secondary:disabled { opacity: 0.45; cursor: default; }
+.tbr-tour-x {
+  color: var(--text-muted);
+  background: transparent;
+  border-color: transparent;
+  padding-left: 0;
+}
+.tbr-tour-x:hover { color: var(--text-primary); text-decoration: underline; }
+
+/* ---- First-visit prompt (bottom-right toast) ---- */
+.tbr-tour-prompt {
+  position: fixed;
+  right: 1.25rem;
+  bottom: 1.25rem;
+  z-index: 1900;
+  max-width: 340px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.85rem 1rem;
+  background: var(--bg-main, #fff);
+  border: 1px solid var(--border-color);
+  border-left: 4px solid var(--accent-primary, #2f6feb);
+  border-radius: var(--radius-md, 10px);
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.22);
+}
+.tbr-tour-prompt-text {
+  flex: 1 1 100%;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+/* ---- Small-screen: pin the tooltip to the bottom for breathing room ---- */
+@media (max-width: 640px) {
+  .tbr-tour-tip {
+    left: 16px !important;
+    right: 16px;
+    top: auto !important;
+    bottom: 16px;
+    transform: none !important;
+    width: auto;
+  }
+}

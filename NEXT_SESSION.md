@@ -21,20 +21,54 @@
 
 ## Deploy status
 
-**Pending deploy** as of 2026-06-19. Latest local commit adds TB Ratio mapping discoverability
-(search/collapse/counts), a "No activity" zero-balance area, zero-aware empty-space drop, a
-no-op-on-same-bucket drop fix, the cross-statement rework (every account reachable from both
-tabs via Unmapped — the "move it across" area was removed), and "E-Soft" → "trial balance
-sheet" UI wording. Sits on `90d95c1` (already pushed) and `origin/main`'s Budget KPI drill-down
-(`ea1347a`). **All frontend-only, no-build** — deploy is `git pull && hard-refresh`. No
-backend/systemd restart needed. See **Server deploy steps** at the bottom of this file.
+**The 2026-06-19 TB Ratio work was deployed Friday** (commit `31552af`: mapping
+discoverability — search/collapse/counts, the "No activity" zero-balance area, zero-aware
+empty-space drop, no-op-on-same-bucket drop fix, cross-statement rework, "E-Soft" → "trial
+balance sheet" wording). `origin/main` has since advanced to `a8ded1d` (standalone
+`staff-directory/` component — unrelated to the hub SPA).
+
+**Pending deploy (2026-06-22):** the new **TB Ratio guided tour** — `git pull` +
+hard-refresh, frontend-only, no systemd/DB. See the last-session entry below.
 
 Prior baseline: commit `6202295` (2026-06-09) was fully deployed (Dashboard TID `--full`
 re-sync, `companies-api` + `clickup-fees` restarted, frontend hard-refreshed).
 
 ---
 
-## Last Session --- 2026-06-19b (TB Ratio discoverability, zero area, cross-statement rework)
+## Last Session --- 2026-06-22 (TB Ratio guided tour)
+
+**What was done — new on-site guided tour for the TB Ratio Tool, modelled on the
+Valuation tour:**
+- **New files:** [`components/pages/tbratio-tour.js`](components/pages/tbratio-tour.js)
+  (zero-dep, no-build ES module — ported from `valuation-tour.js`) and
+  [`styles/pages/tbratio-tour.css`](styles/pages/tbratio-tour.css) (hub design tokens,
+  `tbr-tour-*` classes, self-contained button styles).
+- **Wiring:** `tbratio.js` `init()` calls `initTbratioTour()` (guarded in try/catch so a
+  tour failure can never break the tool); `index.html` gets the stylesheet link after
+  `tbratio.css`. A **Tutorial** button is injected into `.tbr-header-left`; first-time
+  users get a one-off bottom-right prompt (localStorage `treppides:tbratio:tourSeen:v1`).
+- **14 steps, two-phase / data-aware.** The tool is empty until a TB is uploaded (mapping
+  panel, statements, ratios, export all render into `#tbr-output` after parsing). So steps
+  3+ are flagged `requiresData`: with no TB loaded they show a centered "Upload a trial
+  balance first" card; once a TB is in, they spotlight the real elements. Tab steps click
+  the real `.tbr-map-tab[data-maptab="bs|pnl"]` buttons (no `<details>` accordions here).
+- **Verified locally** (no Node; vanilla JS) via a throwaway auth-free harness + headless
+  Chrome, the standard TB Ratio way — built a synthetic TB, fed it through the real
+  `#tbr-file` upload path, and self-tested: Tutorial button present, `#tbr-output`
+  rendered, **all 12 step anchors resolve to visible elements** on the correct tab, and the
+  tour drives through all 14 steps to "Done" without throwing. Also verified the
+  **pre-upload phase**: the upload-first card shows and the tour still reaches the end.
+  Harness files removed.
+- **Not yet exercised:** the live auth'd hub with real backends + a real E-Soft export
+  (same standing caveat as the rest of TB Ratio). Eyeball pass after deploy: open TB Ratio
+  → Tutorial button present → step through empty-page → upload a TB → replay → confirm tab
+  switches + spotlights.
+- **Deploy:** frontend-only, no-build → `git pull` + hard-refresh, no systemd/DB. Files to
+  commit: `tbratio-tour.js`, `tbratio-tour.css`, `tbratio.js`, `index.html`, `README.md`.
+
+---
+
+## Earlier Session --- 2026-06-19b (TB Ratio discoverability, zero area, cross-statement rework)
 
 **What was done (this local checkout) — all in `components/pages/tbratio.js` + `styles/pages/tbratio.css`:**
 - **Mapping discoverability toolbar.** Live search box (dims non-matches, accent-rings matching

@@ -70,6 +70,15 @@ is parsed in the browser and never leaves it. [SheetJS](https://sheetjs.com) is
 vendored at `vendor/xlsx.full.min.js` (no CDN, lazy-loaded on first open, same pattern
 as jsPDF/html2canvas) and handles both reading the upload and writing the export.
 
+**Guided tour.** A *Tutorial* button in the tool header replays an on-site coachmark
+tour (same pattern as the Valuation tool's): a dimming spotlight walks through the
+upload, the mapping panel and search, the two statement tabs, the ratios, and export.
+It's data-aware — before a TB is uploaded the later steps show an "upload first" card;
+once a TB is loaded they spotlight the real elements. First-time users get a one-off
+prompt (localStorage `treppides:tbratio:tourSeen:v1`). Lives in
+`components/pages/tbratio-tour.js` + `styles/pages/tbratio-tour.css`, wired from
+`tbratio.js`'s `init()`. Pure frontend, zero-dependency, no new API calls.
+
 ### How parsing works
 
 The E-Soft export is a formatted sheet, not a clean table. The parser

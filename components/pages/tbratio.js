@@ -17,6 +17,7 @@
 // ============================================================
 
 import { escapeHtml } from "../../utils/dom.js";
+import { initTbratioTour } from "./tbratio-tour.js";
 
 const SECTION_ID = "section-tbratio";
 const BACK_BTN_ID = "tbratio-back-btn";
@@ -1312,6 +1313,11 @@ export default async function init(_config) {
   });
 
   wirePrimaryUpload(section);
+
+  // On-site guided tour: header "Tutorial" button + first-visit prompt.
+  // Pure frontend, anchors at existing DOM; guarded so a tour failure can
+  // never break the tool itself.
+  try { initTbratioTour(); } catch (err) { console.error("TB Ratio tour init failed", err); }
 }
 
 // ---- Upload wiring -------------------------------------------
