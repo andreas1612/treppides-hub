@@ -5,6 +5,9 @@ config.js
 api/clickup/.env
 api/companies/.env
 
+# Staff directory credentials
+staff-directory/.env
+
 # Company master database — rebuilt on the server from ClickUp via sync.py,
 # not committed (like the valuation DB). WAL sidecar files too.
 api/companies/companies.db
