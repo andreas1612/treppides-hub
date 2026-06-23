@@ -43,7 +43,7 @@ export default async function init(config) {
             </svg>
           </button>
           <div>
-            <h2 class="section-title">Projects</h2>
+            <h2 class="section-title">Task Manager</h2>
             <p class="section-subtitle">Tasks, timelines &amp; boards</p>
           </div>
         </div>

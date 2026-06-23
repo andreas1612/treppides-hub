@@ -42,7 +42,7 @@ export default async function init(config) {
           </svg>
         </div>
         <div class="widget-info">
-          <h4>Projects</h4>
+          <h4>Task Manager</h4>
           <p>Tasks, timelines &amp; boards</p>
         </div>
       </div>
