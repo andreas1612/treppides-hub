@@ -24,7 +24,7 @@ function buildModal() {
 
       <div class="hub-modal-header">
         <div>
-          <h2 class="hub-modal-title" id="hub-support-title">IT Support Request</h2>
+          <h2 class="hub-modal-title" id="hub-support-title">Tech Support Request</h2>
           <p class="hub-modal-sub">Fill in the form below — we'll get back to you shortly.</p>
         </div>
         <button class="hub-modal-close" id="hub-support-close" aria-label="Close">
@@ -182,11 +182,11 @@ export default function init(config) {
           body: JSON.stringify({
             name,
             email,
-            subject:  `[Hub IT Support] ${category} — ${name}`,
+            subject:  `[Hub Tech Support] ${category} — ${name}`,
             message:  `Category: ${category}\n\n${message}`,
             // FormSubmit control fields (no-reply, no-captcha for internal use)
             _replyto:  email,
-            _subject:  `[Hub IT Support] ${category} — ${name}`,
+            _subject:  `[Hub Tech Support] ${category} — ${name}`,
             _captcha:  "false",
           }),
         }
@@ -195,7 +195,7 @@ export default function init(config) {
       const json = await res.json().catch(() => ({}));
 
       if (res.ok && json.success === "true") {
-        showStatus("Request submitted! IT Support will be in touch shortly.", "success");
+        showStatus("Request submitted! Tech Support will be in touch shortly.", "success");
         // Clear form fields, keep modal open to show the success message
         document.getElementById("hs-name").value    = "";
         document.getElementById("hs-email").value   = "";

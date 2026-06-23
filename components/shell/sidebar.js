@@ -238,7 +238,7 @@ export default async function init(config) {
         <div class="nav-label" style="margin-top:12px;">Support</div>
 
         <button class="nav-item nav-btn" id="sb-support">
-          ${ICONS.phone} IT Support
+          ${ICONS.phone} Tech Support
         </button>
       </nav>
 
@@ -461,7 +461,7 @@ export default async function init(config) {
           ${ICONS.dollar} Budget KPI
         </button>
         <button class="nav-item nav-btn" id="mb-support">
-          ${ICONS.phone} IT Support
+          ${ICONS.phone} Tech Support
         </button>
       </div>`;
 

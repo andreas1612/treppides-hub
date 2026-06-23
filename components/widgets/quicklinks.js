@@ -58,7 +58,7 @@ export default async function init(config) {
           </svg>
         </div>
         <div class="widget-info">
-          <h4>IT Support</h4>
+          <h4>Tech Support</h4>
           <p>Raise a request or query</p>
         </div>
       </div>
