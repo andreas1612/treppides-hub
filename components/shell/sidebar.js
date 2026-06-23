@@ -205,8 +205,10 @@ export default async function init(config) {
           ${ICONS.person} Staff Directory
         </button>
 
+        <div class="nav-label" style="margin-top:12px;">Tools</div>
+
         <button class="nav-item nav-btn" id="sb-proj">
-          ${ICONS.grid} Projects
+          ${ICONS.grid} Task Manager
         </button>
 
         <button class="nav-item nav-btn" id="sb-fees">
