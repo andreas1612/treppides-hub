@@ -460,63 +460,76 @@
 }
 .kpi-select:focus { border-color: var(--accent); }
 
-/* Task Manager launcher card */
-.projects-launcher {
+/* Tools landing page — card grid */
+.tools-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+  margin-top: 24px;
+}
+
+.tools-card {
+  position: relative;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 80px 32px;
-  gap: 16px;
+  gap: 14px;
+  padding: 24px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color .15s, box-shadow .15s, transform .1s;
 }
+.tools-card:hover {
+  border-color: var(--accent, #4f8ef7);
+  box-shadow: 0 4px 16px rgba(79, 142, 247, .10);
+  transform: translateY(-2px);
+}
+.tools-card:active { transform: translateY(0); }
 
-.projects-launcher-icon {
-  width: 64px;
-  height: 64px;
-  border-radius: 16px;
-  background: rgba(79, 142, 247, .1);
+.tools-card-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--accent, #4f8ef7);
-  margin-bottom: 8px;
+  flex-shrink: 0;
 }
-.projects-launcher-icon svg { width: 32px; height: 32px; }
+.tools-card-icon svg { width: 26px; height: 26px; }
 
-.projects-launcher-title {
-  font-size: 20px;
+.tools-card-icon.blue   { background: rgba(79, 142, 247, .10); color: #4f8ef7; }
+.tools-card-icon.amber  { background: rgba(237, 176, 21, .12); color: #d69e2e; }
+.tools-card-icon.purple { background: rgba(159, 122, 234, .12); color: #805ad5; }
+.tools-card-icon.green  { background: rgba(72, 187, 120, .10); color: #38a169; }
+.tools-card-icon.teal   { background: rgba(56, 178, 172, .10); color: #319795; }
+
+.tools-card-body { flex: 1; }
+
+.tools-card-title {
+  font-size: 16px;
   font-weight: 700;
   color: var(--text-primary);
-  margin: 0;
+  margin: 0 0 4px;
 }
 
-.projects-launcher-desc {
-  font-size: 14px;
+.tools-card-desc {
+  font-size: 13px;
   color: var(--text-secondary);
-  line-height: 1.7;
-  max-width: 400px;
+  line-height: 1.6;
   margin: 0;
 }
 
-.projects-launch-btn {
+.tools-card-badge {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-  padding: 10px 22px;
-  border-radius: 8px;
-  border: none;
-  background: var(--accent, #4f8ef7);
-  color: #fff;
-  font-size: 14px;
+  gap: 4px;
+  font-size: 11px;
   font-weight: 600;
-  cursor: pointer;
-  transition: opacity .15s, transform .1s;
+  color: var(--text-secondary);
+  letter-spacing: .03em;
 }
-.projects-launch-btn:hover  { opacity: .88; }
-.projects-launch-btn:active { transform: scale(.97); }
-.projects-launch-btn svg { width: 14px; height: 14px; }
+.tools-card-badge svg { width: 12px; height: 12px; }
 
 /* ============================================================
    MOBILE — sidebar collapses to top nav bar on < 768px
