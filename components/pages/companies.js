@@ -416,7 +416,7 @@ function bindFilters(apply) {
 function wireHeader() {
   // Back arrow returns to the hub; refresh re-syncs.
   document.getElementById("companies-home-btn")?.addEventListener("click", () => {
-    hidePage(); window.scrollTo({ top: 0, behavior: "smooth" });
+    hidePage(); window.__hub_projects?.show(); window.scrollTo({ top: 0, behavior: "smooth" });
   });
   document.getElementById("companies-refresh-btn")?.addEventListener("click", onRefresh);
   refreshSyncedLabel();

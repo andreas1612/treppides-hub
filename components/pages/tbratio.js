@@ -1309,6 +1309,7 @@ export default async function init(_config) {
 
   document.getElementById(BACK_BTN_ID)?.addEventListener("click", () => {
     hidePage();
+    window.__hub_projects?.show();
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
 
