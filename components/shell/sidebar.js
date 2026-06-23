@@ -441,8 +441,9 @@ export default async function init(config) {
         <button class="nav-item nav-btn" id="mb-staff">
           ${ICONS.person} Staff Directory
         </button>
+        <div class="nav-label" style="margin-top:8px;">Tools</div>
         <button class="nav-item nav-btn" id="mb-proj">
-          ${ICONS.grid} Projects
+          ${ICONS.grid} Task Manager
         </button>
         <button class="nav-item nav-btn" id="mb-fees">
           ${ICONS.chart} AML Dashboard
@@ -456,12 +457,14 @@ export default async function init(config) {
         <button class="nav-item nav-btn" id="mb-tbratio">
           ${ICONS.ledger} TB Ratio Tool
         </button>
+        <div class="nav-label" style="margin-top:8px;">Admin</div>
         <button class="nav-item nav-btn" id="mb-performance">
           ${ICONS.trendUp} Performance
         </button>
         <button class="nav-item nav-btn" id="mb-budgetkpi">
           ${ICONS.dollar} Budget KPI
         </button>
+        <div class="nav-label" style="margin-top:8px;">Support</div>
         <button class="nav-item nav-btn" id="mb-support">
           ${ICONS.phone} Tech Support
         </button>
