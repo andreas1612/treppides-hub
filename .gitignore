@@ -35,6 +35,9 @@ DATABASE_INSTRUCTIONS.md
 # Local working-session notes (handoff scratchpad) — not for the repo.
 LOCAL_SESSION.md
 
+# Security review notes — contains live secrets + exploit detail; never commit.
+SECURITY_CHECKUP.md
+
 # Raw data files — PII, never commit
 staff.xlsx
 staff.json

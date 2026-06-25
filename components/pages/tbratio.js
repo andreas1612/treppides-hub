@@ -617,8 +617,23 @@ function computeDerived(pnlTotals, config) {
 }
 
 /**
- * Make the bridge explicit: closing RE = opening RE + net profit. Net profit
- * is derived from the same posting rows, so this keeps A = L + E.
+ * Retained Earnings on the Balance Sheet = the RE rows' CLOSING balances as
+ * recorded in the trial balance — NOT reconstructed as opening RE + net profit.
+ *
+ * Why: the E-Soft "Movement" column is unreliable for RE rows — some rows that
+ * map to Retained Earnings carry no movement debit/credit at all. The old bridge
+ * rebuilt RE as (opening RE + P&L net profit); when a row's movement was missing,
+ * the P&L net profit understated the real change, so the rebuilt RE diverged from
+ * the row's actual closing balance and the Balance Sheet went out of balance.
+ *
+ * The TB always balances on CLOSING (debits = credits — see validateTrialBalance),
+ * so summing each BS line (RE included) from its closing balance keeps A = L + E
+ * by construction, regardless of what the movement column does or doesn't record.
+ *
+ * `bsCurrent.retainedEarnings` is already the closing-based total (sumByTarget at
+ * step 4 over r.closingNet), so we DON'T overwrite it. We only attach the opening
+ * RE and the P&L-derived net profit as informational figures (the implied movement
+ * = closing − opening), without using them to constrain the displayed RE.
  */
 function applyRetainedEarningsBridge(bsCurrent, netProfit, assignments) {
   let openingRE = 0;
@@ -626,9 +641,10 @@ function applyRetainedEarningsBridge(bsCurrent, netProfit, assignments) {
     if (targetId !== "retainedEarnings") continue;
     openingRE += -netOf(row.opening); // invert: equity is credit-natured
   }
+  const closingRE = bsCurrent.retainedEarnings ?? 0; // closing-based, from step 4
   bsCurrent.openingRetainedEarnings = round(openingRE);
-  bsCurrent.retainedEarnings = round(openingRE + netProfit);
-  bsCurrent.netProfitBridged = round(netProfit);
+  bsCurrent.retainedEarnings = round(closingRE);      // keep TB closing — no rebuild
+  bsCurrent.netProfitBridged = round(netProfit);      // P&L figure, informational only
 }
 
 function buildPnl(config, current, prior, derivedCurrent, derivedPrior) {
