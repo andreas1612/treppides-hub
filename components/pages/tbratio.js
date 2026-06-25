@@ -2013,13 +2013,24 @@ function renderMappingPanel(m, which) {
   // wrongly locked out, e.g., using Tax on the P&L because it sat on the BS.)
   const thisTargets = which === "pnl" ? DEFAULT_MAPPING.pnlTargets : DEFAULT_MAPPING.bsTargets;
   const thisTargetIds = new Set(thisTargets.map(t => t.id));
+  // Line ids that belong to the OTHER statement — used to tell "mapped on the
+  // other sheet" apart from "mapped to nothing at all".
+  const otherTargets = which === "pnl" ? DEFAULT_MAPPING.bsTargets : DEFAULT_MAPPING.pnlTargets;
+  const otherTargetIds = new Set(otherTargets.map(t => t.id));
+  const otherStatementName = which === "pnl" ? "Balance Sheet" : "Profit & Loss";
 
   // byTarget for the live buckets EXCLUDES parked-zero chips.
   const byTarget = (id) => accounts.filter(a => a.targetId === id && !isZeroParked(a));
-  // Accounts shown in THIS tab's Unmapped: explicitly unmapped OR mapped to a line
-  // on the OTHER statement (not reachable as a line here). Zero-parked excluded.
-  const unmappedHere = accounts.filter(a =>
-    !isZeroParked(a) && !thisTargetIds.has(a.targetId));
+  // Two separate lists for accounts not on a line of THIS statement (zero-parked
+  // excluded from both):
+  //   1. trulyUnmapped — mapped to NO line on either statement (target is
+  //      "__unmapped__"). These are genuinely excluded from the figures.
+  //   2. otherSheet — mapped to a line on the OTHER statement. Shown here, fully
+  //      draggable, so the user can pull the account across onto a line on this tab.
+  const trulyUnmapped = accounts.filter(a =>
+    !isZeroParked(a) && a.targetId === "__unmapped__");
+  const otherSheet = accounts.filter(a =>
+    !isZeroParked(a) && otherTargetIds.has(a.targetId));
 
   // data-search holds a lowercased code+name haystack for the live filter.
   const chip = (a) => `
@@ -2067,8 +2078,16 @@ function renderMappingPanel(m, which) {
   };
 
   const unmappedBucket = bucketBox(
-    "__unmapped__", "Unmapped — drag onto any line to include it",
-    unmappedHere, "tbr-bucket-unmapped");
+    "__unmapped__", "Unmapped — not on either statement; drag onto any line to include it",
+    trulyUnmapped, "tbr-bucket-unmapped");
+
+  // Accounts that ARE mapped, but on the other statement. Read-only source
+  // bucket: you don't drop INTO it, you drag chips OUT of it onto a line here.
+  const otherSheetBucket = otherSheet.length
+    ? bucketBox("__othersheet__",
+        `Available from the ${otherStatementName} — drag onto a line to use it here`,
+        otherSheet, "tbr-bucket-othersheet", /* readonly */ true)
+    : "";
 
   const targets = thisTargets;
 
@@ -2102,15 +2121,16 @@ function renderMappingPanel(m, which) {
         <div>
           <h3 class="tbr-map-title">Account Mapping</h3>
           <p class="tbr-hint">Auto-detected on upload. <strong>Drag any account</strong> onto any
-            line — or drop it in empty space to unmap it. Every account is available on both the
-            Balance Sheet and Profit &amp; Loss tabs; anything not auto-mapped to a line here sits
-            in <strong>Unmapped</strong>. Statements and ratios update instantly.</p>
+            line — or drop it in empty space to unmap it. <strong>Unmapped</strong> holds accounts
+            on neither statement; <strong>Available from the other statement</strong> holds accounts
+            mapped on the other tab, ready to drag across. Statements and ratios update instantly.</p>
         </div>
       </div>
       ${toolbar}
 
       <div class="tbr-buckets">${statementCols(targets)}</div>
       ${unmappedBucket}
+      ${otherSheetBucket}
       ${zeroBucket}
     </div>`;
 }

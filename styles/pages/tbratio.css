@@ -241,8 +241,18 @@
 }
 #section-tbratio .tbr-bucket-unmapped .tbr-bucket-head { color: #78350f; border-bottom-color: #fcd34d; }
 
-/* A read-only bucket body (e.g. the "No activity" area) is a drag SOURCE, not a
-   drop target, so it shows no drop affordance. */
+/* "Available from the other statement" — accounts validly mapped on the OTHER tab,
+   offered here as a drag source so they can be pulled across. Informational blue
+   (not the amber "unmapped" warning): these aren't excluded, just elsewhere. */
+#section-tbratio .tbr-bucket-othersheet {
+  margin-top: 14px;
+  border-color: #bfdbfe;
+  background: #eff6ff;
+}
+#section-tbratio .tbr-bucket-othersheet .tbr-bucket-head { color: #1e40af; border-bottom-color: #bfdbfe; }
+
+/* A read-only bucket body (e.g. the "No activity" area or the other-statement
+   source) is a drag SOURCE, not a drop target, so it shows no drop affordance. */
 #section-tbratio .tbr-bucket-body-readonly.dragover { background: transparent; outline: none; }
 
 /* "No activity" area — accounts with a zero closing balance, parked here (default
