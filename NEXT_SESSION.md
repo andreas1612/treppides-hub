@@ -21,24 +21,50 @@
 
 ## Deploy status
 
-**⚠ PENDING DEPLOY (2026-06-25) — `origin/main` now at `3edef72`. Two new commits since the
-last deploy, and this one needs a BACKEND restart (not just a pull):**
+**⚠ PENDING DEPLOY (2026-06-25) — `origin/main` now at `f830ebe`. Several commits since the
+last deploy; this needs a BACKEND restart (not just a pull):**
 - `ef9b16e` **feat(forms)** — new **Forms tool** (Lead/Deal → creates a real ClickUp task).
   Backend changes in the `clickup-fees` service (port 8001) → needs **`pip install` +
-  `systemctl restart clickup-fees`** AND two new lines in `api/clickup/.env`. Full steps in
-  the **"Server deploy steps (2026-06-25)"** section near the bottom.
+  `systemctl restart clickup-fees`** AND two new lines in `api/clickup/.env`.
+- `f830ebe` **fix(forms)** — assignee picker now shows the full workspace roster (was ~5/list);
+  Deal form gains a Company Name field. Backend-only — covered by the same restart.
 - `3edef72` **fix(tours)** — guided-tour fixes (sleek Valuation buttons; TB Ratio prompt no
   longer on the landing page; clearer "upload first" tour step). Frontend-only.
+- `65a33a6` **feat(tbratio)** — mapping "Unmapped" split into two lists ("Unmapped" vs
+  "Available from the other statement"); tour updated to match. Frontend-only.
+
+Full steps in the **"Server deploy steps (2026-06-25)"** section near the bottom — they cover
+all of the above (one `git pull` + the `.env` lines + `pip install` + restart).
 
 **Also still un-confirmed-deployed from before:** the 2026-06-22 **TB Ratio guided tour**
-(frontend-only). A single `git pull` now brings down all of the above together.
+(frontend-only). A single `git pull` now brings down everything together.
 
 Prior deployed baseline: `31552af` (2026-06-19 TB Ratio mapping discoverability), and
 `6202295` (2026-06-09 Dashboard TID `--full` re-sync + service restarts).
 
 ---
 
-## Last Session --- 2026-06-25 (Forms tool + tour fixes — COMMITTED + PUSHED, not deployed)
+## Last Session --- 2026-06-25b (TB Ratio mapping split + Forms fixes — COMMITTED + PUSHED, not deployed)
+
+Two commits on top of the 06-25a work below:
+
+- **`65a33a6` — TB Ratio mapping "Unmapped" split (frontend-only).** The mapping panel's single
+  Unmapped bucket now splits into **"Unmapped — not on either statement"** (accounts on no line
+  at all) and **"Available from the <other statement>"** (accounts mapped on the other tab,
+  draggable across). The guided tour was updated to match — the old unmapped step is reworded
+  and a new "Available from the other statement" step added (15 steps total).
+- **`f830ebe` — Forms fixes (backend-only, `server.py`).** (1) The assignee picker now lists the
+  **full workspace roster** (`GET /api/v2/team`, ~49 people) instead of the ~5 per-list members
+  that were missing most staff. (2) The Deal form gains a dedicated **Company Name** field that
+  populates the Deals list's Company Name custom field (separate from the task title).
+
+Both verified against live ClickUp (read-only / validation paths only — no real task created).
+Deploy: same as 06-25a — the `f830ebe` backend change rides the `clickup-fees` restart already
+required; the TB Ratio change is frontend (live on pull). See the deploy-steps section below.
+
+---
+
+## Last Session --- 2026-06-25a (Forms tool + tour fixes — COMMITTED + PUSHED, not deployed)
 
 **Two commits pushed to `main` (`8d19a9d..3edef72`):**
 
