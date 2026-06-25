@@ -283,8 +283,33 @@ function render() {
 
   const title = needsUpload ? "Upload a trial balance first" : step.title;
   const body = needsUpload
-    ? "The rest of the tour walks through the mapping panel, the statements and the ratios — they appear once you upload a trial balance. Close the tour, drop a file on the upload area, then reopen the Tutorial to continue."
+    ? "The rest of the tour walks through the mapping panel, the statements and the ratios — but those only appear once a trial balance is loaded."
     : step.body;
+
+  if (needsUpload) {
+    // Special layout for the upload-first step: the normal Back/Next aren't
+    // useful here (the next steps also need data). Give ONE clear close action
+    // and a prominent hint about how to resume, so the user isn't forced to
+    // hunt for "Skip" to dismiss the box that's blocking the upload area.
+    tip.innerHTML = `
+      <div class="tbr-tour-progress">Step ${_state.index + 1} of ${STEPS.length}</div>
+      <h3 class="tbr-tour-title"></h3>
+      <p class="tbr-tour-body"></p>
+      <p class="tbr-tour-hint">
+        Close this tour, drop a file on the upload area, then press the
+        <strong>Tutorial</strong> button again to pick the tour back up.
+      </p>
+      <div class="tbr-tour-actions tbr-tour-actions-end">
+        <button type="button" class="tbr-tour-secondary" data-tour="back" ${isFirst ? "disabled" : ""}>Back</button>
+        <button type="button" class="tbr-tour-primary" data-tour="close">Close tour to upload</button>
+      </div>`;
+    tip.querySelector(".tbr-tour-title").textContent = title;
+    tip.querySelector(".tbr-tour-body").textContent = body;
+    tip.querySelector('[data-tour="back"]').addEventListener("click", () => go(-1));
+    tip.querySelector('[data-tour="close"]').addEventListener("click", end);
+    centerTip();
+    return;
+  }
 
   tip.innerHTML = `
     <div class="tbr-tour-progress">Step ${_state.index + 1} of ${STEPS.length}</div>
@@ -308,9 +333,8 @@ function render() {
     if (isLast) end(); else go(1);
   });
 
-  // Let the tab switch settle, then position. A needsUpload step has no
-  // anchor to spotlight, so center it.
-  if (needsUpload) { centerTip(); return; }
+  // Let the tab switch settle, then position. (The needsUpload step returned
+  // early above with its own centered layout.)
   setTimeout(() => positionFor(step), step.tab && hasModel() ? 120 : 0);
 }
 
@@ -407,6 +431,15 @@ function injectHelpButton() {
 
 export function initTbratioTour() {
   injectHelpButton();
-  window.__hub_tbratio_tour = { start, end };
+  // NOTE: the first-visit prompt is intentionally NOT shown here. init() runs
+  // once at hub boot (while the landing page is showing), so prompting here put
+  // the toast on the landing page. The prompt is now fired from the tool's
+  // showPage() via maybeTbratioPrompt() — i.e. only when the TB Ratio page is open.
+  window.__hub_tbratio_tour = { start, end, maybePrompt };
+}
+
+// Called by tbratio.js showPage() so the first-visit prompt only appears
+// when the user is actually on the TB Ratio page.
+export function maybeTbratioPrompt() {
   maybePrompt();
 }

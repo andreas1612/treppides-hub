@@ -99,10 +99,26 @@
   justify-content: space-between;
   gap: 0.5rem;
 }
+/* Upload-first step: no Skip on the left, so push the buttons to the right. */
+.tbr-tour-actions-end { justify-content: flex-end; }
 .tbr-tour-nav {
   display: flex;
   gap: 0.4rem;
 }
+
+/* Resume hint on the upload-first step — a soft callout so it's obvious the
+   tour continues from the Tutorial button after a file is uploaded. */
+.tbr-tour-hint {
+  margin: 0 0 0.9rem;
+  padding: 0.6rem 0.7rem;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  background: var(--bg-surface, #f1f5f9);
+  border-left: 3px solid var(--accent-primary, #2f6feb);
+  border-radius: var(--radius-sm, 6px);
+}
+.tbr-tour-hint strong { color: var(--text-primary); }
 
 /* ---- Tour buttons (self-contained so the overlay doesn't depend on
         any global .btn classes) ---- */

@@ -307,10 +307,10 @@ function render() {
     <h3 class="val-tour-title"></h3>
     <p class="val-tour-body"></p>
     <div class="val-tour-actions">
-      <button type="button" class="btn btn-secondary btn-sm" data-tour="skip">Skip tour</button>
+      <button type="button" class="val-tour-x" data-tour="skip">Skip tour</button>
       <div class="val-tour-nav">
-        <button type="button" class="btn btn-secondary btn-sm" data-tour="back" ${isFirst ? "disabled" : ""}>Back</button>
-        <button type="button" class="btn btn-primary btn-sm" data-tour="next">${isLast ? "Done" : "Next"}</button>
+        <button type="button" class="val-tour-secondary" data-tour="back" ${isFirst ? "disabled" : ""}>Back</button>
+        <button type="button" class="val-tour-primary" data-tour="next">${isLast ? "Done" : "Next"}</button>
       </div>
     </div>`;
   // textContent (not innerHTML) for the script copy — it's static here,
@@ -384,8 +384,8 @@ function maybePrompt() {
   _prompt = el("div", { className: "val-tour-prompt" });
   _prompt.innerHTML = `
     <span class="val-tour-prompt-text">New to the Valuation Tool? Take a quick guided tour.</span>
-    <button type="button" class="btn btn-primary btn-sm" data-tour="prompt-start">Start tour</button>
-    <button type="button" class="btn btn-secondary btn-sm" data-tour="prompt-dismiss" aria-label="Dismiss">No thanks</button>`;
+    <button type="button" class="val-tour-primary" data-tour="prompt-start">Start tour</button>
+    <button type="button" class="val-tour-secondary" data-tour="prompt-dismiss" aria-label="Dismiss">No thanks</button>`;
   document.body.appendChild(_prompt);
   _prompt.querySelector('[data-tour="prompt-start"]').addEventListener("click", () => { _dismissPrompt(); start(0); });
   _prompt.querySelector('[data-tour="prompt-dismiss"]').addEventListener("click", () => {

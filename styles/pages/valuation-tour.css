@@ -103,6 +103,43 @@
   gap: 0.4rem;
 }
 
+/* ---- Tour buttons (self-contained so the overlay doesn't depend on
+        any global .btn classes) ---- */
+.val-tour-primary,
+.val-tour-secondary,
+.val-tour-x {
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.4rem 0.8rem;
+  border-radius: var(--radius-sm, 6px);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: var(--transition, all 0.15s ease);
+}
+.val-tour-primary {
+  color: #fff;
+  background: var(--accent-primary, #2f6feb);
+  border-color: var(--accent-primary, #2f6feb);
+}
+.val-tour-primary:hover { filter: brightness(1.06); }
+.val-tour-secondary {
+  color: var(--text-secondary);
+  background: var(--bg-surface, #f1f5f9);
+  border-color: var(--border-color);
+}
+.val-tour-secondary:hover:not(:disabled) {
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+.val-tour-secondary:disabled { opacity: 0.45; cursor: default; }
+.val-tour-x {
+  color: var(--text-muted);
+  background: transparent;
+  border-color: transparent;
+  padding-left: 0;
+}
+.val-tour-x:hover { color: var(--text-primary); text-decoration: underline; }
+
 /* ---- First-visit prompt (bottom-right toast) ---- */
 .val-tour-prompt {
   position: fixed;

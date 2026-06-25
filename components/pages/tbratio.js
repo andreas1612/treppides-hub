@@ -17,7 +17,7 @@
 // ============================================================
 
 import { escapeHtml } from "../../utils/dom.js";
-import { initTbratioTour } from "./tbratio-tour.js";
+import { initTbratioTour, maybeTbratioPrompt } from "./tbratio-tour.js";
 
 const SECTION_ID = "section-tbratio";
 const BACK_BTN_ID = "tbratio-back-btn";
@@ -1261,6 +1261,9 @@ function showPage() {
   main.classList.add("tbratio-active");
   document.dispatchEvent(new CustomEvent("hub:navchange", { detail: { section: "tbratio" } }));
   bootOnce();
+  // First-visit tour prompt — fired here (not at init) so it only appears once
+  // the TB Ratio page is actually open, never over the landing page.
+  try { maybeTbratioPrompt(); } catch (_) {}
 }
 
 function hidePage() {
