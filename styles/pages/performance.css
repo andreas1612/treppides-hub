@@ -330,6 +330,10 @@
   transition: box-shadow var(--transition), transform var(--transition);
 }
 
+.perf-mini-clickable {
+  cursor: pointer;
+}
+
 .perf-mini-card:hover {
   box-shadow: var(--shadow-hover);
   transform: translateY(-1px);

@@ -48,6 +48,11 @@ const TOOL_ICONS = {
               <line x1="8" y1="13" x2="16" y2="13"/>
               <line x1="8" y1="17" x2="13" y2="17"/>
             </svg>`,
+  roombooking: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                  <polyline points="9 22 9 12 15 12 15 22"/>
+                </svg>`,
   external: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                <line x1="7" y1="17" x2="17" y2="7"/>
@@ -156,6 +161,15 @@ export default async function init(config) {
           </div>
         </div>
 
+        <div class="tools-card" data-tool="roombooking">
+          <div class="tools-card-icon rose">${TOOL_ICONS.roombooking}</div>
+          <div class="tools-card-body">
+            <h3 class="tools-card-title">Room Booking</h3>
+            <p class="tools-card-desc">Reserve meeting rooms and check availability.</p>
+          </div>
+          <span class="tools-card-badge">External ${TOOL_ICONS.external}</span>
+        </div>
+
       </div>
     </div>`;
 
@@ -195,6 +209,9 @@ export default async function init(config) {
         hideAllPages();
         window.__hub_tbratio?.show();
         window.scrollTo({ top: 0, behavior: "smooth" });
+        break;
+      case "roombooking":
+        window.open("/rooms/", "_blank", "noopener");
         break;
     }
   });

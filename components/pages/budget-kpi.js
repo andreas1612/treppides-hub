@@ -556,7 +556,7 @@ function renderFeePanel(entries) {
         </div>
         <div class="fee-field">
           <label>Year</label>
-          <input type="number" id="fee-year" value="${currentYear}" min="2025" max="2030" />
+          <input type="number" id="fee-year" value="${currentYear}" min="2026" max="2030" />
         </div>
         <div class="fee-field">
           <label>Amount (EUR)</label>
