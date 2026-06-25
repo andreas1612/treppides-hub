@@ -417,6 +417,10 @@
 .main.budgetkpi-active .reader-overlay     { display: none !important; }
 .main.budgetkpi-active #section-budgetkpi   { display: block !important; }
 
+.main.financials-active .page-content        { display: none !important; }
+.main.financials-active .reader-overlay      { display: none !important; }
+.main.financials-active #section-financials   { display: block !important; }
+
 .kpi-back-btn {
   display: inline-flex;
   align-items: center;

@@ -25,6 +25,7 @@ import initPerformance    from "./components/pages/performance.js";
 import initBudgetKpi      from "./components/pages/budget-kpi.js";
 import initTbratio        from "./components/pages/tbratio.js";
 import initForms          from "./components/pages/forms.js";
+import initFinancials     from "./components/pages/financials.js";
 
 async function boot() {
   // Auth gate — redirects to Microsoft login if no active session.
@@ -80,6 +81,10 @@ async function boot() {
   // Forms tool must be ready before the Tools landing renders — projects.js
   // calls window.__hub_forms.show(), which forms.js exposes during init.
   await initForms(CONFIG);
+
+  // Financials — board/admin reporting (revenue, budget, recoverability, debtors).
+  // sidebar.js calls window.__hub_financials.show() when the gated nav item is clicked.
+  await initFinancials(CONFIG);
 
   // Content sections — initialise in visual page order.
   // Each runs independently; a failure in one does not block others.

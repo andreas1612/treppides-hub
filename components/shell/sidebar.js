@@ -5,6 +5,7 @@
 // ============================================================
 
 import CONFIG from "../../config.js";
+import { getCurrentUser } from "../../js/auth.js";
 
 // ---- Coming Soon modal ----------------------------------------
 // Guard: quicklinks.js may have already injected the modal.
@@ -179,6 +180,15 @@ export default async function init(config) {
   const useMock = !CONFIG.ENV_LIVE;
   if (useMock) ensureModal();
 
+  // Financials nav is gated to board members / admins (see /api/me isBoardMember).
+  const showFinancials = !!getCurrentUser()?.isBoardMember;
+  const finDesktopBtn = showFinancials
+    ? `<button class="nav-item nav-btn" id="sb-financials">${ICONS.ledger} Financials</button>`
+    : "";
+  const finMobileBtn = showFinancials
+    ? `<button class="nav-item nav-btn" id="mb-financials">${ICONS.ledger} Financials</button>`
+    : "";
+
   // ---- Desktop sidebar ----
   const sidebar = document.getElementById("sidebar");
   if (sidebar) {
@@ -218,6 +228,7 @@ export default async function init(config) {
         <button class="nav-item nav-btn" id="sb-budgetkpi">
           ${ICONS.dollar} Budget KPI
         </button>
+        ${finDesktopBtn}
 
         <div class="nav-label" style="margin-top:12px;">Support</div>
 
@@ -335,6 +346,12 @@ export default async function init(config) {
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
+    // Financials (board/admin) — show() hides the other overlays itself
+    document.getElementById("sb-financials")?.addEventListener("click", () => {
+      window.__hub_financials?.show();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+
   }
 
   // ---- Mobile top bar + nav drawer ----
@@ -375,6 +392,7 @@ export default async function init(config) {
         <button class="nav-item nav-btn" id="mb-budgetkpi">
           ${ICONS.dollar} Budget KPI
         </button>
+        ${finMobileBtn}
         <div class="nav-label" style="margin-top:8px;">Support</div>
         <button class="nav-item nav-btn" id="mb-support">
           ${ICONS.phone} Tech Support
@@ -492,6 +510,13 @@ export default async function init(config) {
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
+    // Mobile Financials link (board/admin)
+    document.getElementById("mb-financials")?.addEventListener("click", () => {
+      document.getElementById("mobile-nav")?.classList.remove("open");
+      window.__hub_financials?.show();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+
     document.getElementById("mb-support")?.addEventListener("click", () => {
       document.getElementById("mobile-nav")?.classList.remove("open");
       window.__hub_support?.open();
@@ -518,12 +543,13 @@ export default async function init(config) {
       forms:       ["sb-tools",       "mb-tools"],
       performance: ["sb-performance", "mb-performance"],
       budgetkpi:   ["sb-budgetkpi",   "mb-budgetkpi"],
+      financials:  ["sb-financials",  "mb-financials"],
     };
     [
       "sb-home","sb-kb","sb-staff","sb-tools",
-      "sb-performance","sb-budgetkpi",
+      "sb-performance","sb-budgetkpi","sb-financials",
       "mb-home","mb-kb","mb-staff","mb-tools",
-      "mb-performance","mb-budgetkpi",
+      "mb-performance","mb-budgetkpi","mb-financials",
     ].forEach(id => {
       document.getElementById(id)?.classList.remove("active");
     });
