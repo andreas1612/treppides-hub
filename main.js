@@ -24,6 +24,7 @@ import initCompanies      from "./components/pages/companies.js";
 import initPerformance    from "./components/pages/performance.js";
 import initBudgetKpi      from "./components/pages/budget-kpi.js";
 import initTbratio        from "./components/pages/tbratio.js";
+import initForms          from "./components/pages/forms.js";
 
 async function boot() {
   // Auth gate — redirects to Microsoft login if no active session.
@@ -75,6 +76,10 @@ async function boot() {
   // TB Ratio Tool must be ready before sidebar clicks fire — sidebar.js
   // calls window.__hub_tbratio.show(), which tbratio.js exposes during init.
   await initTbratio(CONFIG);
+
+  // Forms tool must be ready before the Tools landing renders — projects.js
+  // calls window.__hub_forms.show(), which forms.js exposes during init.
+  await initForms(CONFIG);
 
   // Content sections — initialise in visual page order.
   // Each runs independently; a failure in one does not block others.

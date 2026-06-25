@@ -245,6 +245,7 @@ export default async function init(config) {
       if (window.__hub_tbratio)      window.__hub_tbratio.hide();
       if (window.__hub_performance)  window.__hub_performance.hide();
       if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
+      if (window.__hub_forms)        window.__hub_forms.hide();
       if (window.__hub_reader)       window.__hub_reader.goHome();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
@@ -261,6 +262,7 @@ export default async function init(config) {
       if (window.__hub_tbratio)      window.__hub_tbratio.hide();
       if (window.__hub_performance)  window.__hub_performance.hide();
       if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
+      if (window.__hub_forms)        window.__hub_forms.hide();
       if (window.__hub_kb)           window.__hub_kb.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
@@ -277,6 +279,7 @@ export default async function init(config) {
       if (window.__hub_tbratio)      window.__hub_tbratio.hide();
       if (window.__hub_performance)  window.__hub_performance.hide();
       if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
+      if (window.__hub_forms)        window.__hub_forms.hide();
       if (window.__hub_staff)        window.__hub_staff.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
@@ -293,6 +296,7 @@ export default async function init(config) {
       if (window.__hub_tbratio)      window.__hub_tbratio.hide();
       if (window.__hub_performance)  window.__hub_performance.hide();
       if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
+      if (window.__hub_forms)        window.__hub_forms.hide();
       if (window.__hub_projects)     window.__hub_projects.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
@@ -309,6 +313,7 @@ export default async function init(config) {
       if (window.__hub_companies)    window.__hub_companies.hide();
       if (window.__hub_tbratio)      window.__hub_tbratio.hide();
       if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
+      if (window.__hub_forms)        window.__hub_forms.hide();
       if (window.__hub_performance)  window.__hub_performance.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
@@ -325,6 +330,7 @@ export default async function init(config) {
       if (window.__hub_companies)    window.__hub_companies.hide();
       if (window.__hub_tbratio)      window.__hub_tbratio.hide();
       if (window.__hub_performance)  window.__hub_performance.hide();
+      if (window.__hub_forms)        window.__hub_forms.hide();
       if (window.__hub_budgetkpi)    window.__hub_budgetkpi.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
@@ -393,6 +399,7 @@ export default async function init(config) {
       if (window.__hub_tbratio)      window.__hub_tbratio.hide();
       if (window.__hub_performance)  window.__hub_performance.hide();
       if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
+      if (window.__hub_forms)        window.__hub_forms.hide();
       if (window.__hub_reader)       window.__hub_reader.goHome();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
@@ -409,6 +416,7 @@ export default async function init(config) {
       if (window.__hub_tbratio)      window.__hub_tbratio.hide();
       if (window.__hub_performance)  window.__hub_performance.hide();
       if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
+      if (window.__hub_forms)        window.__hub_forms.hide();
       if (window.__hub_kb)           window.__hub_kb.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
@@ -425,6 +433,7 @@ export default async function init(config) {
       if (window.__hub_tbratio)      window.__hub_tbratio.hide();
       if (window.__hub_performance)  window.__hub_performance.hide();
       if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
+      if (window.__hub_forms)        window.__hub_forms.hide();
       if (window.__hub_staff)        window.__hub_staff.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
@@ -442,6 +451,7 @@ export default async function init(config) {
       if (window.__hub_tbratio)      window.__hub_tbratio.hide();
       if (window.__hub_performance)  window.__hub_performance.hide();
       if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
+      if (window.__hub_forms)        window.__hub_forms.hide();
       if (window.__hub_projects)     window.__hub_projects.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
@@ -459,6 +469,7 @@ export default async function init(config) {
       if (window.__hub_companies)    window.__hub_companies.hide();
       if (window.__hub_tbratio)      window.__hub_tbratio.hide();
       if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
+      if (window.__hub_forms)        window.__hub_forms.hide();
       if (window.__hub_performance)  window.__hub_performance.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
@@ -476,6 +487,7 @@ export default async function init(config) {
       if (window.__hub_companies)    window.__hub_companies.hide();
       if (window.__hub_tbratio)      window.__hub_tbratio.hide();
       if (window.__hub_performance)  window.__hub_performance.hide();
+      if (window.__hub_forms)        window.__hub_forms.hide();
       if (window.__hub_budgetkpi)    window.__hub_budgetkpi.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
@@ -503,6 +515,7 @@ export default async function init(config) {
       valuation:   ["sb-tools",       "mb-tools"],
       companies:   ["sb-tools",       "mb-tools"],
       tbratio:     ["sb-tools",       "mb-tools"],
+      forms:       ["sb-tools",       "mb-tools"],
       performance: ["sb-performance", "mb-performance"],
       budgetkpi:   ["sb-budgetkpi",   "mb-budgetkpi"],
     };

@@ -86,6 +86,7 @@ function hideAllPages() {
   if (window.__hub_tbratio)     window.__hub_tbratio.hide();
   if (window.__hub_performance) window.__hub_performance.hide();
   if (window.__hub_budgetkpi)   window.__hub_budgetkpi.hide();
+  if (window.__hub_forms)       window.__hub_forms.hide();
 }
 
 // ---- Component init -----------------------------------------

@@ -425,6 +425,7 @@ function wireHeader() {
 const CHART_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`;
 const SEARCH_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`;
 const CALC_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="8" y2="10"/><line x1="12" y1="10" x2="12" y2="10"/><line x1="16" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="8" y2="14"/><line x1="12" y1="14" x2="12" y2="14"/><line x1="16" y1="14" x2="16" y2="18"/><line x1="8" y1="18" x2="12" y2="18"/></svg>`;
+const FORMS_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>`;
 
 // Shared header: back-to-hub + title + (Chart button) + synced + refresh.
 function mainHeaderHtml(title, subtitle, chartBtn) {
@@ -457,6 +458,7 @@ async function goMain() {
   await loadFilterOptions();
   const section = document.getElementById(SECTION_ID);
   const headerBtns = `
+    <button class="companies-chart-btn" id="companies-forms-btn" title="Open the Forms tool">${FORMS_ICON} Forms</button>
     <button class="companies-chart-btn" id="companies-calc-btn" title="Build a custom total">${CALC_ICON} Custom Total</button>
     <button class="companies-chart-btn" id="companies-chart-btn" title="Compare by chart">${CHART_ICON} Chart</button>`;
   section.innerHTML = `
@@ -471,6 +473,11 @@ async function goMain() {
       <div id="companies-table-wrap" class="companies-table-wrap"></div>
     </div>`;
   wireHeader();
+  document.getElementById("companies-forms-btn")?.addEventListener("click", () => {
+    hidePage();
+    window.__hub_forms?.show();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
   document.getElementById("companies-chart-btn")?.addEventListener("click", goChart);
   document.getElementById("companies-calc-btn")?.addEventListener("click", goCalc);
   bindFilters(() => { _browse.page = 1; loadBrowse(); });
