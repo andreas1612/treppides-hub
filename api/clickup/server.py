@@ -444,6 +444,8 @@ FORMS: dict[str, dict[str, Any]] = {
             {"heading": None, "fields": [
                 {"key": "deal_name", "label": "Enter the Company Name and Deal Name", "native": "name",
                  "type": "text", "required": True, "placeholder": "Example Company Name - Example Deal Name"},
+                {"key": "company_name", "label": "Company Name", "cf_id": "e2fe94f4-9bd5-438b-a7f7-dce89ab91ed0",
+                 "type": "text", "required": True, "placeholder": "Company name only"},
                 {"key": "due_date", "label": "Due date", "native": "due_date",
                  "type": "date", "required": True},
                 {"key": "assignee", "label": "Assignee", "native": "assignee",
@@ -806,23 +808,37 @@ def get_form_schema(form_key: str):
 
 @app.get("/api/clickup/forms/{form_key}/members")
 def get_form_members(form_key: str):
-    """Return assignable members for a form's list (for the assignee picker)."""
-    form = _resolve_form(form_key.lower())
-    list_id = _resolve_form_list_id(form)
-    url = f"https://api.clickup.com/api/v2/list/{list_id}/member"
+    """
+    Return assignable members for the assignee picker.
+
+    Uses the WORKSPACE (team) roster, not the per-list members: a ClickUp List's
+    /member endpoint only returns the handful of people explicitly added to that
+    list, so the picker was missing most staff. The team roster is the full set of
+    assignable users (what ClickUp's own form assignee picker shows).
+    """
+    _resolve_form(form_key.lower())   # validates the form key / config (404/503)
     try:
-        resp = requests.get(url, headers=_clickup_headers(), timeout=(10, 30))
+        resp = requests.get("https://api.clickup.com/api/v2/team",
+                            headers=_clickup_headers(), timeout=(10, 30))
     except requests.RequestException as e:
-        logging.error(f"ClickUp members request failed (list {list_id}): {e}")
+        logging.error(f"ClickUp team request failed: {e}")
         raise HTTPException(status_code=502, detail="Unable to reach ClickUp. Please try again.")
     if resp.status_code != 200:
-        logging.error(f"ClickUp members error: HTTP {resp.status_code} — {resp.text[:300]}")
+        logging.error(f"ClickUp team error: HTTP {resp.status_code} — {resp.text[:300]}")
         raise HTTPException(status_code=502, detail="Unable to reach ClickUp. Please try again.")
-    members = resp.json().get("members", [])
-    return {"members": [
-        {"id": m.get("id"), "username": m.get("username"), "email": m.get("email")}
-        for m in members
-    ]}
+
+    # Flatten members across all teams, dedupe by user id, drop id-less entries.
+    seen: dict[Any, dict] = {}
+    for team in resp.json().get("teams", []):
+        for m in team.get("members", []):
+            u = m.get("user", {}) or {}
+            uid = u.get("id")
+            if uid is None or uid in seen:
+                continue
+            seen[uid] = {"id": uid, "username": u.get("username"), "email": u.get("email")}
+    # Sort by display name (username, else email) for a tidy picker.
+    members = sorted(seen.values(), key=lambda x: (x["username"] or x["email"] or "").lower())
+    return {"members": members}
 
 
 @app.get("/api/clickup/forms/{form_key}/statuses")
