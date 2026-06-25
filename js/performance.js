@@ -242,7 +242,7 @@ function renderTeamSection(teamCard) {
       : `<div class="perf-mini-pct ${r.badge}">${r.chargeabilityPct.toFixed(1)}%</div>
          <span class="perf-badge ${r.badge}" style="font-size:10px;">${r.badge}</span>`;
     return `
-      <div class="perf-mini-card">
+      <div class="perf-mini-card clickable" data-code="${esc(r.esoftCode)}" role="button" tabindex="0" title="Open ${esc(r.employeeName)}'s report" style="cursor:pointer">
         <div class="perf-mini-info">
           <div class="perf-mini-name">${esc(r.employeeName)}</div>
           <div class="perf-mini-title">${esc(r.jobTitle || r.level)}</div>
@@ -267,6 +267,26 @@ function renderTeamSection(teamCard) {
     </div>
     ${summaryHtml}
     <div class="perf-team-grid">${cardsHtml}</div>`;
+
+  // Click a direct report to open their report (same view mechanism as the dev switcher)
+  section.querySelectorAll('.perf-mini-card[data-code]').forEach(cardEl => {
+    const go = () => openTeamMember(cardEl.getAttribute('data-code'));
+    cardEl.addEventListener('click', go);
+    cardEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
+    });
+  });
+}
+
+// ---- Drill into a direct report ----------------------------
+
+function openTeamMember(code) {
+  if (!code) return;
+  devUserCode = code;                            // view that person
+  const sw = document.getElementById('dev-employee-select');
+  if (sw) sw.value = code;                       // keep dev switcher in sync
+  loadAndRender();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 // ---- Period label ------------------------------------------

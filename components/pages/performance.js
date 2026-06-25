@@ -82,6 +82,18 @@ export default async function init() {
     if (selectedCode) loadAndRender();
   });
 
+  // Team drill-down: click (or Enter/Space on) a direct report to open their profile
+  const teamSection = document.getElementById("perf-team-section");
+  teamSection?.addEventListener("click", (e) => {
+    const card = e.target.closest(".perf-mini-card[data-code]");
+    if (card) openEmployee(card.getAttribute("data-code"));
+  });
+  teamSection?.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    const card = e.target.closest(".perf-mini-card[data-code]");
+    if (card) { e.preventDefault(); openEmployee(card.getAttribute("data-code")); }
+  });
+
   // Period toggle
   document.getElementById("perf-period-select")?.addEventListener("change", (e) => {
     const val = e.target.value;
@@ -212,6 +224,17 @@ async function loadAndRender() {
   }
 }
 
+// ---- Drill into a team member -------------------------------
+
+function openEmployee(code) {
+  if (!code) return;
+  selectedCode = code;
+  const select = document.getElementById("perf-employee-select");
+  if (select) select.value = code;        // keep dropdown in sync (reports are in the list)
+  loadAndRender();
+  document.querySelector(".perf-page")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 // ---- API helper ---------------------------------------------
 
 async function apiFetch(path) {
@@ -324,7 +347,7 @@ function renderTeamSection(teamCard) {
       : `<div class="perf-mini-pct ${r.badge}">${r.chargeabilityPct.toFixed(1)}%</div>
          <span class="perf-badge ${r.badge}" style="font-size:10px;">${r.badge}</span>`;
     return `
-      <div class="perf-mini-card">
+      <div class="perf-mini-card clickable" data-code="${escapeHtml(r.esoftCode)}" role="button" tabindex="0" title="Open ${escapeHtml(r.employeeName)}'s performance" style="cursor:pointer">
         <div class="perf-mini-info">
           <div class="perf-mini-name">${escapeHtml(r.employeeName)}</div>
           <div class="perf-mini-title">${escapeHtml(r.level || "")}</div>
@@ -349,6 +372,15 @@ function renderTeamSection(teamCard) {
     </div>
     ${summaryHtml}
     <div class="perf-team-grid">${cardsHtml}</div>`;
+
+  // Bind click-to-open directly on each freshly-rendered card (robust against re-renders)
+  section.querySelectorAll(".perf-mini-card[data-code]").forEach(cardEl => {
+    const go = () => openEmployee(cardEl.getAttribute("data-code"));
+    cardEl.addEventListener("click", go);
+    cardEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); }
+    });
+  });
 }
 
 // ---- Period date range label --------------------------------

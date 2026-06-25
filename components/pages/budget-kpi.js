@@ -2,7 +2,7 @@
 // components/pages/budget-kpi.js — Budget KPI Report (SPA component)
 //
 // Admin-only: manager dropdown → budget vs invoiced card + monthly table.
-// Period bar with month buttons per year (2025→current) + YTD, matching
+// Period bar with month buttons per year (2026→current) + YTD, matching
 // the Flask tester design at :9092.
 // Mounts into: #section-budgetkpi
 // ============================================================
@@ -104,7 +104,7 @@ function buildPeriodBar() {
   const thisMonth = now.getMonth() + 1;
   let html = '';
 
-  for (let yr = 2025; yr <= thisYear; yr++) {
+  for (let yr = 2026; yr <= thisYear; yr++) {   // 2025 intentionally excluded — data starts Jan 2026 (matches live)
     const maxMo = yr === thisYear ? thisMonth : 12;
     html += `<span class="year-label">${yr}</span>`;
     for (let mo = 1; mo <= maxMo; mo++) {
