@@ -617,23 +617,24 @@ function computeDerived(pnlTotals, config) {
 }
 
 /**
- * Retained Earnings on the Balance Sheet = the RE rows' CLOSING balances as
- * recorded in the trial balance — NOT reconstructed as opening RE + net profit.
+ * Retained Earnings on the Balance Sheet = the RE rows' CLOSING balances from the
+ * trial balance + the P&L net profit for the period.
  *
- * Why: the E-Soft "Movement" column is unreliable for RE rows — some rows that
- * map to Retained Earnings carry no movement debit/credit at all. The old bridge
- * rebuilt RE as (opening RE + P&L net profit); when a row's movement was missing,
- * the P&L net profit understated the real change, so the rebuilt RE diverged from
- * the row's actual closing balance and the Balance Sheet went out of balance.
+ * Why this shape: in these E-Soft exports the current-year profit has NOT yet been
+ * transferred into Retained Earnings — it is still sitting in the open P&L accounts
+ * (revenue/COGS/expenses/tax). The balance sheet drops those P&L accounts, so equity
+ * is short by exactly the net profit unless we add it back into RE. (That is why the
+ * imbalance, when RE used closing alone, equalled the P&L net profit.)
  *
- * The TB always balances on CLOSING (debits = credits — see validateTrialBalance),
- * so summing each BS line (RE included) from its closing balance keeps A = L + E
- * by construction, regardless of what the movement column does or doesn't record.
+ *   retainedEarnings (BS) = closing RE  +  net profit
  *
- * `bsCurrent.retainedEarnings` is already the closing-based total (sumByTarget at
- * step 4 over r.closingNet), so we DON'T overwrite it. We only attach the opening
- * RE and the P&L-derived net profit as informational figures (the implied movement
- * = closing − opening), without using them to constrain the displayed RE.
+ * We use the RE rows' CLOSING balance (not opening) so we don't depend on the
+ * E-Soft "Movement" column, which is unreliable for RE rows — some carry no
+ * movement debit/credit at all. Net profit comes from the P&L (period movement on
+ * the P&L accounts), exactly the figure the equity side is missing.
+ *
+ * `bsCurrent.retainedEarnings` arrives here as the closing-based total (sumByTarget
+ * at step 4 over r.closingNet); we add net profit to it.
  */
 function applyRetainedEarningsBridge(bsCurrent, netProfit, assignments) {
   let openingRE = 0;
@@ -643,8 +644,8 @@ function applyRetainedEarningsBridge(bsCurrent, netProfit, assignments) {
   }
   const closingRE = bsCurrent.retainedEarnings ?? 0; // closing-based, from step 4
   bsCurrent.openingRetainedEarnings = round(openingRE);
-  bsCurrent.retainedEarnings = round(closingRE);      // keep TB closing — no rebuild
-  bsCurrent.netProfitBridged = round(netProfit);      // P&L figure, informational only
+  bsCurrent.retainedEarnings = round(closingRE + netProfit); // P&L profit not yet in RE
+  bsCurrent.netProfitBridged = round(netProfit);
 }
 
 function buildPnl(config, current, prior, derivedCurrent, derivedPrior) {
