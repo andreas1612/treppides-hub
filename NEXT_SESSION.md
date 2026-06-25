@@ -21,17 +21,56 @@
 
 ## Deploy status
 
-**The 2026-06-19 TB Ratio work was deployed Friday** (commit `31552af`: mapping
-discoverability — search/collapse/counts, the "No activity" zero-balance area, zero-aware
-empty-space drop, no-op-on-same-bucket drop fix, cross-statement rework, "E-Soft" → "trial
-balance sheet" wording). `origin/main` has since advanced to `a8ded1d` (standalone
-`staff-directory/` component — unrelated to the hub SPA).
+**⚠ PENDING DEPLOY (2026-06-25) — `origin/main` now at `3edef72`. Two new commits since the
+last deploy, and this one needs a BACKEND restart (not just a pull):**
+- `ef9b16e` **feat(forms)** — new **Forms tool** (Lead/Deal → creates a real ClickUp task).
+  Backend changes in the `clickup-fees` service (port 8001) → needs **`pip install` +
+  `systemctl restart clickup-fees`** AND two new lines in `api/clickup/.env`. Full steps in
+  the **"Server deploy steps (2026-06-25)"** section near the bottom.
+- `3edef72` **fix(tours)** — guided-tour fixes (sleek Valuation buttons; TB Ratio prompt no
+  longer on the landing page; clearer "upload first" tour step). Frontend-only.
 
-**Pending deploy (2026-06-22):** the new **TB Ratio guided tour** — `git pull` +
-hard-refresh, frontend-only, no systemd/DB. See the last-session entry below.
+**Also still un-confirmed-deployed from before:** the 2026-06-22 **TB Ratio guided tour**
+(frontend-only). A single `git pull` now brings down all of the above together.
 
-Prior baseline: commit `6202295` (2026-06-09) was fully deployed (Dashboard TID `--full`
-re-sync, `companies-api` + `clickup-fees` restarted, frontend hard-refreshed).
+Prior deployed baseline: `31552af` (2026-06-19 TB Ratio mapping discoverability), and
+`6202295` (2026-06-09 Dashboard TID `--full` re-sync + service restarts).
+
+---
+
+## Last Session --- 2026-06-25 (Forms tool + tour fixes — COMMITTED + PUSHED, not deployed)
+
+**Two commits pushed to `main` (`8d19a9d..3edef72`):**
+
+**1. `ef9b16e` — Forms tool (new feature).** A **Forms** tool that submits **Leads** and
+**Deals** straight into ClickUp (creates a real task). Reached from a **"Forms" button in the
+Group Dashboard header** (next to Custom Total / Chart) — not a Tools card.
+- **Backend** extends the `clickup-fees` service (port 8001 → v2.2.0): a `FORMS` schema
+  registry + endpoints under `/api/clickup/forms` (`list` · `/{key}/schema` · `/{key}/members`
+  · `/{key}/statuses` · `POST /{key}/submit`). Validates + converts each field to ClickUp's
+  format, creates the task, attaches an optional file (Deal LoE). List IDs from `.env`
+  (`CLICKUP_FORM_LEAD_LIST` `901214051231` / `CLICKUP_FORM_DEAL_LIST` `901214051218`); reuses
+  the existing `CLICKUP_API_TOKEN`. Needs `python-multipart` (added to requirements.txt).
+- **Frontend** new `components/pages/forms.js` + `styles/pages/forms.css`: AML-style card-grid
+  landing → Lead/Deal form, schema-driven, client+server validation, "View in ClickUp" link.
+  Wired additively into `companies.js` (header button) / `projects.js` (Tools card removed) /
+  `sidebar.js` / `index.html` / `main.js`. No other component behaviour changed.
+- **Caveats:** mirrors the two live ClickUp forms (structure from the API + screenshots — there
+  is NO public API for form-view layout). ClickUp phone fields require **E.164** (`+357…`),
+  enforced both sides. **No real task created in testing yet** — only validation-reject paths
+  were exercised; the one remaining check is a real Lead + Deal submit on the deployed hub.
+
+**2. `3edef72` — guided-tour fixes (frontend-only):**
+- **Valuation tour buttons** restyled to the sleek TB-Ratio look (self-contained
+  `val-tour-primary/secondary/x` classes + CSS; dropped the old global `btn` classes).
+- **TB Ratio first-visit prompt** no longer shows on the **landing page** — it was fired at
+  boot from `init()`; now fired from `showPage()` via `maybeTbratioPrompt()`, so it only
+  appears on the TB Ratio page.
+- **TB Ratio "upload first" tour step** now has a clear **"Close tour to upload"** button + a
+  highlighted hint to re-press **Tutorial** to resume (was forcing the user to find "Skip").
+- Verified via headless-Chrome screenshots of both states.
+
+**Deploy:** see **"Server deploy steps (2026-06-25)"** below — this one needs a backend restart.
 
 ---
 
@@ -273,6 +312,49 @@ sudo fail2ban-client status
 8. **Never hardcode redirect-uri** --- Task Manager auto-generates from Host header. Hardcoding breaks hub vs direct access.
 9. **TM backend changes need rebuild** --- `cd ~/taskmanager && ./mvnw package -DskipTests && sudo systemctl restart taskmanager`.
 10. **Auth proxy paths are critical** --- `/projects/*`, `/oauth2/*`, `/login/oauth2/*` must all proxy to port 8080.
+
+---
+
+## Server deploy steps (2026-06-25 — Forms tool + tour fixes)
+
+Brings down everything up to `3edef72`. The tour fixes are frontend-only, but the **Forms
+tool changes the `clickup-fees` backend**, so this deploy needs a `pip install` + service
+restart + two new `.env` lines — NOT just a pull.
+
+```bash
+cd ~/treppides-hub
+git pull                                   # → 3edef72
+
+# 1. Add the two Forms list IDs to the clickup-fees env (gitignored, server-only).
+#    Append if not already present:
+cat >> api/clickup/.env <<'EOF'
+CLICKUP_FORM_LEAD_LIST=901214051231
+CLICKUP_FORM_DEAL_LIST=901214051218
+EOF
+
+# 2. Install the new backend dep (python-multipart) into the service venv.
+cd api/clickup && source venv/bin/activate && pip install -r requirements.txt && deactivate
+cd ~/treppides-hub
+
+# 3. Restart the backend so the new /api/clickup/forms/* endpoints load.
+sudo systemctl restart clickup-fees
+
+# 4. Hard-refresh the hub in the browser (Ctrl-Shift-R) for the frontend.
+```
+
+**Sanity checks after deploy:**
+- `curl -s http://127.0.0.1:8001/api/clickup/forms` → `{"forms":[{"key":"lead",...},{"key":"deal",...}]}`
+  (empty list = the `.env` IDs aren't set / service not restarted).
+- Hub → **Group Dashboard** → a **Forms** button sits next to Custom Total / Chart → opens the
+  Lead/Deal card grid. Submit a **test Lead and a test Deal** (phone must be `+357…`) and
+  confirm they appear in the ClickUp Leads/Deals lists (then delete the tests). This is the
+  one end-to-end check not yet done locally.
+- Valuation & TB Ratio **Tutorial** buttons show the sleek button styling; the TB Ratio
+  first-visit prompt appears only on the TB Ratio page, and its "upload first" step shows a
+  "Close tour to upload" button.
+
+If `/api/clickup/forms` 500s on `python-multipart`, step 2 didn't take — re-run it in the
+service venv and restart.
 
 ---
 
