@@ -1848,30 +1848,54 @@ function onExport() {
 }
 
 /**
- * Export the rendered statements (P&L + Balance Sheet + ratios) to a PDF.
- * Captures the #tbr-statements block with html2canvas and paginates onto A4,
- * mirroring the Valuation tool's vendored jsPDF + html2canvas approach.
+ * Export the RESULTS (P&L + Balance Sheet statements + ratios + commentary) to a
+ * PDF. Deliberately EXCLUDES the account-mapping panels (.tbr-mapping) — those are
+ * a working tool, not a deliverable — by capturing only the result cards inside
+ * each pane's .tbr-group.
+ *
+ * Each result card (.tbr-card) is captured as its own image and placed as a whole
+ * block; a page break is inserted whenever the next block would overflow the page,
+ * so a result table is never split across pages. (A single block taller than a
+ * full page — only possible for a long commentary card — falls back to slicing
+ * just that one block.)
  */
 async function onExportPdf() {
   const status = document.getElementById("tbr-status");
   const btn = document.getElementById("tbr-pdf");
-  const target = document.getElementById("tbr-statements");
-  if (!target) return;
+  const root = document.getElementById("tbr-statements");
+  if (!root) return;
   try {
     await loadVendor();
     if (!window.jspdf || !window.html2canvas) throw new Error("PDF engine not loaded.");
     if (btn) { btn.disabled = true; btn.textContent = "Preparing PDF…"; }
 
     // Both statements live in tab panes, one of which is hidden on screen.
-    // html2canvas won't render a hidden element, so temporarily reveal every
-    // pane for the capture, then restore the on-screen tab state afterwards.
-    const panes = Array.from(target.querySelectorAll(".tbr-tabpane"));
+    // html2canvas won't render a hidden element, so temporarily reveal every pane
+    // for the capture, then restore the on-screen tab state afterwards.
+    const panes = Array.from(root.querySelectorAll(".tbr-tabpane"));
     const wasHidden = panes.map(p => p.hidden);
     panes.forEach(p => { p.hidden = false; });
 
-    let canvas;
+    // Build the ordered list of result blocks (skipping the mapping panels). For
+    // each pane: a section heading (the .tbr-group-title), then every .tbr-card
+    // inside its .tbr-group. The .tbr-mapping card lives OUTSIDE .tbr-group, so it
+    // is naturally excluded.
+    const blocks = []; // { type: "heading", text } | { type: "card", el }
+    for (const pane of panes) {
+      const group = pane.querySelector(".tbr-group");
+      if (!group) continue;
+      const title = group.querySelector(".tbr-group-title");
+      blocks.push({ type: "heading", text: title ? title.textContent.trim() : "" });
+      group.querySelectorAll(":scope > .tbr-card").forEach(el => blocks.push({ type: "card", el }));
+    }
+
+    // Capture every card to its own canvas before we touch the PDF (async work
+    // done up front, while the panes are revealed).
     try {
-      canvas = await window.html2canvas(target, { scale: 2, backgroundColor: "#ffffff", logging: false });
+      for (const b of blocks) {
+        if (b.type !== "card") continue;
+        b.canvas = await window.html2canvas(b.el, { scale: 2, backgroundColor: "#ffffff", logging: false });
+      }
     } finally {
       panes.forEach((p, i) => { p.hidden = wasHidden[i]; });
     }
@@ -1882,42 +1906,69 @@ async function onExportPdf() {
     const pageH = doc.internal.pageSize.getHeight();
     const margin = 10;
     const contentW = pageW - margin * 2;
+    const bottom = pageH - margin;
 
-    // Title block.
+    // Document title block.
     const company = exportTitle(state.model);
     const period = state.model?.meta?.periodLabel || "";
     doc.setFont("helvetica", "bold"); doc.setFontSize(14);
     doc.text(company, margin, margin + 4);
     if (period) { doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.text(period, margin, margin + 10); }
-    const headerH = period ? 14 : 8;
+    let y = margin + (period ? 16 : 10);
 
-    // Paginate by SLICING the tall capture into page-height chunks and adding
-    // each slice as its own image (avoids cross-page overlap).
-    const imgW = contentW;
-    const usableTop = margin + headerH;
-    const pxPerMm = canvas.width / imgW;            // capture px per output mm
-    const firstSlotPx = Math.floor((pageH - usableTop - margin) * pxPerMm);
-    const otherSlotPx = Math.floor((pageH - margin * 2) * pxPerMm);
+    const HEADING_H = 9;   // mm reserved for a section heading
+    const GAP = 4;         // mm gap between blocks
 
-    let sy = 0;            // source y in the capture canvas
-    let firstPage = true;
-    while (sy < canvas.height) {
-      const slotPx = firstPage ? firstSlotPx : otherSlotPx;
-      const sliceH = Math.min(slotPx, canvas.height - sy);
+    for (const b of blocks) {
+      if (b.type === "heading") {
+        if (!b.text) continue;
+        // Keep a heading with its first block: break if it (plus a little of what
+        // follows) won't fit near the page bottom.
+        if (y + HEADING_H + 12 > bottom) { doc.addPage(); y = margin; }
+        doc.setFont("helvetica", "bold"); doc.setFontSize(13);
+        doc.text(b.text, margin, y + 6);
+        y += HEADING_H;
+        continue;
+      }
 
-      const slice = document.createElement("canvas");
-      slice.width = canvas.width;
-      slice.height = sliceH;
-      slice.getContext("2d").drawImage(canvas, 0, sy, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+      // A result card: place it whole.
+      const blockHmm = (b.canvas.height / b.canvas.width) * contentW;
+      const data = b.canvas.toDataURL("image/png");
 
-      const sliceData = slice.toDataURL("image/png");
-      const sliceHmm = sliceH / pxPerMm;
-      const topY = firstPage ? usableTop : margin;
-      if (!firstPage) doc.addPage();
-      doc.addImage(sliceData, "PNG", margin, topY, imgW, sliceHmm);
+      // Block fits on the rest of the current page → place it whole.
+      if (y + blockHmm <= bottom) {
+        doc.addImage(data, "PNG", margin, y, contentW, blockHmm);
+        y += blockHmm + GAP;
+        continue;
+      }
 
-      sy += sliceH;
-      firstPage = false;
+      // Doesn't fit here. If it fits on a fresh page, move it there whole (no split).
+      if (blockHmm <= pageH - margin * 2) {
+        doc.addPage(); y = margin;
+        doc.addImage(data, "PNG", margin, y, contentW, blockHmm);
+        y += blockHmm + GAP;
+        continue;
+      }
+
+      // Last resort: the block is taller than a full page (e.g. a long commentary
+      // card). Slice only THIS block across pages.
+      const pxPerMm = b.canvas.width / contentW;
+      let sy = 0;
+      let first = true;
+      while (sy < b.canvas.height) {
+        if (!first || y + 1 > bottom) { doc.addPage(); y = margin; }
+        const slotPx = Math.floor((bottom - y) * pxPerMm);
+        const sliceH = Math.min(slotPx, b.canvas.height - sy);
+        const slice = document.createElement("canvas");
+        slice.width = b.canvas.width;
+        slice.height = sliceH;
+        slice.getContext("2d").drawImage(b.canvas, 0, sy, b.canvas.width, sliceH, 0, 0, b.canvas.width, sliceH);
+        const sliceHmm = sliceH / pxPerMm;
+        doc.addImage(slice.toDataURL("image/png"), "PNG", margin, y, contentW, sliceHmm);
+        y += sliceHmm + GAP;
+        sy += sliceH;
+        first = false;
+      }
     }
 
     const safe = company.replace(/[^\w\d-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 40) || "statements";
