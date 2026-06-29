@@ -1919,12 +1919,22 @@ async function onExportPdf() {
     const HEADING_H = 9;   // mm reserved for a section heading
     const GAP = 4;         // mm gap between blocks
 
-    for (const b of blocks) {
+    // Output height (mm) of a captured card at the current content width.
+    const cardHmm = (b) => (b.canvas.height / b.canvas.width) * contentW;
+
+    for (let i = 0; i < blocks.length; i++) {
+      const b = blocks[i];
       if (b.type === "heading") {
         if (!b.text) continue;
-        // Keep a heading with its first block: break if it (plus a little of what
-        // follows) won't fit near the page bottom.
-        if (y + HEADING_H + 12 > bottom) { doc.addPage(); y = margin; }
+        // Keep a heading WITH its first table: a heading must never be orphaned on
+        // a page without the block it introduces. Look ahead to the next card and
+        // break before the heading unless the heading + that card both fit here.
+        const next = blocks.slice(i + 1).find(x => x.type === "card");
+        const needed = HEADING_H + (next ? cardHmm(next) : 0);
+        const atPageTop = y <= margin + 1;
+        // Break only if it helps — never break to an identical empty page when the
+        // pair is simply taller than a whole page (the card will paginate itself).
+        if (!atPageTop && y + needed > bottom) { doc.addPage(); y = margin; }
         doc.setFont("helvetica", "bold"); doc.setFontSize(13);
         doc.text(b.text, margin, y + 6);
         y += HEADING_H;
@@ -1932,7 +1942,7 @@ async function onExportPdf() {
       }
 
       // A result card: place it whole.
-      const blockHmm = (b.canvas.height / b.canvas.width) * contentW;
+      const blockHmm = cardHmm(b);
       const data = b.canvas.toDataURL("image/png");
 
       // Block fits on the rest of the current page → place it whole.
