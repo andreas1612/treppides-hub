@@ -508,6 +508,7 @@
 .tools-card-icon.green  { background: rgba(72, 187, 120, .10); color: #38a169; }
 .tools-card-icon.teal   { background: rgba(56, 178, 172, .10); color: #319795; }
 .tools-card-icon.rose   { background: rgba(237, 100, 166, .10); color: #d53f8c; }
+.tools-card-icon.indigo { background: rgba(99, 102, 241, .10); color: #6366f1; }
 
 .tools-card-body { flex: 1; }
 

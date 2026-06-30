@@ -237,11 +237,11 @@ async function renderTab() {
     } else if (currentTab === "revenue") {
       renderRevenue(await apiFetch(`/api/reports/financials/revenue${qs()}`));
     } else if (currentTab === "budget") {
-      renderBudget(await apiFetch(`/api/reports/financials/budget-vs-actual?year=${currentYear}`));
+      renderBudget(await apiFetch(`/api/reports/financials/budget-vs-actual${qs()}`));
     } else if (currentTab === "recoverability") {
-      renderRecoverability(await apiFetch(`/api/reports/financials/recoverability?year=${currentYear}&top=10`));
+      renderRecoverability(await apiFetch(`/api/reports/financials/recoverability${qs()}&top=10`));
     } else if (currentTab === "debtors") {
-      renderDebtors(await apiFetch(`/api/reports/financials/debtors?top=20`));
+      renderDebtors(await apiFetch(`/api/reports/financials/debtors${qs()}&top=20`));
     }
   } catch (err) {
     setError(err.message);
@@ -257,8 +257,8 @@ async function renderOverview() {
   const revAll = await apiFetch(`/api/reports/financials/revenue${baseQs}`);
   const revF = currentDept ? await apiFetch(`/api/reports/financials/revenue${qs()}`) : revAll;
   const [bud, deb, cash] = await Promise.all([
-    apiFetch(`/api/reports/financials/budget-vs-actual?year=${currentYear}`),
-    apiFetch(`/api/reports/financials/debtors?top=5`),
+    apiFetch(`/api/reports/financials/budget-vs-actual${baseQs}`),
+    apiFetch(`/api/reports/financials/debtors${baseQs}&top=5`),
     apiFetch(`/api/reports/financials/invoiced-receipts${baseQs}`),
   ]);
 

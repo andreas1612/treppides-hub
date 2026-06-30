@@ -48,6 +48,11 @@ const TOOL_ICONS = {
               <line x1="8" y1="13" x2="16" y2="13"/>
               <line x1="8" y1="17" x2="13" y2="17"/>
             </svg>`,
+  training: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+               <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+               <path d="M6 12v5c0 1.1 2.7 3 6 3s6-1.9 6-3v-5"/>
+             </svg>`,
   roombooking: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
                      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
@@ -161,6 +166,15 @@ export default async function init(config) {
           </div>
         </div>
 
+        <div class="tools-card" data-tool="training">
+          <div class="tools-card-icon indigo">${TOOL_ICONS.training}</div>
+          <div class="tools-card-body">
+            <h3 class="tools-card-title">Training Portal</h3>
+            <p class="tools-card-desc">Induction courses, SCORM modules &amp; completion tracking.</p>
+          </div>
+          <span class="tools-card-badge">External ${TOOL_ICONS.external}</span>
+        </div>
+
         <div class="tools-card" data-tool="roombooking">
           <div class="tools-card-icon rose">${TOOL_ICONS.roombooking}</div>
           <div class="tools-card-body">
@@ -209,6 +223,9 @@ export default async function init(config) {
         hideAllPages();
         window.__hub_tbratio?.show();
         window.scrollTo({ top: 0, behavior: "smooth" });
+        break;
+      case "training":
+        window.open("https://learn.treppides.com", "_blank", "noopener");
         break;
       case "roombooking":
         window.open("/rooms/", "_blank", "noopener");
