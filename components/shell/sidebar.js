@@ -180,8 +180,9 @@ export default async function init(config) {
   const useMock = !CONFIG.ENV_LIVE;
   if (useMock) ensureModal();
 
-  // Financials nav is gated to board members / admins (see /api/me isBoardMember).
-  const showFinancials = !!getCurrentUser()?.isBoardMember;
+  // Financials nav — hidden until board email list is finalised.
+  // Was: !!getCurrentUser()?.isBoardMember
+  const showFinancials = false;
   const finDesktopBtn = showFinancials
     ? `<button class="nav-item nav-btn" id="sb-financials">${ICONS.ledger} Financials</button>`
     : "";
@@ -219,6 +220,10 @@ export default async function init(config) {
           ${ICONS.grid} Tools
         </button>
 
+        <!-- Admin section hidden until access tiers are implemented.
+             Was: Performance, Budget KPI, Financials buttons.
+             To restore: remove the HTML comment wrapper below. -->
+        <!--
         <div class="nav-label" style="margin-top:12px;">Admin</div>
 
         <button class="nav-item nav-btn" id="sb-performance">
@@ -229,6 +234,7 @@ export default async function init(config) {
           ${ICONS.dollar} Budget KPI
         </button>
         ${finDesktopBtn}
+        -->
 
         <div class="nav-label" style="margin-top:12px;">Support</div>
 
@@ -385,6 +391,8 @@ export default async function init(config) {
         <button class="nav-item nav-btn" id="mb-tools">
           ${ICONS.grid} Tools
         </button>
+        <!-- Admin section hidden (mobile) — same as desktop, restore together. -->
+        <!--
         <div class="nav-label" style="margin-top:8px;">Admin</div>
         <button class="nav-item nav-btn" id="mb-performance">
           ${ICONS.trendUp} Performance
@@ -393,6 +401,7 @@ export default async function init(config) {
           ${ICONS.dollar} Budget KPI
         </button>
         ${finMobileBtn}
+        -->
         <div class="nav-label" style="margin-top:8px;">Support</div>
         <button class="nav-item nav-btn" id="mb-support">
           ${ICONS.phone} Tech Support
