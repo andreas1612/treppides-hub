@@ -457,6 +457,12 @@ const SHELL_HTML = `
                               </span>
                           </summary>
                           <div>
+                              <div class="override-toggle-bar">
+                                  <button type="button" class="override-toggle" id="plOverrideToggle">
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                      <span class="override-toggle-label">Override Values</span>
+                                  </button>
+                              </div>
                               <div class="ledger-container" style="padding: 1.5rem; overflow-x: auto;">
                                   <table style="width: 100%; border-collapse: collapse; text-align: right; min-width: 800px;">
                                       <thead>
@@ -493,6 +499,12 @@ const SHELL_HTML = `
                               </span>
                           </summary>
                           <div>
+                              <div class="override-toggle-bar">
+                                  <button type="button" class="override-toggle" id="cfOverrideToggle">
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                      <span class="override-toggle-label">Override Values</span>
+                                  </button>
+                              </div>
                               <div class="ledger-container" style="padding: 1.5rem; overflow-x: auto;">
                                   <table style="width: 100%; border-collapse: collapse; text-align: right; min-width: 800px;">
                                       <thead>
@@ -1114,6 +1126,63 @@ function bootValuation() {
     // 'Tax due' / 'Net profit before tax' (mirrors Excel's L27/L25 fallback path).
     let lastProjections = null;
 
+    // --- Override state for P&L and CF projection tables ---
+    // When active, the respective table renders editable inputs instead of
+    // computed read-only values. Override data is a shallow copy of the
+    // projections at toggle-on time, updated in-place as the user types.
+    let plOverrideActive = false;
+    let cfOverrideActive = false;
+    let plOverrideData = null;   // { [year]: { [key]: value } }
+    let cfOverrideData = null;   // { [year]: { [plKey]: value } }
+
+    // Returns the projections object DCF should use. If CF is overridden,
+    // its values are layered on top of the base (computed or P&L-overridden)
+    // projections so the FCFF fed to DCF reflects the CF override.
+    const getEffectiveProjections = (baseYear) => {
+        if (!cfOverrideActive || !cfOverrideData) return lastProjections;
+        const effective = { _meta: lastProjections?._meta };
+        if (lastProjections?.[baseYear]) effective[baseYear] = { ...lastProjections[baseYear] };
+        for (let y = baseYear + 1; y <= baseYear + 5; y++) {
+            effective[y] = { ...(lastProjections?.[y] || {}), ...(cfOverrideData[y] || {}) };
+        }
+        return effective;
+    };
+
+    // Input handler for P&L override cells — updates override + lastProjections
+    // then triggers CF render (if not also overridden) and DCF recalc.
+    const onPlOverrideInput = (e) => {
+        const year = parseInt(e.target.dataset.year);
+        const key = e.target.dataset.key;
+        const val = parseFloat(e.target.value) || 0;
+        if (plOverrideData?.[year]) plOverrideData[year][key] = val;
+        if (lastProjections?.[year]) lastProjections[year][key] = val;
+        updateDcfTaxRate();
+        const baseYear = getBaseYear();
+        if (!cfOverrideActive) {
+            renderCfProjections(lastProjections, baseYear);
+        }
+        calculateDcf(getEffectiveProjections(baseYear), baseYear);
+    };
+
+    // Input handler for CF override cells — updates cfOverrideData, syncs
+    // any duplicate-key inputs (e.g. Revenues / Total Revenues), then
+    // triggers DCF recalc.
+    const onCfOverrideInput = (e) => {
+        const year = parseInt(e.target.dataset.year);
+        const key = e.target.dataset.key;
+        const val = parseFloat(e.target.value) || 0;
+        if (cfOverrideData?.[year]) cfOverrideData[year][key] = val;
+        // Sync any other inputs in the CF table with the same year + key
+        const tbody = document.getElementById('cfProjectionsBody');
+        if (tbody) {
+            tbody.querySelectorAll(`.cf-override-input[data-year="${year}"][data-key="${key}"]`).forEach(el => {
+                if (el !== e.target) el.value = val;
+            });
+        }
+        const baseYear = getBaseYear();
+        calculateDcf(getEffectiveProjections(baseYear), baseYear);
+    };
+
     // Effective tax rate computed from the P&L projections — equivalent to Excel's
     // 'P&L Projections'!L27/'P&L Projections'!L25. Picks the first projection year
     // since the ratio is identical across all years.
@@ -1429,6 +1498,17 @@ function bootValuation() {
     // P&L Projections Logic
     const calculatePlProjections = () => {
         const baseYear = getBaseYear();
+
+        // If P&L is overridden, skip computation but still drive downstream
+        if (plOverrideActive && plOverrideData) {
+            updateDcfTaxRate();
+            if (!cfOverrideActive) {
+                renderCfProjections(lastProjections, baseYear);
+            }
+            calculateDcf(getEffectiveProjections(baseYear), baseYear);
+            return;
+        }
+
         const firstProjYear = baseYear + 1;
         const lastProjYear = baseYear + 5;
 
@@ -1516,12 +1596,10 @@ function bootValuation() {
         updateDcfTaxRate();
 
         renderPlProjections(projections, baseYear);
-        if (typeof renderCfProjections === 'function') {
+        if (!cfOverrideActive) {
             renderCfProjections(projections, baseYear);
         }
-        if (typeof calculateDcf === 'function') {
-            calculateDcf(projections, baseYear);
-        }
+        calculateDcf(getEffectiveProjections(baseYear), baseYear);
     };
 
     const formatProjCurrency = (val) => {
@@ -1620,14 +1698,27 @@ function bootValuation() {
 
             let html = `<td style="text-align: left; padding: 0.75rem;">${row.label}</td>`;
             for (let year = firstProjYear; year <= lastProjYear; year++) {
-                const val = formatProjCurrency(projections[year][row.key]);
-                const detail = getPlCalcDetail(row.key, year, projections, baseYear);
-                const detailHtml = detail ? `<div class="calc-detail">${detail}</div>` : '';
-                html += `<td style="padding: 0.75rem;">${val}${detailHtml}</td>`;
+                const rawVal = projections[year] ? projections[year][row.key] : 0;
+                if (plOverrideActive) {
+                    const numVal = rawVal != null ? Math.round(rawVal) : 0;
+                    html += `<td style="padding: 0.4rem;"><input type="number" class="override-cell-input pl-override-input" data-year="${year}" data-key="${row.key}" value="${numVal}" step="1"></td>`;
+                } else {
+                    const val = formatProjCurrency(rawVal);
+                    const detail = getPlCalcDetail(row.key, year, projections, baseYear);
+                    const detailHtml = detail ? `<div class="calc-detail">${detail}</div>` : '';
+                    html += `<td style="padding: 0.75rem;">${val}${detailHtml}</td>`;
+                }
             }
             tr.innerHTML = html;
             tbody.appendChild(tr);
         });
+
+        // Bind override input handlers when in override mode
+        if (plOverrideActive) {
+            tbody.querySelectorAll('.pl-override-input').forEach(input => {
+                input.addEventListener('input', onPlOverrideInput);
+            });
+        }
     };
 
     const renderCfProjections = (projections, baseYear) => {
@@ -1677,11 +1768,24 @@ function bootValuation() {
 
             let html = `<td style="text-align: left; padding: 0.75rem;">${row.label}</td>`;
             for (let year = firstProjYear; year <= lastProjYear; year++) {
-                html += `<td style="padding: 0.75rem;">${formatProjCurrency(projections[year][row.plKey])}</td>`;
+                const rawVal = projections[year] ? projections[year][row.plKey] : 0;
+                if (cfOverrideActive) {
+                    const numVal = rawVal != null ? Math.round(rawVal) : 0;
+                    html += `<td style="padding: 0.4rem;"><input type="number" class="override-cell-input cf-override-input" data-year="${year}" data-key="${row.plKey}" value="${numVal}" step="1"></td>`;
+                } else {
+                    html += `<td style="padding: 0.75rem;">${formatProjCurrency(rawVal)}</td>`;
+                }
             }
             tr.innerHTML = html;
             tbody.appendChild(tr);
         });
+
+        // Bind override input handlers when in override mode
+        if (cfOverrideActive) {
+            tbody.querySelectorAll('.cf-override-input').forEach(input => {
+                input.addEventListener('input', onCfOverrideInput);
+            });
+        }
     };
 
     // --- DCF & Sensitivity Logic ---
@@ -2196,6 +2300,53 @@ function bootValuation() {
             if (label) label.textContent = on ? 'Hide Calculations' : 'Show Calculations';
         });
     });
+
+    // Override toggle handlers for P&L and CF projection tables
+    const plOverrideToggle = document.getElementById('plOverrideToggle');
+    if (plOverrideToggle) {
+        plOverrideToggle.addEventListener('click', () => {
+            plOverrideActive = !plOverrideActive;
+            plOverrideToggle.classList.toggle('active', plOverrideActive);
+            const label = plOverrideToggle.querySelector('.override-toggle-label');
+            if (label) label.textContent = plOverrideActive ? 'Revert to Calculated' : 'Override Values';
+
+            const baseYear = getBaseYear();
+            if (plOverrideActive) {
+                // Snapshot current computed projections as the editable starting point
+                plOverrideData = {};
+                for (let y = baseYear + 1; y <= baseYear + 5; y++) {
+                    if (lastProjections?.[y]) plOverrideData[y] = { ...lastProjections[y] };
+                }
+                renderPlProjections(lastProjections, baseYear);
+            } else {
+                plOverrideData = null;
+                calculatePlProjections();
+            }
+        });
+    }
+
+    const cfOverrideToggle = document.getElementById('cfOverrideToggle');
+    if (cfOverrideToggle) {
+        cfOverrideToggle.addEventListener('click', () => {
+            cfOverrideActive = !cfOverrideActive;
+            cfOverrideToggle.classList.toggle('active', cfOverrideActive);
+            const label = cfOverrideToggle.querySelector('.override-toggle-label');
+            if (label) label.textContent = cfOverrideActive ? 'Revert to Calculated' : 'Override Values';
+
+            const baseYear = getBaseYear();
+            if (cfOverrideActive) {
+                cfOverrideData = {};
+                for (let y = baseYear + 1; y <= baseYear + 5; y++) {
+                    if (lastProjections?.[y]) cfOverrideData[y] = { ...lastProjections[y] };
+                }
+                renderCfProjections(lastProjections, baseYear);
+            } else {
+                cfOverrideData = null;
+                renderCfProjections(lastProjections, baseYear);
+                calculateDcf(lastProjections, baseYear);
+            }
+        });
+    }
 
     // Initialize the projections with default zeros
     calculatePlProjections();
@@ -3125,6 +3276,12 @@ function bootValuation() {
             coverImageDataUrl,
             referenceDataState: JSON.parse(JSON.stringify(referenceDataState)),
             outputs: captureOutputs(),
+            overrides: {
+                plOverrideActive,
+                cfOverrideActive,
+                plOverrideData: plOverrideData ? JSON.parse(JSON.stringify(plOverrideData)) : null,
+                cfOverrideData: cfOverrideData ? JSON.parse(JSON.stringify(cfOverrideData)) : null,
+            },
         };
     };
 
@@ -3191,6 +3348,35 @@ function bootValuation() {
             }
         });
 
+        // Restore override state before cascade triggers recalcs
+        if (snapshot.overrides) {
+            plOverrideActive = !!snapshot.overrides.plOverrideActive;
+            cfOverrideActive = !!snapshot.overrides.cfOverrideActive;
+            plOverrideData = snapshot.overrides.plOverrideData ? JSON.parse(JSON.stringify(snapshot.overrides.plOverrideData)) : null;
+            cfOverrideData = snapshot.overrides.cfOverrideData ? JSON.parse(JSON.stringify(snapshot.overrides.cfOverrideData)) : null;
+
+            const plToggle = document.getElementById('plOverrideToggle');
+            if (plToggle) {
+                plToggle.classList.toggle('active', plOverrideActive);
+                const lbl = plToggle.querySelector('.override-toggle-label');
+                if (lbl) lbl.textContent = plOverrideActive ? 'Revert to Calculated' : 'Override Values';
+            }
+            const cfToggle = document.getElementById('cfOverrideToggle');
+            if (cfToggle) {
+                cfToggle.classList.toggle('active', cfOverrideActive);
+                const lbl = cfToggle.querySelector('.override-toggle-label');
+                if (lbl) lbl.textContent = cfOverrideActive ? 'Revert to Calculated' : 'Override Values';
+            }
+
+            // Seed lastProjections from P&L override data so downstream reads work
+            if (plOverrideActive && plOverrideData) {
+                if (!lastProjections) lastProjections = {};
+                Object.keys(plOverrideData).forEach(k => {
+                    lastProjections[k] = { ...plOverrideData[k] };
+                });
+            }
+        }
+
         // Fire change on dropdowns that have reference-data side effects.
         // Order matters for downstream auto-fill (continent → country → industry).
         const cascadeOrder = ['currency', 'continent', 'operatingCountry', 'industry'];
@@ -3237,6 +3423,24 @@ function bootValuation() {
                 const el = document.getElementById(id);
                 if (el) el.innerHTML = sanitizeSnapshotHtml(html);
             });
+        }
+
+        // Rebind override input handlers after innerHTML restoration
+        if (plOverrideActive) {
+            const plBody = document.getElementById('plProjectionsBody');
+            if (plBody) {
+                plBody.querySelectorAll('.pl-override-input').forEach(input => {
+                    input.addEventListener('input', onPlOverrideInput);
+                });
+            }
+        }
+        if (cfOverrideActive) {
+            const cfBody = document.getElementById('cfProjectionsBody');
+            if (cfBody) {
+                cfBody.querySelectorAll('.cf-override-input').forEach(input => {
+                    input.addEventListener('input', onCfOverrideInput);
+                });
+            }
         }
 
         return true;
@@ -3388,6 +3592,18 @@ function bootValuation() {
             if (!proceed) return;
             clearDraft();
             if (formEl) formEl.reset();
+            // Reset override state
+            plOverrideActive = false;
+            cfOverrideActive = false;
+            plOverrideData = null;
+            cfOverrideData = null;
+            [document.getElementById('plOverrideToggle'), document.getElementById('cfOverrideToggle')].forEach(btn => {
+                if (btn) {
+                    btn.classList.remove('active');
+                    const lbl = btn.querySelector('.override-toggle-label');
+                    if (lbl) lbl.textContent = 'Override Values';
+                }
+            });
             // Wipe captured outputs too so the page is visibly clean.
             OUTPUT_TABLE_IDS.forEach(id => {
                 const el = document.getElementById(id);
