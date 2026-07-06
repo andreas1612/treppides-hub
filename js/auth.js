@@ -32,8 +32,9 @@ export async function initAuth() {
     if (res.ok) {
       _user = await res.json();
 
-      // Admin gate — block non-admins
-      if (!_user.isAdmin) {
+      // Access gate — block anyone whose hub tier is NONE (not eligible).
+      // tier comes from /api/me (RoleService); NONE ≡ not an admin today, future-proof for staff tiers.
+      if (!_user.tier || _user.tier === "NONE") {
         document.body.innerHTML = `
           <div style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f8f9fa">
             <div style="text-align:center;max-width:440px;padding:2rem">

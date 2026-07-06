@@ -180,15 +180,20 @@ export default async function init(config) {
   const useMock = !CONFIG.ENV_LIVE;
   if (useMock) ensureModal();
 
-  // Financials nav — hidden until board email list is finalised.
-  // Was: !!getCurrentUser()?.isBoardMember
-  const showFinancials = false;
-  const finDesktopBtn = showFinancials
-    ? `<button class="nav-item nav-btn" id="sb-financials">${ICONS.ledger} Financials</button>`
-    : "";
-  const finMobileBtn = showFinancials
-    ? `<button class="nav-item nav-btn" id="mb-financials">${ICONS.ledger} Financials</button>`
-    : "";
+  // Admin section is gated by the user's feature set from /api/me (RoleService tier):
+  // FULL tier sees Performance / Budget KPI / Financials; STANDARD sees none of them.
+  const _feat = new Set(getCurrentUser()?.features || []);
+  const _has = (k) => _feat.has(k);
+  const adminItems = (p) => {
+    const btns = [
+      _has("performance") ? `<button class="nav-item nav-btn" id="${p}-performance">${ICONS.trendUp} Performance</button>` : "",
+      _has("budgetkpi")   ? `<button class="nav-item nav-btn" id="${p}-budgetkpi">${ICONS.dollar} Budget KPI</button>` : "",
+      _has("financials")  ? `<button class="nav-item nav-btn" id="${p}-financials">${ICONS.ledger} Financials</button>` : "",
+    ].filter(Boolean).join("\n        ");
+    return btns ? `<div class="nav-label" style="margin-top:12px;">Admin</div>\n        ${btns}` : "";
+  };
+  const adminDesktop = adminItems("sb");
+  const adminMobile = adminItems("mb");
 
   // ---- Desktop sidebar ----
   const sidebar = document.getElementById("sidebar");
@@ -220,21 +225,7 @@ export default async function init(config) {
           ${ICONS.grid} Tools
         </button>
 
-        <!-- Admin section hidden until access tiers are implemented.
-             Was: Performance, Budget KPI, Financials buttons.
-             To restore: remove the HTML comment wrapper below. -->
-        <!--
-        <div class="nav-label" style="margin-top:12px;">Admin</div>
-
-        <button class="nav-item nav-btn" id="sb-performance">
-          ${ICONS.trendUp} Performance
-        </button>
-
-        <button class="nav-item nav-btn" id="sb-budgetkpi">
-          ${ICONS.dollar} Budget KPI
-        </button>
-        ${finDesktopBtn}
-        -->
+        ${adminDesktop}
 
         <div class="nav-label" style="margin-top:12px;">Support</div>
 
@@ -391,17 +382,7 @@ export default async function init(config) {
         <button class="nav-item nav-btn" id="mb-tools">
           ${ICONS.grid} Tools
         </button>
-        <!-- Admin section hidden (mobile) — same as desktop, restore together. -->
-        <!--
-        <div class="nav-label" style="margin-top:8px;">Admin</div>
-        <button class="nav-item nav-btn" id="mb-performance">
-          ${ICONS.trendUp} Performance
-        </button>
-        <button class="nav-item nav-btn" id="mb-budgetkpi">
-          ${ICONS.dollar} Budget KPI
-        </button>
-        ${finMobileBtn}
-        -->
+        ${adminMobile}
         <div class="nav-label" style="margin-top:8px;">Support</div>
         <button class="nav-item nav-btn" id="mb-support">
           ${ICONS.phone} Tech Support
