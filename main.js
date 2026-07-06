@@ -6,6 +6,7 @@
 import CONFIG            from "./config.js";
 import { initAuth }      from "./js/auth.js";
 import initSidebar       from "./components/shell/sidebar.js";
+import initSimulator     from "./components/shell/simulator.js";
 import initTopbar        from "./components/shell/topbar.js";
 import initAnnouncements from "./components/widgets/announcements.js";
 import initKnowledgeBase from "./components/pages/knowledgebase.js";
@@ -38,6 +39,9 @@ async function boot() {
     initSidebar(CONFIG),
     initTopbar(CONFIG, user),
   ]);
+
+  // Test-env only (no-op unless /api/me returns simulator:true): the "View as" switcher.
+  await initSimulator();
 
   // Initialise reader before content sections so openBook/openPage are
   // available on window.__hub_reader when knowledgebase cards render

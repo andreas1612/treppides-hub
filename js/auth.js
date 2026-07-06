@@ -45,8 +45,16 @@ export async function initAuth() {
                 Contact IT if you believe this is an error.
               </p>
               <p style="margin:0;color:#999;font-size:13px">Signed in as ${_user.email || ""}</p>
+              ${_user.simulator ? `<button id="sim-exit" style="margin-top:18px;background:#ef4444;color:#fff;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;font-size:13px">Exit simulation</button>` : ""}
             </div>
           </div>`;
+        // In the test instance, don't strand a "view-as NONE" preview — offer a way back.
+        if (_user.simulator) {
+          document.getElementById("sim-exit")?.addEventListener("click", async () => {
+            try { await fetch(`${TM_BASE}/api/sim/logout`, { method: "POST", credentials: "include" }); } catch {}
+            location.reload();
+          });
+        }
         return null;
       }
 
