@@ -43,15 +43,15 @@ export default async function initSimulator() {
     <span class="sim-who">${escapeAttr(user.name || user.email)} · ${user.tier}</span>
     <select id="sim-select" aria-label="View as employee">
       <option value="">— pick employee —</option>
-      ${emps.map(e => `<option value="${escapeAttr(e.code)}">${escapeAttr(e.name)} (${escapeAttr(e.code)})</option>`).join("")}
+      ${emps.map(e => `<option value="${escapeAttr(e.email)}">${e.tier && e.tier !== "NONE" ? "★ " : ""}${escapeAttr(e.name)}${e.tier ? " — " + escapeAttr(e.tier) : ""}</option>`).join("")}
     </select>
     <button id="sim-reset" title="Exit simulation">Reset</button>`;
   document.body.appendChild(panel);
 
   document.getElementById("sim-select").addEventListener("change", async (e) => {
-    const code = e.target.value;
-    if (!code) return;
-    await fetch(`${TM_BASE}/api/sim/login?code=${encodeURIComponent(code)}`, { method: "POST", credentials: "include" });
+    const email = e.target.value;
+    if (!email) return;
+    await fetch(`${TM_BASE}/api/sim/login?email=${encodeURIComponent(email)}`, { method: "POST", credentials: "include" });
     location.reload();
   });
   document.getElementById("sim-reset").addEventListener("click", async () => {
