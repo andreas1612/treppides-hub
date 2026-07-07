@@ -361,10 +361,10 @@ function renderTable(data, upTo) {
         <thead>
           <tr>
             <th>Month</th>
-            <th>Budget</th>
-            <th>Invoiced</th>
-            <th>Completion</th>
-            <th>Status</th>
+            <th class="kpi-th-num">Budget</th>
+            <th class="kpi-th-num">Invoiced</th>
+            <th class="kpi-th-num">Completion</th>
+            <th class="kpi-th-center">Status</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>

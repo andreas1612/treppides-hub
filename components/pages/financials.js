@@ -193,9 +193,11 @@ const eur2 = n => (Number(n) || 0).toLocaleString("en-GB", {
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const PALETTE = ["#2f9e7e", "#1f6f59", "#8fd3bd", "#3aa6b9", "#5bc0a6", "#26505f", "#a7d676", "#d9b44a", "#e08a5b", "#94a3b8"];
 
+// Firm-wide caution banner — shown on every Financials tab (temporary, while all
+// sections are under review). Previously scoped to the PROVISIONAL tabs only; the
+// `tab` argument is retained for call-site compatibility but no longer gates display.
 function provisionalBanner(tab) {
-  if (!PROVISIONAL.has(tab)) return "";
-  return `<div class="fin-provisional">⚠️ Provisional — this report's datamart reconciliation against the Power BI model is still in progress. Figures are not yet verified.</div>`;
+  return `<div class="fin-provisional">⚠️ These figures are under review and may not be final. Do not use for external reporting.</div>`;
 }
 
 // ---- Load slicers + first render ----------------------------
@@ -282,6 +284,7 @@ async function renderOverview() {
   const el = document.getElementById("fin-content");
   if (!el) return;
   el.innerHTML = `
+    ${provisionalBanner("overview")}
     ${chip}
     <div class="fin-kpis">
       <div class="fin-kpi"><span class="fin-kpi-label">Net revenue ${currentYear}${currentDept ? " · " + escapeHtml(selName) : ""}</span><span class="fin-kpi-value">${eur(curNet)}</span>${yoyBadge}</div>
@@ -358,16 +361,25 @@ function renderRevenue(d) {
   const deptName = r => r.name || (r.code ? `(${r.code})` : "Unmapped");
 
   el.innerHTML = `
+    ${provisionalBanner("revenue")}
     <div class="fin-kpis">
       <div class="fin-kpi"><span class="fin-kpi-label">Net revenue ${currentYear}</span><span class="fin-kpi-value">${eur(d.totalNet)}</span></div>
       <div class="fin-kpi"><span class="fin-kpi-label">Invoiced months</span><span class="fin-kpi-value">${(d.byMonth || []).length}</span></div>
+      <!-- Engagement Leaders count temporarily hidden.
+           To restore: uncomment the KPI below. -->
+      <!--
       <div class="fin-kpi"><span class="fin-kpi-label">Engagement leaders</span><span class="fin-kpi-value">${(d.byEl || []).length}</span></div>
+      -->
     </div>
     <div class="fin-grid">
       <div class="fin-card"><h3>Revenue by year</h3><div class="fin-chart-wrap"><canvas id="fin-c-year"></canvas></div></div>
       <div class="fin-card"><h3>Revenue by month — ${currentYear}</h3><div class="fin-chart-wrap"><canvas id="fin-c-month"></canvas></div></div>
       <div class="fin-card"><h3>Revenue by department</h3><div class="fin-chart-wrap"><canvas id="fin-c-dept"></canvas></div></div>
+      <!-- "Revenue by Engagement Leader" chart temporarily hidden.
+           To restore: uncomment the card below AND the drawChart("fin-c-el", …) call further down. -->
+      <!--
       <div class="fin-card"><h3>Revenue by Engagement Leader</h3><div class="fin-chart-wrap"><canvas id="fin-c-el"></canvas></div></div>
+      -->
       <div class="fin-card">
         <h3>Top clients — ${currentYear}</h3>
         <table class="fin-table"><thead><tr><th>Client</th><th class="num">Net</th><th class="num">Inv.</th></tr></thead>
@@ -386,8 +398,9 @@ function renderRevenue(d) {
   const depts = [...(d.byDepartment || [])].slice(0, 8);
   drawChart("fin-c-dept", doughnutConfig(depts.map(deptName), depts.map(r => Number(r.net))));
 
-  const els = [...(d.byEl || [])].filter(r => Number(r.net) > 0).slice(0, 10);
-  drawChart("fin-c-el", doughnutConfig(els.map(r => r.name || r.code || "Unmapped"), els.map(r => Number(r.net))));
+  // "Revenue by Engagement Leader" chart temporarily hidden — restore together with the card above.
+  // const els = [...(d.byEl || [])].filter(r => Number(r.net) > 0).slice(0, 10);
+  // drawChart("fin-c-el", doughnutConfig(els.map(r => r.name || r.code || "Unmapped"), els.map(r => Number(r.net))));
 }
 
 // ---- Render: Budget vs Actual (provisional) -----------------

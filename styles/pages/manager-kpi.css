@@ -228,6 +228,17 @@
   text-align: center;
 }
 
+/* Monthly-breakdown headers aligned to their data columns (numbers right,
+   status centred) — base .kpi-table th is left-aligned, which left the
+   headers offset from the right-aligned figures below them. */
+.kpi-table th.kpi-th-num {
+  text-align: right;
+}
+
+.kpi-table th.kpi-th-center {
+  text-align: center;
+}
+
 .kpi-pct-inline {
   font-weight: 700;
 }
