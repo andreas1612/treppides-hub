@@ -180,17 +180,20 @@ export default async function init(config) {
   const useMock = !CONFIG.ENV_LIVE;
   if (useMock) ensureModal();
 
-  // Admin section is gated by the user's feature set from /api/me (RoleService tier):
-  // FULL tier sees Performance / Budget KPI / Financials; STANDARD sees none of them.
+  // Reports section is gated by the user's feature set from /api/me (RoleService tier):
+  // FULL sees Performance / Budget KPI / Financials for everyone (label "Admin");
+  // STANDARD sees Performance / Budget KPI SELF-scoped only (label "My Reports"),
+  // no Financials. NONE sees nothing.
   const _feat = new Set(getCurrentUser()?.features || []);
   const _has = (k) => _feat.has(k);
+  const _label = getCurrentUser()?.tier === "FULL" ? "Admin" : "My Reports";
   const adminItems = (p) => {
     const btns = [
       _has("performance") ? `<button class="nav-item nav-btn" id="${p}-performance">${ICONS.trendUp} Performance</button>` : "",
       _has("budgetkpi")   ? `<button class="nav-item nav-btn" id="${p}-budgetkpi">${ICONS.dollar} Budget KPI</button>` : "",
       _has("financials")  ? `<button class="nav-item nav-btn" id="${p}-financials">${ICONS.ledger} Financials</button>` : "",
     ].filter(Boolean).join("\n        ");
-    return btns ? `<div class="nav-label" style="margin-top:12px;">Admin</div>\n        ${btns}` : "";
+    return btns ? `<div class="nav-label" style="margin-top:12px;">${_label}</div>\n        ${btns}` : "";
   };
   const adminDesktop = adminItems("sb");
   const adminMobile = adminItems("mb");

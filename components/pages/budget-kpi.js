@@ -8,7 +8,7 @@
 // ============================================================
 
 import { escapeHtml } from "../../utils/dom.js";
-import { TM_BASE } from "../../js/auth.js";
+import { TM_BASE, getCurrentUser } from "../../js/auth.js";
 
 const SECTION_ID = "section-budgetkpi";
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -42,6 +42,8 @@ let selectedInvoiceCode = null;
 let selectedManagerName = null;
 let expandedMonth = null;       // month number whose detail row is open
 let invoiceDetailCache = {};    // { year: [ ...rows ] }
+// STANDARD tier: self-view only (own /me budget, no manager dropdown, no drill / fee tools).
+let selfMode = false;
 
 // ---- Init ---------------------------------------------------
 
@@ -76,6 +78,15 @@ export default async function init() {
   document.getElementById("kpi-back-btn")?.addEventListener("click", hidePage);
 
   buildPeriodBar();
+
+  // Tier: FULL sees the manager dropdown (view anyone); STANDARD sees only their own budget.
+  selfMode = getCurrentUser()?.tier !== "FULL";
+  if (selfMode) {
+    document.getElementById("kpi-manager-select")?.remove();
+    loadSelf();
+    return;
+  }
+
   await loadManagers();
 
   document.getElementById("kpi-manager-select")?.addEventListener("change", (e) => {
@@ -91,6 +102,45 @@ export default async function init() {
       document.getElementById("kpi-table-section").innerHTML = "";
     }
   });
+}
+
+// ---- Self view (STANDARD tier) ------------------------------
+
+async function loadSelf() {
+  const me = getCurrentUser();
+  // No budget data flagged on /api/me → not a budget-holder.
+  if (me && me.hasBudgetData === false) { showNotApplicable(); return; }
+
+  setSummaryLoading();
+  clearTable();
+
+  let data;
+  try {
+    data = await apiFetch(`/api/reports/budget-kpi/me?year=${currentYear}`);
+  } catch (err) {
+    const msg = err.message || "";
+    if (msg.includes("No budget") || msg === "NOT_FOUND" || msg === "FORBIDDEN") {
+      showNotApplicable();
+    } else {
+      setSummaryError(msg);
+    }
+    return;
+  }
+
+  cachedData = data;
+  cachedYear = currentYear;
+  selectedInvoiceCode = data.invoiceCode;
+  selectedManagerName = data.managerName;
+  renderFromCache();
+  // Self view is read-only: no invoice drill-down, no fee-adjustment tools.
+}
+
+function showNotApplicable() {
+  const summary = document.getElementById("kpi-summary-section");
+  if (summary) summary.innerHTML = `<div class="perf-exempt">The Budget KPI report isn't applicable to your role.</div>`;
+  clearTable();
+  const fee = document.getElementById("kpi-fee-section");
+  if (fee) fee.innerHTML = "";
 }
 
 // ---- Period bar (matches Flask tester) -----------------------
@@ -133,6 +183,19 @@ function buildPeriodBar() {
 
       buildPeriodBar();
       updateSubtitle();
+
+      if (selfMode) {
+        if (yearChanged) {
+          cachedData = null;
+          cachedYear = null;
+          expandedMonth = null;
+          invoiceDetailCache = {};
+          loadSelf();
+        } else if (cachedData) {
+          renderFromCache();
+        }
+        return;
+      }
 
       if (!selectedCode) return;
 
@@ -321,6 +384,9 @@ function renderTable(data, upTo) {
   const section = document.getElementById("kpi-table-section");
   if (!section) return;
 
+  // FULL can drill into a month's invoices (admin endpoint); STANDARD gets a read-only table.
+  const drill = !selfMode;
+
   const months = (data.months || []).filter(m => m.month <= upTo);
   const now = new Date();
   const cm = data.year === now.getFullYear() ? now.getMonth() + 1 : 13;
@@ -328,15 +394,15 @@ function renderTable(data, upTo) {
   const rows = months.map(m => {
     const isFuture = m.month > cm;
     const rowClass = isFuture ? "kpi-row-future" : "";
-    const isExpanded = expandedMonth === m.month;
+    const isExpanded = drill && expandedMonth === m.month;
     const hasFees = (m.auditFees || 0) !== 0 || (m.taxFees || 0) !== 0;
     const feeDetail = hasFees
       ? `<div class="kpi-fee-detail">eSoft: &euro;${fmt(m.esoftInvoiced || 0)}${m.auditFees ? ` + Audit: &euro;${fmt(m.auditFees)}` : ''}${m.taxFees ? ` + Tax: &euro;${fmt(m.taxFees)}` : ''}</div>`
       : '';
     let html = `
-      <tr class="${rowClass} kpi-row-clickable ${isExpanded ? 'kpi-row-expanded' : ''}" data-month="${m.month}">
+      <tr class="${rowClass} ${drill ? "kpi-row-clickable" : ""} ${isExpanded ? 'kpi-row-expanded' : ''}" data-month="${m.month}">
         <td class="kpi-cell-month">
-          <span class="kpi-expand-icon">${isExpanded ? '&#9660;' : '&#9654;'}</span>
+          ${drill ? `<span class="kpi-expand-icon">${isExpanded ? '&#9660;' : '&#9654;'}</span>` : ''}
           ${escapeHtml(m.monthName)}
         </td>
         <td class="kpi-cell-num">&euro;${fmt(m.budget)}</td>
@@ -355,7 +421,7 @@ function renderTable(data, upTo) {
   }).join("");
 
   section.innerHTML = `
-    <div class="kpi-section-title" style="margin-top:28px">Monthly Breakdown <span style="font-size:11px;color:var(--text-secondary);font-weight:400">(click month to see invoices)</span></div>
+    <div class="kpi-section-title" style="margin-top:28px">Monthly Breakdown ${drill ? `<span style="font-size:11px;color:var(--text-secondary);font-weight:400">(click month to see invoices)</span>` : ''}</div>
     <div class="kpi-table-wrap">
       <table class="kpi-table">
         <thead>
@@ -371,19 +437,21 @@ function renderTable(data, upTo) {
       </table>
     </div>`;
 
-  // Attach click handlers
-  section.querySelectorAll('.kpi-row-clickable').forEach(tr => {
-    tr.addEventListener('click', () => {
-      const mo = parseInt(tr.dataset.month);
-      if (expandedMonth === mo) {
-        expandedMonth = null;
-      } else {
-        expandedMonth = mo;
-        ensureInvoiceDetails(data.year);
-      }
-      renderTable(data, upTo);
+  // Attach click handlers (FULL only — self view is read-only)
+  if (drill) {
+    section.querySelectorAll('.kpi-row-clickable').forEach(tr => {
+      tr.addEventListener('click', () => {
+        const mo = parseInt(tr.dataset.month);
+        if (expandedMonth === mo) {
+          expandedMonth = null;
+        } else {
+          expandedMonth = mo;
+          ensureInvoiceDetails(data.year);
+        }
+        renderTable(data, upTo);
+      });
     });
-  });
+  }
 }
 
 function renderInvoiceDetailRow(month, year) {

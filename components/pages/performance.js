@@ -7,7 +7,7 @@
 // ============================================================
 
 import { escapeHtml } from "../../utils/dom.js";
-import { TM_BASE } from "../../js/auth.js";
+import { TM_BASE, getCurrentUser } from "../../js/auth.js";
 
 const SECTION_ID = "section-performance";
 
@@ -34,6 +34,8 @@ let selectedCode = null;
 let currentPeriod = "month";
 let currentYear = null;
 let currentMonth = null;
+// STANDARD tier: self-view only (own /me card, no employee dropdown). FULL: admin view.
+let selfMode = false;
 
 // ---- Init ---------------------------------------------------
 
@@ -70,17 +72,25 @@ export default async function init() {
   // Back button
   document.getElementById("perf-back-btn")?.addEventListener("click", hidePage);
 
-  // Load employees for dropdown
-  await loadEmployees();
+  // Tier: FULL sees the employee dropdown (view anyone); STANDARD sees only their own card.
+  selfMode = getCurrentUser()?.tier !== "FULL";
+  if (selfMode) {
+    document.getElementById("perf-employee-select")?.remove();
+  } else {
+    await loadEmployees();
+  }
 
   // Init month picker
   initMonthPicker();
 
-  // Employee selector
+  // Employee selector (FULL only; removed in self mode)
   document.getElementById("perf-employee-select")?.addEventListener("change", (e) => {
     selectedCode = e.target.value || null;
     if (selectedCode) loadAndRender();
   });
+
+  // Self mode: load own card immediately.
+  if (selfMode) loadSelf();
 
   // Team drill-down: click (or Enter/Space on) a direct report to open their profile
   const teamSection = document.getElementById("perf-team-section");
@@ -185,7 +195,8 @@ function setPeriod(period) {
     }
   }
 
-  if (selectedCode) loadAndRender();
+  if (selfMode) loadSelf();
+  else if (selectedCode) loadAndRender();
 }
 
 // ---- Load & render ------------------------------------------
@@ -222,6 +233,57 @@ async function loadAndRender() {
       setTeamError(err.message);
     }
   }
+}
+
+// ---- Self view (STANDARD tier) ------------------------------
+
+async function loadSelf() {
+  const me = getCurrentUser();
+  // No eSoft identity → definitely not in the chargeability report.
+  if (!me?.esoftCode) { showNotApplicable(); return; }
+
+  setSelfLoading();
+  clearTeam();
+
+  let qs = `period=${currentPeriod}`;
+  if (currentPeriod === "month" && currentYear && currentMonth) {
+    qs += `&year=${currentYear}&month=${currentMonth}`;
+  }
+
+  let card;
+  try {
+    card = await apiFetch(`/api/reports/performance/me?${qs}`);
+  } catch (err) {
+    // Not in the chargeability list / no access → friendly "not applicable".
+    if (["NON_CHARGEABLE_ROLE", "NOT_FOUND", "FORBIDDEN"].includes(err.message)) {
+      showNotApplicable();
+    } else {
+      setSelfError(err.message);
+    }
+    return;
+  }
+
+  renderSelfCard(card);
+  updatePeriodDateRange(card);
+
+  // Managers also see their own team.
+  if (card.isManager) {
+    setTeamLoading();
+    try {
+      const teamCard = await apiFetch(`/api/reports/performance/team?${qs}`);
+      renderTeamSection(teamCard);
+    } catch (err) {
+      setTeamError(err.message);
+    }
+  }
+}
+
+function showNotApplicable() {
+  const el = document.getElementById("perf-self-section");
+  if (el) {
+    el.innerHTML = `<div class="perf-exempt">The Performance report isn't applicable to your role.</div>`;
+  }
+  clearTeam();
 }
 
 // ---- Drill into a team member -------------------------------
@@ -341,13 +403,18 @@ function renderTeamSection(teamCard) {
       <span class="perf-summary-chip red">${summary.redCount ?? 0} Red</span>
     </div>`;
 
+  // FULL can drill into each report (admin /{code}); STANDARD managers get a read-only team view.
+  const drill = !selfMode;
   const cardsHtml = reports.map(r => {
     const pctDisplay = r.badge === "EXEMPT"
       ? `<div class="perf-mini-pct EXEMPT">Exempt</div>`
       : `<div class="perf-mini-pct ${r.badge}">${r.chargeabilityPct.toFixed(1)}%</div>
          <span class="perf-badge ${r.badge}" style="font-size:10px;">${r.badge}</span>`;
+    const drillAttrs = drill
+      ? ` clickable" data-code="${escapeHtml(r.esoftCode)}" role="button" tabindex="0" title="Open ${escapeHtml(r.employeeName)}'s performance" style="cursor:pointer`
+      : "";
     return `
-      <div class="perf-mini-card clickable" data-code="${escapeHtml(r.esoftCode)}" role="button" tabindex="0" title="Open ${escapeHtml(r.employeeName)}'s performance" style="cursor:pointer">
+      <div class="perf-mini-card${drillAttrs}">
         <div class="perf-mini-info">
           <div class="perf-mini-name">${escapeHtml(r.employeeName)}</div>
           <div class="perf-mini-title">${escapeHtml(r.level || "")}</div>
