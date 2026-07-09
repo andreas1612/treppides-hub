@@ -515,6 +515,44 @@ def reconcile_deletions(session):
     return len(stale)
 
 
+def fetch_task(task_id: str) -> dict | None:
+    """Fetch a single task by ClickUp id. Returns the raw task dict, or None if
+    ClickUp reports it missing (404)."""
+    r = requests.get(f"{_API}/task/{task_id}", headers=_headers(),
+                     params={"include_subtasks": "false"}, timeout=30)
+    if r.status_code == 404:
+        return None
+    r.raise_for_status()
+    return r.json()
+
+
+def sync_one(task_id: str) -> dict:
+    """Reconcile a single task after an edit: re-fetch it from ClickUp, upsert the
+    one row, and rebuild the rollup so the dashboard reflects the change without
+    waiting for the next full/incremental tick. Serialized by _sync_lock so it
+    can't interleave with a bulk sync. Returns {reconciled, tid}."""
+    with _sync_lock:
+        raw = fetch_task(task_id)
+        session = SessionLocal()
+        try:
+            if raw is None:
+                # Task vanished (deleted/archived) — drop the row, refresh rollup.
+                session.execute(delete(Task).where(Task.id == task_id))
+                rebuild_companies(session)
+                session.commit()
+                return {"reconciled": False, "tid": None, "deleted": True}
+
+            names = _space_name_map()
+            row = normalize(raw)
+            _upsert(session, [row], names)
+            resolve_parent_names(session)
+            rebuild_companies(session)
+            session.commit()
+            return {"reconciled": True, "tid": row.get("tid"), "deleted": False}
+        finally:
+            session.close()
+
+
 def run_sync(full=False):
     """Entry point used by the API. Serialized; safe to call concurrently."""
     global _syncing

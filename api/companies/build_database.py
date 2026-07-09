@@ -108,6 +108,25 @@ class SyncState(Base):
     last_status    = Column(String)
 
 
+class AuditLog(Base):
+    """Append-only record of every edit made to ClickUp from the Group Dashboard.
+    The Hub identity (who) is authoritative — ClickUp attributes the write to the
+    API token's user, so this table is the real 'who changed what, when' trail."""
+    __tablename__ = "audit_log"
+
+    id          = Column(Integer, primary_key=True, autoincrement=True)
+    ts_ms       = Column(Integer, index=True)     # Unix ms when the edit was applied
+    who_email   = Column(String, index=True)      # Hub user (from /api/me), or 'local-dev'
+    who_name    = Column(String)
+    task_id     = Column(String, index=True)      # ClickUp task id
+    tid         = Column(String)                  # company code, for readability
+    field       = Column(String)                  # 'status' | 'assignee' | 'comment'
+    old_value   = Column(Text)                    # prior value (null for comment)
+    new_value   = Column(Text)                    # applied value / comment text
+    dry_run     = Column(Boolean, default=False)  # true if ClickUp write was skipped (local test)
+    result      = Column(String)                  # 'ok' | 'clickup_error' | ...
+
+
 def make_engine(db_path: Path = DB_PATH):
     """Create the SQLite engine with the same WAL/concurrency pragmas the
     Valuation API uses (api/valuation/main.py)."""

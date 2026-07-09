@@ -11,20 +11,43 @@
 # Run:  uvicorn main:app --host 127.0.0.1 --port 8003 --reload
 # ============================================================
 
+import os
 import re
 import json
+import logging
 import threading
 
 from fastapi import FastAPI, HTTPException, Depends, APIRouter, Query
+from pydantic import BaseModel
 from sqlalchemy import select, func, or_, and_, case
 from sqlalchemy.orm import Session
 
 from build_database import Task, Company, SyncState, SessionLocal, init_db
 import sync as sync_engine
+import clickup_write
+import audit
+from auth import require_user
 
 app = FastAPI(title="Company Finder API", version="2.0.0")
 
-# No CORS middleware: same-origin behind nginx in production.
+# Ensure the schema (incl. audit_log) exists as soon as the module is imported,
+# not only on the startup event — so audit writes work under TestClient/CLI too.
+# Idempotent: create-if-missing + add-missing-columns.
+init_db()
+
+# No CORS middleware in production: same-origin behind nginx.
+# Local dev only: when COMPANIES_LOCAL_DEV is set, the frontend is served from a
+# different origin (localhost:<static-port>) and talks cross-origin to :8003, so
+# allow localhost origins with credentials. Never enabled in production.
+if os.getenv("COMPANIES_LOCAL_DEV", "").strip().lower() in ("1", "true", "yes"):
+    from fastapi.middleware.cors import CORSMiddleware
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origin_regex=r"http://localhost:\d+",
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 TID_RE = re.compile(r"^\s*TID-\d+\s*$", re.IGNORECASE)
 SEARCH_LIMIT = 50
@@ -761,6 +784,181 @@ def company_detail(tid: str,
         "active_deals": active_deals,
         "lost_deals": lost_deals,
     }
+
+
+# ======================================================================
+# WRITE ENDPOINTS — Group Dashboard inline edits → ClickUp.
+#
+# The dashboard's only mutating routes. Each: auth-gated (Depends(require_user)),
+# validates input, writes to ClickUp (clickup_write, honours DRY_RUN), records an
+# audit row, then reconciles the single task locally (sync_one) so the mirror is
+# consistent immediately — and returns the fresh task dict for optimistic UI.
+#
+# These live on `app` (not `router`) with the explicit /api/companies/deals/*
+# prefix so their multi-segment paths never collide with the catch-all
+# GET /api/companies/{tid} company-detail route.
+# ======================================================================
+
+class StatusBody(BaseModel):
+    status: str
+
+
+class AssigneeBody(BaseModel):
+    assignee_id: int | None = None   # ClickUp user id; null clears the assignee
+
+
+class CommentBody(BaseModel):
+    text: str
+
+
+def _deal_or_404(db: Session, task_id: str) -> Task:
+    """Fetch the mirrored task row, 404 if unknown, 400 if it isn't a deal."""
+    t = db.get(Task, task_id)
+    if not t:
+        raise HTTPException(status_code=404, detail="Task not found in the dashboard.")
+    if not t.is_deal:
+        raise HTTPException(status_code=400, detail="Only deal tasks are editable here.")
+    return t
+
+
+@app.get("/api/companies/deals/{task_id}/edit-options")
+def edit_options(task_id: str, db: Session = Depends(get_db),
+                 user: dict = Depends(require_user)):
+    """Dropdown sources for the inline editor: the task's list statuses + the
+    workspace roster. Auth-gated (same as the writes) so the picker isn't a
+    public roster dump. Resolves the list from the live task."""
+    _deal_or_404(db, task_id)
+    raw = sync_engine.fetch_task(task_id)
+    if raw is None:
+        raise HTTPException(status_code=404, detail="Task no longer exists in ClickUp.")
+    list_id = (raw.get("list") or {}).get("id")
+    statuses = clickup_write.list_statuses(list_id) if list_id else []
+    return {
+        "statuses": statuses,
+        "members": clickup_write.list_members(),
+        "current_status": (raw.get("status") or {}).get("status"),
+        "current_assignees": [
+            {"id": a.get("id"), "username": a.get("username"), "email": a.get("email")}
+            for a in raw.get("assignees", [])
+        ],
+    }
+
+
+@app.put("/api/companies/deals/{task_id}/status")
+def edit_status(task_id: str, body: StatusBody, db: Session = Depends(get_db),
+                user: dict = Depends(require_user)):
+    t = _deal_or_404(db, task_id)
+    new_status = (body.status or "").strip()
+    if not new_status:
+        raise HTTPException(status_code=400, detail="A status is required.")
+
+    # Validate against the task's own list statuses (case-insensitive).
+    raw = sync_engine.fetch_task(task_id)
+    if raw is None:
+        raise HTTPException(status_code=404, detail="Task no longer exists in ClickUp.")
+    list_id = (raw.get("list") or {}).get("id")
+    valid = {s["status"].lower(): s["status"] for s in clickup_write.list_statuses(list_id) if s.get("status")}
+    if new_status.lower() not in valid:
+        raise HTTPException(status_code=400, detail=f"Invalid status '{new_status}'.")
+    canonical = valid[new_status.lower()]
+    old_status = t.status
+
+    try:
+        clickup_write.set_status(task_id, canonical)
+    except HTTPException:
+        audit.record(who=user, task_id=task_id, tid=t.tid, field="status",
+                     old_value=old_status, new_value=canonical,
+                     dry_run=clickup_write.DRY_RUN, result="clickup_error")
+        raise
+
+    audit.record(who=user, task_id=task_id, tid=t.tid, field="status",
+                 old_value=old_status, new_value=canonical,
+                 dry_run=clickup_write.DRY_RUN, result="ok")
+    return _reconcile_and_return(task_id)
+
+
+@app.put("/api/companies/deals/{task_id}/assignee")
+def edit_assignee(task_id: str, body: AssigneeBody, db: Session = Depends(get_db),
+                  user: dict = Depends(require_user)):
+    t = _deal_or_404(db, task_id)
+
+    # Need current assignee IDs from the live task to compute the removal set
+    # (the DB only stores display names, not ids).
+    raw = sync_engine.fetch_task(task_id)
+    if raw is None:
+        raise HTTPException(status_code=404, detail="Task no longer exists in ClickUp.")
+    current_ids = [a.get("id") for a in raw.get("assignees", []) if a.get("id") is not None]
+    current_names = [a.get("username") or a.get("email") for a in raw.get("assignees", [])]
+
+    if body.assignee_id is None:
+        add_ids, rem_ids = [], current_ids            # clear
+        new_label = None
+    else:
+        add_ids = [body.assignee_id]
+        rem_ids = [i for i in current_ids if i != body.assignee_id]   # single, replaceable
+        new_label = str(body.assignee_id)
+
+    try:
+        clickup_write.set_assignee(task_id, add_ids, rem_ids)
+    except HTTPException:
+        audit.record(who=user, task_id=task_id, tid=t.tid, field="assignee",
+                     old_value=", ".join(current_names), new_value=new_label,
+                     dry_run=clickup_write.DRY_RUN, result="clickup_error")
+        raise
+
+    audit.record(who=user, task_id=task_id, tid=t.tid, field="assignee",
+                 old_value=", ".join(current_names), new_value=new_label,
+                 dry_run=clickup_write.DRY_RUN, result="ok")
+    return _reconcile_and_return(task_id)
+
+
+@app.post("/api/companies/deals/{task_id}/comment")
+def add_comment(task_id: str, body: CommentBody, db: Session = Depends(get_db),
+                user: dict = Depends(require_user)):
+    t = _deal_or_404(db, task_id)
+    text = (body.text or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="A comment is required.")
+    if len(text) > 5000:
+        raise HTTPException(status_code=400, detail="Comment is too long (max 5000 chars).")
+
+    # Attribute the Hub user inside the comment body — ClickUp credits the API
+    # token's user, so this makes the real author visible in ClickUp too.
+    who = user.get("name") or user.get("email") or "Hub user"
+    body_text = f"[Hub · {who}] {text}"
+
+    try:
+        clickup_write.add_comment(task_id, body_text)
+    except HTTPException:
+        audit.record(who=user, task_id=task_id, tid=t.tid, field="comment",
+                     old_value=None, new_value=text,
+                     dry_run=clickup_write.DRY_RUN, result="clickup_error")
+        raise
+
+    audit.record(who=user, task_id=task_id, tid=t.tid, field="comment",
+                 old_value=None, new_value=text,
+                 dry_run=clickup_write.DRY_RUN, result="ok")
+    # A comment doesn't change the mirrored row; no reconcile needed.
+    return {"ok": True, "dry_run": clickup_write.DRY_RUN}
+
+
+def _reconcile_and_return(task_id: str) -> dict:
+    """After a status/assignee write, reconcile the single row and return the
+    fresh task dict for the UI. If the write was a dry run, ClickUp is unchanged,
+    so the reconcile simply re-mirrors the current (unchanged) live state."""
+    try:
+        sync_engine.sync_one(task_id)
+    except Exception as e:
+        # The ClickUp write already succeeded; a reconcile hiccup just means the
+        # mirror catches up on the next tick. Don't fail the request.
+        logging.warning("sync_one after edit failed (task %s): %s", task_id, e)
+    db = SessionLocal()
+    try:
+        t = db.get(Task, task_id)
+        return {"ok": True, "dry_run": clickup_write.DRY_RUN,
+                "task": _task_dict(t) if t else None}
+    finally:
+        db.close()
 
 
 app.include_router(router)

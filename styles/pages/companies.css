@@ -691,3 +691,91 @@
   cursor: pointer; margin-bottom: 6px;
 }
 .companies-detail-close:hover { color: var(--text-primary); }
+
+/* ---- Inline deal editor (status / assignee / comment → ClickUp) ---- */
+.companies-edit-toggle {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-hover, #1a1f2e);
+  background: none;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 6px;
+  padding: 1px 8px;
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+}
+.companies-edit-toggle:hover,
+.companies-edit-toggle.open {
+  background: var(--surface-2, #f1f5f9);
+  border-color: var(--accent-hover, #1a1f2e);
+}
+
+.companies-edit-panel {
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  background: var(--surface-2, #f8fafc);
+}
+.companies-edit-panel[hidden] { display: none; }
+
+.companies-edit-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+}
+.companies-edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.companies-edit-field select,
+.companies-edit-field textarea {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-primary);
+  padding: 6px 8px;
+  border: 1px solid var(--border, #d7dee7);
+  border-radius: 6px;
+  background: var(--surface, #fff);
+}
+.companies-edit-field textarea { resize: vertical; min-height: 40px; }
+.companies-edit-comment { grid-column: 1 / -1; }
+
+.companies-edit-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.companies-edit-save {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent, #2b6cb0);
+  border: none;
+  border-radius: 6px;
+  padding: 7px 16px;
+  cursor: pointer;
+}
+.companies-edit-save:hover { background: var(--accent-hover, #245a91); }
+.companies-edit-save:disabled { opacity: .6; cursor: default; }
+
+.companies-edit-msg { font-size: 12px; font-weight: 600; }
+.companies-edit-msg.pending { color: var(--text-secondary); }
+.companies-edit-msg.ok  { color: #2f855a; }
+.companies-edit-msg.err { color: #c53030; }
+
+.companies-edit-err,
+.companies-edit-loading { font-size: 13px; color: var(--text-secondary); }
+.companies-edit-err { color: #c53030; }
+
+@media (max-width: 560px) {
+  .companies-edit-grid { grid-template-columns: 1fr; }
+}

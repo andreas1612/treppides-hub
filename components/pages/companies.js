@@ -21,7 +21,10 @@ import { escapeHtml, renderError, renderEmpty } from "../../utils/dom.js";
 import { setStatus } from "../shell/topbar.js";
 
 const SECTION_ID = "section-companies";
-const API_BASE   = "/api/companies";   // relative — nginx proxies; never localhost
+// Production: relative path — nginx proxies /api/companies/* to port 8003.
+// Local dev (served on localhost): talk to the backend directly on 8003.
+const IS_LOCAL   = window.location.hostname === "localhost";
+const API_BASE   = IS_LOCAL ? "http://localhost:8003/api/companies" : "/api/companies";
 const SEARCH_DEBOUNCE_MS = 400;
 const PAGE_SIZE = 50;
 
@@ -185,8 +188,13 @@ function taskRow(task) {
   const sub = task.parent_name
     ? `<span class="companies-subtask" title="Subtask of ${escapeHtml(task.parent_name)}">↳ subtask of ${escapeHtml(task.parent_name)}</span>` : "";
 
+  // Deal tasks get an inline editor (status / assignee / comment → ClickUp).
+  const edit = task.is_deal
+    ? `<button type="button" class="companies-edit-toggle" data-edit-toggle data-task-id="${escapeHtml(task.id)}" aria-expanded="false">✎ Edit</button>`
+    : "";
+
   return `
-    <li class="companies-task">
+    <li class="companies-task" data-task-id="${escapeHtml(task.id)}">
       <div class="companies-task-main">
         <span class="companies-task-name">${escapeHtml(task.task_name || "(untitled task)")}</span>
         ${statusPill(task)}
@@ -199,8 +207,164 @@ function taskRow(task) {
         ${byear}
         ${assignees}
         ${open}
+        ${edit}
       </div>
+      ${task.is_deal ? `<div class="companies-edit-panel" data-edit-panel hidden></div>` : ""}
     </li>`;
+}
+
+// ---- Inline deal editor (writes through to ClickUp) ---------------------
+
+// Skeleton shown while edit-options load for a deal.
+function editPanelSkeleton() {
+  return `<div class="companies-edit-loading">${loadingHtml("Loading editor…")}</div>`;
+}
+
+// Build the editor form once options are fetched.
+function editPanelHtml(taskId, opts) {
+  const curStatus = (opts.current_status || "").toLowerCase();
+  const statusOpts = (opts.statuses || []).map(s =>
+    `<option value="${escapeHtml(s.status)}"${s.status.toLowerCase() === curStatus ? " selected" : ""}>${escapeHtml(s.status)}</option>`
+  ).join("");
+
+  const curAssigneeId = (opts.current_assignees || [])[0]?.id ?? "";
+  const memberOpts = [`<option value="">— Unassigned —</option>`].concat(
+    (opts.members || []).map(m =>
+      `<option value="${m.id}"${String(m.id) === String(curAssigneeId) ? " selected" : ""}>${escapeHtml(m.username || m.email || String(m.id))}</option>`)
+  ).join("");
+
+  return `
+    <div class="companies-edit-grid" data-task-id="${escapeHtml(taskId)}">
+      <label class="companies-edit-field">
+        <span>Status</span>
+        <select data-edit-status>${statusOpts}</select>
+      </label>
+      <label class="companies-edit-field">
+        <span>Assignee</span>
+        <select data-edit-assignee>${memberOpts}</select>
+      </label>
+      <label class="companies-edit-field companies-edit-comment">
+        <span>Add comment to ClickUp</span>
+        <textarea data-edit-comment rows="2" placeholder="Write a note — posted to the deal's ClickUp comments."></textarea>
+      </label>
+      <div class="companies-edit-actions">
+        <button type="button" class="companies-edit-save" data-edit-save>Save changes</button>
+        <span class="companies-edit-msg" data-edit-msg aria-live="polite"></span>
+      </div>
+    </div>`;
+}
+
+// Toggle a deal's edit panel; lazy-load its options on first open.
+async function toggleEditPanel(btn) {
+  const li = btn.closest(".companies-task");
+  const panel = li?.querySelector("[data-edit-panel]");
+  if (!panel) return;
+  const taskId = btn.dataset.taskId;
+
+  const opening = panel.hidden;
+  panel.hidden = !opening;
+  btn.setAttribute("aria-expanded", String(opening));
+  btn.classList.toggle("open", opening);
+  if (!opening || panel.dataset.loaded === "1") return;
+
+  panel.innerHTML = editPanelSkeleton();
+  try {
+    const res = await fetch(`${API_BASE}/deals/${encodeURIComponent(taskId)}/edit-options`, {
+      credentials: "include",
+    });
+    if (res.status === 401) { panel.innerHTML = `<div class="companies-edit-err">Please sign in to edit.</div>`; return; }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    panel.innerHTML = editPanelHtml(taskId, await res.json());
+    panel.dataset.loaded = "1";
+  } catch (err) {
+    console.error("edit-options failed:", err);
+    panel.innerHTML = `<div class="companies-edit-err">Couldn't load the editor. Try again.</div>`;
+  }
+}
+
+// Save whatever changed in a deal's edit panel. Applies status/assignee (only if
+// changed from the loaded value) and posts a comment (if non-empty), then updates
+// the row's status pill / assignee text optimistically from the server response.
+async function saveEdits(saveBtn) {
+  const grid = saveBtn.closest(".companies-edit-grid");
+  const li = saveBtn.closest(".companies-task");
+  if (!grid || !li) return;
+  const taskId = grid.dataset.taskId;
+  const msg = grid.querySelector("[data-edit-msg]");
+  const statusSel = grid.querySelector("[data-edit-status]");
+  const assigneeSel = grid.querySelector("[data-edit-assignee]");
+  const commentBox = grid.querySelector("[data-edit-comment]");
+
+  const setMsg = (text, kind) => { if (msg) { msg.textContent = text; msg.className = `companies-edit-msg ${kind || ""}`; } };
+
+  saveBtn.disabled = true;
+  setMsg("Saving…", "pending");
+
+  const calls = [];
+  // Status — only if changed from the option marked selected at load.
+  const chosenStatus = statusSel?.value;
+  const origStatus = statusSel?.querySelector("option[selected]")?.value;
+  if (chosenStatus && chosenStatus !== origStatus) {
+    calls.push(putJson(`${API_BASE}/deals/${encodeURIComponent(taskId)}/status`, { status: chosenStatus }).then(r => ({ kind: "status", r })));
+  }
+  // Assignee — only if changed.
+  const chosenAssignee = assigneeSel?.value || "";
+  const origAssignee = assigneeSel?.querySelector("option[selected]")?.value || "";
+  if (chosenAssignee !== origAssignee) {
+    calls.push(putJson(`${API_BASE}/deals/${encodeURIComponent(taskId)}/assignee`,
+      { assignee_id: chosenAssignee === "" ? null : Number(chosenAssignee) }).then(r => ({ kind: "assignee", r })));
+  }
+  // Comment — only if non-empty.
+  const comment = (commentBox?.value || "").trim();
+  if (comment) {
+    calls.push(postJson(`${API_BASE}/deals/${encodeURIComponent(taskId)}/comment`, { text: comment }).then(r => ({ kind: "comment", r })));
+  }
+
+  if (!calls.length) { setMsg("Nothing changed.", ""); saveBtn.disabled = false; return; }
+
+  try {
+    const results = await Promise.all(calls);
+    let dryRun = false, freshTask = null;
+    for (const { kind, r } of results) {
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({}));
+        throw new Error(body.detail || `HTTP ${r.status}`);
+      }
+      const body = await r.json();
+      if (body.dry_run) dryRun = true;
+      if (body.task) freshTask = body.task;
+      if (kind === "comment" && commentBox) commentBox.value = "";
+    }
+    // Optimistic UI: reflect the reconciled row back into the visible task.
+    if (freshTask) applyFreshTask(li, freshTask, statusSel, assigneeSel);
+    setMsg(dryRun ? "Saved (dry run — ClickUp not changed)." : "Saved to ClickUp ✓", "ok");
+  } catch (err) {
+    console.error("save edits failed:", err);
+    setMsg(err.message || "Save failed.", "err");
+  } finally {
+    saveBtn.disabled = false;
+  }
+}
+
+function putJson(url, body) {
+  return fetch(url, { method: "PUT", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+}
+function postJson(url, body) {
+  return fetch(url, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+}
+
+// Update the row's status pill + assignee text from a reconciled task, and reset
+// the panel's "original" markers so a subsequent save diffs against the new state.
+function applyFreshTask(li, task, statusSel, assigneeSel) {
+  const pill = li.querySelector(".companies-status");
+  if (pill && task.status) {
+    pill.textContent = task.status;
+    if (task.status_color && /^#[0-9a-f]{6}$/i.test(task.status_color)) pill.style.setProperty("--pill", task.status_color);
+  }
+  const meta = li.querySelector(".companies-task-meta");
+  // Re-mark selected options so the diff baseline moves forward.
+  if (statusSel) statusSel.querySelectorAll("option").forEach(o => o.toggleAttribute("selected", o.value === statusSel.value));
+  if (assigneeSel) assigneeSel.querySelectorAll("option").forEach(o => o.toggleAttribute("selected", o.value === assigneeSel.value));
 }
 
 function dealGroup(label, deals, kind) {
@@ -290,11 +454,25 @@ async function loadDetail(card) {
     const res = await fetch(`${API_BASE}/${encodeURIComponent(tid)}${qs ? "?" + qs : ""}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     body.innerHTML = renderDetail(await res.json());
+    wireEditors(body);
   } catch (err) {
     console.error("Company detail failed:", err);
     body.innerHTML = renderError();
     body.dataset.loaded = "0";
   }
+}
+
+// Delegate edit-toggle / save clicks within a rendered detail body. One listener
+// per body (idempotent via a flag) handles all deals inside it.
+function wireEditors(body) {
+  if (body.dataset.editorsWired === "1") return;
+  body.dataset.editorsWired = "1";
+  body.addEventListener("click", (e) => {
+    const toggle = e.target.closest("[data-edit-toggle]");
+    if (toggle) { toggleEditPanel(toggle); return; }
+    const save = e.target.closest("[data-edit-save]");
+    if (save) { saveEdits(save); return; }
+  });
 }
 
 function wireCards(container) {
