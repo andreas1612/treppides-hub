@@ -107,6 +107,25 @@ const rules = [
   { target: "shareCapital",     group: "4", name: /share capital|share premium|ordinary shares/i },
   { target: "retainedEarnings", group: "4", name: /retained|reserve|profit and loss|accumulated|p&l/i },
   { target: "retainedEarnings", group: "4" },
+
+  // ---- Type-column fallbacks (last resort) ----
+  // Only reached when NO group-anchored rule above matched — i.e. the account
+  // has no group context (no 1-digit header row AND no usable leading digit in
+  // its code). The Type column then places it in the right statement section by
+  // its broad nature. Name refinements first, then bare Type. Keeps otherwise-
+  // unmappable accounts off the "Unmapped" pile for differently-structured TBs.
+  { target: "depreciation",     type: "Expenditure", name: new RegExp(DEPRECIATION_KEYWORDS.join("|"), "i") },
+  { target: "bank",             type: "Asset", name: /bank|cash|petty cash/i },
+  { target: "stock",            type: "Asset", name: /stock|inventory|wip|work in progress/i },
+  { target: "prepayments",      type: "Asset", name: /prepay|prepaid|deposit/i },
+  { target: "tradeDebtors",     type: "Receivable" },
+  { target: "tradeCreditors",   type: "Payable" },
+  { target: "shareCapital",     type: "Capital", name: /share capital|share premium|ordinary shares/i },
+  { target: "retainedEarnings", type: "Capital" },
+  { target: "tradeDebtors",     type: "Asset" },          // generic asset → current asset
+  { target: "tradeCreditors",   type: "Liability" },      // generic liability → current liability
+  { target: "operatingExpenses", type: "Expenditure" },
+  { target: "revenue",          type: "Income" },
 ];
 
 // Derived P&L figures (formulas next to the mapping they depend on).
@@ -262,6 +281,13 @@ export function parseTrialBalance(aoa) {
     const movement = readPair(raw, columns, "movement");
     const closing  = readPair(raw, columns, "closing");
 
+    // Group context: an explicit 1-digit group-header row (E-Soft format) wins;
+    // otherwise fall back to the account code's leading digit, for TBs that lay
+    // out accounts without those header rows. groupName follows suit.
+    const derivedGroup = currentGroupCode || groupFromCode(code);
+    const derivedGroupName = currentGroupName
+      || (derivedGroup ? (TOP_LEVEL_GROUPS[derivedGroup] || `GROUP ${derivedGroup}`) : null);
+
     rows.push({
       rowIndex: r,
       co: cellStr(raw[columns.co]),
@@ -269,8 +295,8 @@ export function parseTrialBalance(aoa) {
       name,
       type: normalizeType(type),
       rawType: type,
-      groupCode: currentGroupCode,
-      groupName: currentGroupName,
+      groupCode: derivedGroup,
+      groupName: derivedGroupName,
       opening, movement, closing,
       // Signed nets: Debit positive, Credit negative.
       openingNet:  netOf(opening),
@@ -389,6 +415,20 @@ function looksLikeCompanyName(s) {
 
 function isBlankRow(raw) { return !raw || raw.every(c => cellStr(c) === ""); }
 function isTopLevelCode(code) { return /^[1-8]$/.test(code); }
+
+/**
+ * Derive a top-level group (1–8) from an account code's FIRST DIGIT, for TBs
+ * that DON'T carry explicit 1-digit group-header rows. Charts of accounts in
+ * this firm encode the category in the leading digit (5xxx = income, 2xxx =
+ * current assets, …) using the same 1–8 scheme as TOP_LEVEL_GROUPS. Returns the
+ * digit as a string ("1".."8") or null if the code doesn't start with 1–8.
+ * Only used as a FALLBACK — an explicit group-header row always takes priority,
+ * so the original E-Soft format is unaffected.
+ */
+function groupFromCode(code) {
+  const m = /^\s*([1-8])\d*/.exec(String(code || ""));
+  return m ? m[1] : null;
+}
 function isRollupRow(code, name) {
   const probe = `${name} ${code}`.trim();
   return ROLLUP_PATTERNS.some(re => re.test(probe));
@@ -494,18 +534,25 @@ export function mapAccounts(parsed, config, opts = {}) {
     assignments.push({ row, targetId });
   }
 
+  // For a 2nd-TB comparative, carry the user's manual mappings over by account
+  // CODE (row indexes differ between files), then auto-classify the rest.
+  const priorAssignments = priorMode === "secondTb"
+    ? assignFor(priorParsed.rows || [], config,
+                remapOverridesByCode(rows, overrides, priorParsed.rows || []))
+    : null;
+
   // 3. P&L line totals (period movement). Prior P&L only with a 2nd TB.
   const pnlCurrent = sumByTarget(assignments, config.pnlTargets, r => r.movementNet);
   let pnlPrior = null;
   if (priorMode === "secondTb") {
-    pnlPrior = sumByTarget(assignFor(priorParsed.rows || [], config, overrides), config.pnlTargets, r => r.movementNet);
+    pnlPrior = sumByTarget(priorAssignments, config.pnlTargets, r => r.movementNet);
   }
 
   // 4. Balance Sheet line totals (closing = current; prior per priorMode).
   const bsCurrent = sumByTarget(assignments, config.bsTargets, r => r.closingNet);
   let bsPrior = null;
   if (priorMode === "secondTb") {
-    bsPrior = sumByTarget(assignFor(priorParsed.rows || [], config, overrides), config.bsTargets, r => r.closingNet);
+    bsPrior = sumByTarget(priorAssignments, config.bsTargets, r => r.closingNet);
   } else if (priorMode === "opening") {
     bsPrior = sumByTarget(assignments, config.bsTargets, r => r.openingNet);
   }
@@ -517,6 +564,11 @@ export function mapAccounts(parsed, config, opts = {}) {
   // 6. The bridge: closing retained earnings = opening RE + net profit,
   //    so total assets = total liabilities + equity by construction.
   applyRetainedEarningsBridge(bsCurrent, derivedCurrent.netProfit, assignments);
+  // Same bridge for the comparative's closing BS, so the Prior column ties out
+  // too (its current-year profit likewise still sits in open P&L accounts).
+  if (priorMode === "secondTb" && bsPrior && derivedPrior) {
+    applyRetainedEarningsBridge(bsPrior, derivedPrior.netProfit, priorAssignments);
+  }
 
   // 7. Build the rendered statement structures.
   const pnl = buildPnl(config, pnlCurrent, pnlPrior, derivedCurrent, derivedPrior);
@@ -583,6 +635,34 @@ function keywordMatch(matcher, value) {
   const v = String(value || "");
   if (matcher instanceof RegExp) return matcher.test(v);
   return v.toLowerCase().includes(String(matcher).toLowerCase());
+}
+
+/**
+ * Translate the PRIMARY TB's manual overrides so they apply to the COMPARATIVE
+ * TB, matched by account CODE rather than row index.
+ *
+ * `overrides` is keyed by the primary's rowIndex; the two files rarely share the
+ * same row ordering, so applying those keys to the comparative directly would
+ * mis-target. Account codes ARE stable for the same client period-to-period, so
+ * we go primary rowIndex → code → comparative rowIndex. Any manual correction on
+ * the primary thus carries to the same account in the comparative; codes that
+ * exist only in one file are simply left to auto-classify.
+ */
+function remapOverridesByCode(fromRows, overrides, toRows) {
+  // primary rowIndex → target, re-expressed as code → target
+  const byCode = {};
+  for (const row of fromRows || []) {
+    const t = overrides[row.rowIndex];
+    if (t !== undefined && row.code) byCode[row.code] = t;
+  }
+  // code → target, re-expressed against the comparative's own rowIndexes
+  const out = {};
+  for (const row of toRows || []) {
+    if (row.code && Object.prototype.hasOwnProperty.call(byCode, row.code)) {
+      out[row.rowIndex] = byCode[row.code];
+    }
+  }
+  return out;
 }
 
 function assignFor(rows, config, overrides) {
@@ -1150,11 +1230,12 @@ function stripExt(name) {
 // ============================================================
 
 const state = {
-  primary: null,   // parsed primary TB
-  prior: null,     // parsed comparative TB (optional)
-  model: null,     // last mapAccounts() result
-  overrides: {},   // { rowIndex: targetId } user reassignments (current upload)
+  primary: null,       // parsed primary TB
+  prior: null,         // parsed comparative TB (optional)
+  model: null,         // last mapAccounts() result
+  overrides: {},       // { rowIndex: targetId } user reassignments (current upload)
   fileName: null,
+  priorFileName: null, // filename of the loaded comparative TB (null = none / opening-balance prior)
 };
 
 // ---- Trial-balance override persistence (localStorage) -------------------
@@ -1335,6 +1416,9 @@ export default async function init(_config) {
 
   wirePrimaryUpload(section);
 
+  // "Clear / New TB" lives in the persistent shell header, so wire it once here.
+  document.getElementById("tbr-clear-tb")?.addEventListener("click", resetTool);
+
   // On-site guided tour: header "Tutorial" button + first-visit prompt.
   // Pure frontend, anchors at existing DOM; guarded so a tour failure can
   // never break the tool itself.
@@ -1418,14 +1502,18 @@ async function handleFile(file, slot) {
       // reflects the initial restore, not subsequent manual edits.
       state.restoredCount = Object.keys(state.overrides).length;
       state.prior = null;
+      state.priorFileName = null;
       state.model = null;
       _mapTab = "bs"; // reset the mapping tab to the default
+      _selected.clear(); // a fresh book starts with no selection
+      _selectAnchor = null;
       // Start the "No activity" (zero-balance) area collapsed for a fresh book;
       // the user can expand it and that choice then sticks across re-renders.
       _collapsed.clear();
       _collapsed.add("__zero__");
     } else {
       state.prior = parsed;
+      state.priorFileName = file.name;
     }
 
     runMapping();
@@ -1505,9 +1593,12 @@ function render() {
       <button class="tbr-btn tbr-btn-primary" id="tbr-export">Export to .xlsx</button>
       <button class="tbr-btn tbr-btn-ghost" id="tbr-pdf">Download PDF</button>
       <label class="tbr-btn tbr-btn-ghost">
-        Add comparative TB
+        ${state.priorFileName ? "Replace comparative TB" : "Add comparative TB"}
         <input type="file" id="tbr-file-prior" accept=".xlsx,.xls,.csv" hidden>
       </label>
+      ${state.priorFileName
+        ? `<span class="tbr-prior-name" title="Loaded comparative TB">vs ${escapeHtml(stripExt(state.priorFileName))} <a href="#" id="tbr-remove-prior-2" class="tbr-link">remove</a></span>`
+        : ""}
     </div>
   `;
 
@@ -1524,6 +1615,18 @@ function render() {
 
   // Profitability bar chart (canvas is in the DOM now that innerHTML is set).
   renderPnlChart(m);
+
+  // Reveal the header "Clear / New TB" button + compact the drop zone.
+  updateHeaderControls();
+
+  // "Remove comparative" links — one in the comparative banner (renderValidation),
+  // one beside the Replace-comparative control in the actions row.
+  ["tbr-remove-prior", "tbr-remove-prior-2"].forEach(id => {
+    document.getElementById(id)?.addEventListener("click", (e) => {
+      e.preventDefault();
+      removeComparative();
+    });
+  });
 }
 
 /** Wipe this company's saved overrides + current in-memory ones, then re-map fresh. */
@@ -1533,6 +1636,52 @@ function clearSavedOverrides() {
   state.overrides = {};
   state.restoredCount = 0;
   runMapping(); // re-detect everything from scratch
+}
+
+/**
+ * Clear the loaded trial balance(s) and return to the empty upload screen.
+ * Wipes in-memory state only — this client's SAVED per-code overrides in
+ * localStorage are kept, so re-uploading the same TB still restores them
+ * (matching "Clear / New TB", not a destructive hard reset).
+ */
+function resetTool() {
+  state.primary = null;
+  state.prior = null;
+  state.priorFileName = null;
+  state.model = null;
+  state.overrides = {};
+  state.restoredCount = 0;
+  state.fileName = null;
+  _mapTab = "bs";
+  _search = "";
+  _collapsed.clear();
+  _selected.clear();
+  _selectAnchor = null;
+  if (_pnlChart) { try { _pnlChart.destroy(); } catch (_) {} _pnlChart = null; }
+  // Empty the results + status; the persistent drop zone stays wired (it lives
+  // in the shell and was wired once in init), so the tool is ready for a new file.
+  const out = document.getElementById("tbr-output");
+  const status = document.getElementById("tbr-status");
+  if (out) out.innerHTML = "";
+  if (status) status.innerHTML = "";
+  updateHeaderControls();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+/** Drop a loaded comparative TB, reverting the Prior column to opening-balance
+ * mode (or single-period). Re-maps and re-renders. */
+function removeComparative() {
+  state.prior = null;
+  state.priorFileName = null;
+  runMapping();
+}
+
+/** Show the header "Clear / New TB" button only once a TB is loaded, and shrink
+ * the drop zone to a compact strip so the results get the space. */
+function updateHeaderControls() {
+  const loaded = !!state.primary;
+  document.getElementById("tbr-clear-tb")?.toggleAttribute("hidden", !loaded);
+  document.getElementById("tbr-drop")?.classList.toggle("tbr-drop-compact", loaded);
 }
 
 /** Wire the tabbed drag-and-drop mapping panel: tab switching + DnD remap. */
@@ -1554,38 +1703,107 @@ function wireMappingPanel(out) {
     });
   });
 
+  // ---- Multi-select (click) ----
+  // Plain click toggles a chip's selection; Ctrl/Cmd-click adds/removes without
+  // clearing others; Shift-click selects the range from the anchor within the
+  // SAME bucket body. Selection is by rowIndex (chips are duplicated across the
+  // two tab panes), so we sync the .selected class on every copy afterwards.
+  out.querySelectorAll(".tbr-chip").forEach(chip => {
+    chip.addEventListener("click", e => {
+      const row = Number(chip.getAttribute("data-rowindex"));
+      if (!Number.isFinite(row)) return;
+      // Stop the bubble so the click-away handler below doesn't immediately clear
+      // the selection we're setting here.
+      e.stopPropagation();
+      if (e.shiftKey && _selectAnchor != null) {
+        selectRangeTo(out, chip, row);
+      } else if (e.ctrlKey || e.metaKey) {
+        toggleSelect(row);
+        _selectAnchor = row;
+      } else {
+        // Plain click: if this is the only selected chip, toggle it off;
+        // otherwise make it the sole selection.
+        const onlyThis = _selected.size === 1 && _selected.has(row);
+        _selected.clear();
+        if (!onlyThis) _selected.add(row);
+        _selectAnchor = onlyThis ? null : row;
+      }
+      syncSelectionUI(out);
+    });
+  });
+
+  // Click away → clear the selection. Chip clicks stopPropagation above, so a
+  // click that reaches here is genuinely "not on a chip". Covers clicking
+  // elsewhere in the results (statements, ratios, empty space). Wired once per
+  // render on the output container; guarded so it's a no-op when nothing's
+  // selected. (A drop fires drop/dragend, not click, so this never interferes
+  // with drag-moves.)
+  out.addEventListener("click", e => {
+    if (_selected.size === 0) return;
+    if (e.target.closest(".tbr-chip")) return; // safety: never clear on a chip
+    _selected.clear();
+    _selectAnchor = null;
+    syncSelectionUI(out);
+  });
+
   // ---- Drag and drop ----
   // _dragRow / _dropHandled let us implement "drop in empty space → Unmapped":
   // a successful bucket drop sets _dropHandled; if dragend fires with it still
   // false, the chip was released outside any bucket, so we route it accordingly.
+  // _dragRows carries the FULL set being moved (the selection if the dragged chip
+  // is part of it, else just the one chip) — enabling bulk drag-together.
   out.querySelectorAll(".tbr-chip").forEach(chip => {
     chip.addEventListener("dragstart", e => {
       _dragEl = chip;
       _dragRow = Number(chip.getAttribute("data-rowindex"));
+      // If dragging a selected chip, move the whole selection; otherwise this is
+      // a lone drag — drop any stale selection so behaviour matches expectation.
+      if (_selected.has(_dragRow)) {
+        _dragRows = [..._selected];
+      } else {
+        _selected.clear(); _selectAnchor = null; syncSelectionUI(out);
+        _dragRows = [_dragRow];
+      }
       _dragIsZero = Math.abs(rowClosingNet(_dragRow)) < EPSILON;
       _dropHandled = false;
-      e.dataTransfer.setData("text/plain", chip.getAttribute("data-rowindex"));
+      e.dataTransfer.setData("text/plain", String(_dragRow));
       e.dataTransfer.effectAllowed = "move";
-      chip.classList.add("dragging");
+      // Visually lift all chips in the moving set (both panes).
+      _dragRows.forEach(r => out.querySelectorAll(`.tbr-chip[data-rowindex="${r}"]`)
+        .forEach(c => c.classList.add("dragging")));
     });
     chip.addEventListener("dragend", () => {
-      chip.classList.remove("dragging");
+      out.querySelectorAll(".tbr-chip.dragging").forEach(c => c.classList.remove("dragging"));
       stopAutoScroll();
-      // Released outside any drop target. A zero-balance chip goes to the
-      // "No activity" area (clear its override so isZeroParked re-parks it);
-      // a chip carrying a value goes to Unmapped. BUT if the chip is already in
-      // the area it would land in, do nothing — an accidental drag-and-release
-      // shouldn't record a (sticky/persisted) override for a non-move.
-      if (!_dropHandled && Number.isFinite(_dragRow)) {
-        const srcBox = _dragEl?.closest(".tbr-bucket");
-        if (_dragIsZero) {
-          if (!srcBox?.classList.contains("tbr-bucket-zero")) applyOverride(_dragRow, null);
-        } else {
-          if (!srcBox?.classList.contains("tbr-bucket-unmapped")) applyOverride(_dragRow, "__unmapped__");
+      // Released outside any drop target. Zero-balance rows go to "No activity"
+      // (clear override so isZeroParked re-parks them); valued rows go to Unmapped.
+      // Skip rows already sitting where they'd land (no sticky no-op override).
+      if (!_dropHandled && _dragRows.length) {
+        const toUnmap = [], toClear = [];
+        for (const r of _dragRows) {
+          const el = _dragEl && Number(_dragEl.getAttribute("data-rowindex")) === r
+            ? _dragEl
+            : out.querySelector(`.tbr-chip[data-rowindex="${r}"]`);
+          const srcBox = el?.closest(".tbr-bucket");
+          if (Math.abs(rowClosingNet(r)) < EPSILON) {
+            if (!srcBox?.classList.contains("tbr-bucket-zero")) toClear.push(r);
+          } else {
+            if (!srcBox?.classList.contains("tbr-bucket-unmapped")) toUnmap.push(r);
+          }
+        }
+        // Two buckets of action → apply in as few re-maps as possible.
+        if (toClear.length && toUnmap.length) {
+          for (const r of toClear) delete state.overrides[r];
+          applyOverridesBulk(toUnmap, "__unmapped__");
+        } else if (toClear.length) {
+          applyOverridesBulk(toClear, null);
+        } else if (toUnmap.length) {
+          applyOverridesBulk(toUnmap, "__unmapped__");
         }
       }
       _dragEl = null;
       _dragRow = null;
+      _dragRows = [];
       _dragIsZero = false;
     });
   });
@@ -1608,14 +1826,20 @@ function wireMappingPanel(out) {
       body.classList.remove("dragover");
       _dropHandled = true;
       stopAutoScroll();
-      const rowIndex = Number(e.dataTransfer.getData("text/plain"));
-      if (!Number.isFinite(rowIndex)) return;
-      // No-op if the chip is dropped back into the bucket it already sits in —
-      // don't record a (possibly sticky/persisted) override for a non-move.
-      // Use the dragged element itself (not a querySelector, which could match
-      // the duplicate chip in the hidden tab pane).
-      if (_dragEl && _dragEl.closest(".tbr-bucket-body") === body) return;
-      applyOverride(rowIndex, body.getAttribute("data-target"));
+      const target = body.getAttribute("data-target");
+      // Move the whole dragged set (selection, or the single chip). Fall back to
+      // the dataTransfer rowIndex if _dragRows somehow wasn't populated.
+      let rows = _dragRows.length ? _dragRows.slice()
+        : [Number(e.dataTransfer.getData("text/plain"))].filter(Number.isFinite);
+      // Drop the ones already IN this bucket — no sticky no-op override for a
+      // non-move. A chip is "already here" if any of its copies sits in this body.
+      rows = rows.filter(r => {
+        const here = [...body.querySelectorAll(`.tbr-chip[data-rowindex="${r}"]`)].length > 0;
+        return !here;
+      });
+      if (rows.length === 1) applyOverride(rows[0], target);
+      else if (rows.length > 1) applyOverridesBulk(rows, target);
+      // else: everything was already here → nothing to do.
     });
   });
 
@@ -1747,15 +1971,71 @@ function applyOverride(rowIndex, targetId) {
   runMapping();
 }
 
+/**
+ * Apply one target to MANY rows at once (bulk move), then save + re-map ONCE.
+ * `targetId` null clears the override (re-auto-detect / re-park zero rows),
+ * "__unmapped__" excludes them. Clears the selection afterwards.
+ */
+function applyOverridesBulk(rowIndexes, targetId) {
+  if (!rowIndexes || !rowIndexes.length) return;
+  for (const rowIndex of rowIndexes) {
+    if (targetId === null) delete state.overrides[rowIndex];
+    else state.overrides[rowIndex] = targetId;
+  }
+  state.restoredCount = 0;
+  _selected.clear();
+  _selectAnchor = null;
+  saveOverrides(state.primary);
+  runMapping();
+}
+
 /** Closing net for a parsed row by its rowIndex (0 if not found). */
 function rowClosingNet(rowIndex) {
   const row = (state.primary?.rows || []).find(r => r.rowIndex === rowIndex);
   return row ? (row.closingNet || 0) : 0;
 }
 
+// ---- Multi-select helpers -------------------------------------------------
+
+function toggleSelect(row) {
+  if (_selected.has(row)) _selected.delete(row);
+  else _selected.add(row);
+}
+
+/**
+ * Shift-click range select: select every chip between the anchor and the
+ * clicked chip, in DOM order WITHIN the same bucket body (ranges across
+ * different buckets don't make sense). Adds to the current selection.
+ */
+function selectRangeTo(out, chip, row) {
+  const body = chip.closest(".tbr-bucket-body");
+  if (!body) { toggleSelect(row); _selectAnchor = row; return; }
+  const rowsInBody = [...body.querySelectorAll(".tbr-chip")]
+    .map(c => Number(c.getAttribute("data-rowindex")));
+  const ai = rowsInBody.indexOf(_selectAnchor);
+  const bi = rowsInBody.indexOf(row);
+  if (ai === -1 || bi === -1) { toggleSelect(row); _selectAnchor = row; return; }
+  const [lo, hi] = ai < bi ? [ai, bi] : [bi, ai];
+  for (let i = lo; i <= hi; i++) _selected.add(rowsInBody[i]);
+}
+
+/** Reflect _selected onto every chip copy (both tab panes) + show a count pill. */
+function syncSelectionUI(out) {
+  out.querySelectorAll(".tbr-chip").forEach(c => {
+    const r = Number(c.getAttribute("data-rowindex"));
+    c.classList.toggle("selected", _selected.has(r));
+  });
+  out.querySelectorAll("[data-sel-count]").forEach(el => {
+    const n = _selected.size;
+    el.textContent = n ? `${n} selected — drag any one to move them together` : "";
+    el.toggleAttribute("hidden", n === 0);
+  });
+}
+
 // ---- Drag auto-scroll (reach off-screen buckets in long lists) -------------
 let _dragEl = null;         // the chip element currently being dragged
 let _dragRow = null;        // rowIndex of the chip currently being dragged
+let _dragRows = [];         // ALL rowIndexes moving in the current drag (bulk)
 let _dragIsZero = false;    // whether the dragged chip has a zero closing balance
 let _dropHandled = false;   // set true by a successful bucket drop
 let _autoScrollRAF = null;  // requestAnimationFrame id for the scroll loop
@@ -2042,7 +2322,22 @@ function renderValidation(m) {
     ));
   }
 
-  if (!m.meta.hasComparative) {
+  // Comparative status — make the Prior column's source explicit, and give a
+  // way to drop a loaded comparative. Three cases:
+  //   secondTb → an explicit comparative TB was loaded (show its name + Remove)
+  //   opening  → prior auto-filled from THIS TB's opening balances
+  //   none     → single period, prior column blank
+  if (m.meta.priorMode === "secondTb") {
+    parts.push(okBanner(
+      `Comparative loaded: the Prior column shows <strong>${escapeHtml(stripExt(state.priorFileName) || "the comparative TB")}</strong> (closing balances). ` +
+      `<a href="#" id="tbr-remove-prior" class="tbr-link">Remove comparative</a>`
+    ));
+  } else if (m.meta.priorMode === "opening") {
+    parts.push(infoBanner(
+      `Prior column shows <strong>this TB's opening balances</strong> (no separate comparative loaded). ` +
+      `Use “Add comparative TB” below to compare against a full prior-year trial balance instead.`
+    ));
+  } else {
     parts.push(infoBanner(`Single period detected — prior-year column left blank (not fabricated). Upload a comparative TB to fill it.`));
   }
 
@@ -2057,6 +2352,11 @@ let _mapTab = "bs";
 //   _collapsed — set of bucket ids (data-bucket) the user has collapsed
 let _search = "";
 const _collapsed = new Set();
+// Multi-select: rowIndexes of chips the user has selected for a bulk move.
+// Persists across the re-renders a move triggers; cleared after a bulk move.
+const _selected = new Set();
+// Anchor rowIndex for Shift-range selection (last plain/ctrl click).
+let _selectAnchor = null;
 
 /**
  * Drag-and-drop mapping panel for ONE statement (`which` = "bs" | "pnl").
@@ -2112,7 +2412,7 @@ function renderMappingPanel(m, which) {
 
   // data-search holds a lowercased code+name haystack for the live filter.
   const chip = (a) => `
-    <div class="tbr-chip" draggable="true" data-rowindex="${a.rowIndex}"
+    <div class="tbr-chip${_selected.has(a.rowIndex) ? " selected" : ""}" draggable="true" data-rowindex="${a.rowIndex}"
          data-search="${escapeHtml(((a.code || "") + " " + (a.name || "")).toLowerCase())}"
          title="${escapeHtml(a.name)}">
       <span class="tbr-chip-code">${escapeHtml(a.code || "")}</span>
@@ -2191,6 +2491,7 @@ function renderMappingPanel(m, which) {
       <span class="tbr-search-count" id="tbr-search-count" aria-live="polite"></span>
       <button type="button" class="tbr-tool-btn" id="tbr-search-jump" ${_search ? "" : "hidden"}>Jump to match</button>
       <button type="button" class="tbr-tool-btn" id="tbr-collapse-empty">Collapse empty</button>
+      <span class="tbr-sel-count" data-sel-count aria-live="polite" ${_selected.size ? "" : "hidden"}>${_selected.size ? `${_selected.size} selected — drag any one to move them together` : ""}</span>
     </div>`;
 
   return `
@@ -2199,9 +2500,11 @@ function renderMappingPanel(m, which) {
         <div>
           <h3 class="tbr-map-title">Account Mapping</h3>
           <p class="tbr-hint">Auto-detected on upload. <strong>Drag any account</strong> onto any
-            line — or drop it in empty space to unmap it. <strong>Unmapped</strong> holds accounts
-            on neither statement; <strong>Available from the other statement</strong> holds accounts
-            mapped on the other tab, ready to drag across. Statements and ratios update instantly.</p>
+            line — or drop it in empty space to unmap it. <strong>Click to select</strong> accounts
+            (Ctrl/Cmd-click to add, Shift-click for a range), then drag any one to <strong>move them
+            all together</strong>. <strong>Unmapped</strong> holds accounts on neither statement;
+            <strong>Available from the other statement</strong> holds accounts mapped on the other
+            tab, ready to drag across. Statements and ratios update instantly.</p>
         </div>
       </div>
       ${toolbar}
@@ -2410,6 +2713,13 @@ const SHELL_HTML = `
         <h2 class="tbr-page-title">TB Ratio Tool</h2>
         <p class="tbr-subtitle">Upload a trial balance sheet &rarr; Profit &amp; Loss, Balance Sheet &amp; ratios.</p>
       </div>
+      <button type="button" class="tbr-clear-btn" id="tbr-clear-tb" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+        </svg>
+        Clear / New TB
+      </button>
     </div>
 
     <div id="tbr-drop" class="tbr-drop" role="button" tabindex="0" aria-label="Upload trial balance">

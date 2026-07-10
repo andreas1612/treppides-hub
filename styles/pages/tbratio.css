@@ -48,6 +48,48 @@
   margin: 2px 0 0;
 }
 
+/* "Clear / New TB" — far right of the header, shown only once a TB is loaded. */
+#section-tbratio .tbr-clear-btn {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 7px 13px;
+  cursor: pointer;
+  transition: all var(--transition);
+  flex-shrink: 0;
+}
+#section-tbratio .tbr-clear-btn:hover {
+  color: #b91c1c;
+  border-color: #dc2626;
+  background: #fef2f2;
+}
+#section-tbratio .tbr-clear-btn svg { width: 15px; height: 15px; }
+#section-tbratio .tbr-clear-btn[hidden] { display: none; }
+
+/* Compact drop zone once a TB is loaded — shrink so results get the space. */
+#section-tbratio .tbr-drop.tbr-drop-compact {
+  padding: 10px 16px;
+}
+#section-tbratio .tbr-drop.tbr-drop-compact svg { width: 22px; height: 22px; margin-bottom: 2px; }
+#section-tbratio .tbr-drop.tbr-drop-compact .tbr-hint { display: none; }
+
+/* Loaded-comparative chip in the actions row. */
+#section-tbratio .tbr-prior-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  align-self: center;
+}
+
 /* ---- Drop zone ---- */
 #section-tbratio .tbr-drop {
   border: 2px dashed var(--border);
@@ -283,6 +325,53 @@
 }
 #section-tbratio .tbr-chip:active { cursor: grabbing; }
 #section-tbratio .tbr-chip.dragging { opacity: .4; }
+
+/* Multi-select: use a BLUE selection cue (not the lime brand accent, which is
+   low-contrast on white and reads as a highlight, not a selection). A solid
+   tint + 2px ring + left bar + ✓ makes "selected" unmistakable. */
+#section-tbratio .tbr-chip.selected {
+  --tbr-sel: #2563eb;
+  border-color: var(--tbr-sel);
+  background: #e8f0fe;
+  box-shadow: 0 0 0 2px var(--tbr-sel);
+  position: relative;
+  padding-left: 20px;                 /* room for the left bar + check */
+}
+/* Left accent bar */
+#section-tbratio .tbr-chip.selected::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 4px;
+  background: var(--tbr-sel);
+  border-radius: 6px 0 0 6px;
+}
+/* Check mark */
+#section-tbratio .tbr-chip.selected::after {
+  content: "✓";
+  position: absolute;
+  left: 7px; top: 50%;
+  transform: translateY(-50%);
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--tbr-sel);
+  line-height: 1;
+}
+#section-tbratio .tbr-chip.selected .tbr-chip-name { color: #1e3a8a; }
+
+/* "N selected" pill in the mapping toolbar — blue to match the selection cue. */
+#section-tbratio .tbr-sel-count {
+  font-size: 12px;
+  font-weight: 700;
+  color: #2563eb;
+  background: #e8f0fe;
+  border: 1px solid #bfd3fb;
+  border-radius: 999px;
+  padding: 3px 10px;
+  white-space: nowrap;
+  margin-left: auto;                                            /* push to the right */
+}
+#section-tbratio .tbr-sel-count[hidden] { display: none; }
 #section-tbratio .tbr-chip-code { color: var(--text-secondary); font-variant-numeric: tabular-nums; font-size: 11px; }
 #section-tbratio .tbr-chip-name { color: var(--text-primary); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #section-tbratio .tbr-chip-val  { color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
