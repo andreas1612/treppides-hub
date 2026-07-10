@@ -179,8 +179,10 @@ function taskRow(task) {
     ? `<span class="companies-meta-item">Project ${escapeHtml(task.year_of_project)}</span>` : "";
   const byear = task.business_year
     ? `<span class="companies-meta-item">FY ${escapeHtml(task.business_year)}</span>` : "";
-  const assignees = (task.assignees || []).length
-    ? `<span class="companies-meta-item">${escapeHtml(task.assignees.join(", "))}</span>` : "";
+  // Always render the assignees span (hidden when empty) so an optimistic edit
+  // can update it in place even when the deal started with no assignees.
+  const assigneeNames = (task.assignees || []).join(", ");
+  const assignees = `<span class="companies-meta-item companies-meta-assignees"${assigneeNames ? "" : " hidden"}>${escapeHtml(assigneeNames)}</span>`;
   const deal = (task.is_deal && task.deal_value != null)
     ? `<span class="companies-meta-item companies-dealval">${EUR.format(task.deal_value)}</span>` : "";
   const open = task.url
@@ -227,11 +229,25 @@ function editPanelHtml(taskId, opts) {
     `<option value="${escapeHtml(s.status)}"${s.status.toLowerCase() === curStatus ? " selected" : ""}>${escapeHtml(s.status)}</option>`
   ).join("");
 
-  const curAssigneeId = (opts.current_assignees || [])[0]?.id ?? "";
-  const memberOpts = [`<option value="">— Unassigned —</option>`].concat(
-    (opts.members || []).map(m =>
-      `<option value="${m.id}"${String(m.id) === String(curAssigneeId) ? " selected" : ""}>${escapeHtml(m.username || m.email || String(m.id))}</option>`)
-  ).join("");
+  // Multi-assignee: a checkbox list. Currently-assigned members are checked and
+  // (for tidiness) floated to the top. data-orig captures the initial checked
+  // set so save can tell whether anything changed.
+  const curIds = new Set((opts.current_assignees || []).map(a => String(a.id)));
+  const members = (opts.members || []).slice().sort((a, b) => {
+    const ac = curIds.has(String(a.id)) ? 0 : 1, bc = curIds.has(String(b.id)) ? 0 : 1;
+    if (ac !== bc) return ac - bc;
+    return (a.username || a.email || "").localeCompare(b.username || b.email || "");
+  });
+  const origCsv = [...curIds].sort().join(",");
+  const memberRows = members.length
+    ? members.map(m => {
+        const on = curIds.has(String(m.id));
+        return `<label class="companies-assignee-opt${on ? " on" : ""}">
+          <input type="checkbox" value="${m.id}"${on ? " checked" : ""}>
+          <span>${escapeHtml(m.username || m.email || String(m.id))}</span>
+        </label>`;
+      }).join("")
+    : `<div class="companies-edit-err">No members available.</div>`;
 
   return `
     <div class="companies-edit-grid" data-task-id="${escapeHtml(taskId)}">
@@ -239,10 +255,10 @@ function editPanelHtml(taskId, opts) {
         <span>Status</span>
         <select data-edit-status>${statusOpts}</select>
       </label>
-      <label class="companies-edit-field">
-        <span>Assignee</span>
-        <select data-edit-assignee>${memberOpts}</select>
-      </label>
+      <div class="companies-edit-field companies-edit-assignees">
+        <span>Assignees</span>
+        <div class="companies-assignee-list" data-edit-assignees data-orig="${origCsv}">${memberRows}</div>
+      </div>
       <label class="companies-edit-field companies-edit-comment">
         <span>Add comment to ClickUp</span>
         <textarea data-edit-comment rows="2" placeholder="Write a note — posted to the deal's ClickUp comments."></textarea>
@@ -292,7 +308,7 @@ async function saveEdits(saveBtn) {
   const taskId = grid.dataset.taskId;
   const msg = grid.querySelector("[data-edit-msg]");
   const statusSel = grid.querySelector("[data-edit-status]");
-  const assigneeSel = grid.querySelector("[data-edit-assignee]");
+  const assigneeList = grid.querySelector("[data-edit-assignees]");
   const commentBox = grid.querySelector("[data-edit-comment]");
 
   const setMsg = (text, kind) => { if (msg) { msg.textContent = text; msg.className = `companies-edit-msg ${kind || ""}`; } };
@@ -307,12 +323,16 @@ async function saveEdits(saveBtn) {
   if (chosenStatus && chosenStatus !== origStatus) {
     calls.push(putJson(`${API_BASE}/deals/${encodeURIComponent(taskId)}/status`, { status: chosenStatus }).then(r => ({ kind: "status", r })));
   }
-  // Assignee — only if changed.
-  const chosenAssignee = assigneeSel?.value || "";
-  const origAssignee = assigneeSel?.querySelector("option[selected]")?.value || "";
-  if (chosenAssignee !== origAssignee) {
-    calls.push(putJson(`${API_BASE}/deals/${encodeURIComponent(taskId)}/assignee`,
-      { assignee_id: chosenAssignee === "" ? null : Number(chosenAssignee) }).then(r => ({ kind: "assignee", r })));
+  // Assignees — send the full desired set, only if it changed from what loaded.
+  if (assigneeList) {
+    const chosenIds = [...assigneeList.querySelectorAll('input[type="checkbox"]:checked')]
+      .map(cb => Number(cb.value));
+    const chosenCsv = chosenIds.slice().sort((a, b) => a - b).join(",");
+    const origCsv = assigneeList.dataset.orig || "";
+    if (chosenCsv !== origCsv) {
+      calls.push(putJson(`${API_BASE}/deals/${encodeURIComponent(taskId)}/assignee`,
+        { assignee_ids: chosenIds }).then(r => ({ kind: "assignee", r })));
+    }
   }
   // Comment — only if non-empty.
   const comment = (commentBox?.value || "").trim();
@@ -336,7 +356,7 @@ async function saveEdits(saveBtn) {
       if (kind === "comment" && commentBox) commentBox.value = "";
     }
     // Optimistic UI: reflect the reconciled row back into the visible task.
-    if (freshTask) applyFreshTask(li, freshTask, statusSel, assigneeSel);
+    if (freshTask) applyFreshTask(li, freshTask, statusSel, assigneeList);
     setMsg(dryRun ? "Saved (dry run — ClickUp not changed)." : "Saved to ClickUp ✓", "ok");
   } catch (err) {
     console.error("save edits failed:", err);
@@ -355,16 +375,28 @@ function postJson(url, body) {
 
 // Update the row's status pill + assignee text from a reconciled task, and reset
 // the panel's "original" markers so a subsequent save diffs against the new state.
-function applyFreshTask(li, task, statusSel, assigneeSel) {
+function applyFreshTask(li, task, statusSel, assigneeList) {
   const pill = li.querySelector(".companies-status");
   if (pill && task.status) {
     pill.textContent = task.status;
     if (task.status_color && /^#[0-9a-f]{6}$/i.test(task.status_color)) pill.style.setProperty("--pill", task.status_color);
   }
-  const meta = li.querySelector(".companies-task-meta");
-  // Re-mark selected options so the diff baseline moves forward.
+  // Reflect the reconciled assignee names in the row meta (task.assignees is a
+  // JSON list of display names from the mirror).
+  const assigneesEl = li.querySelector(".companies-task-meta .companies-meta-assignees");
+  if (assigneesEl) {
+    const names = (task.assignees || []).join(", ");
+    assigneesEl.textContent = names;
+    assigneesEl.toggleAttribute("hidden", !names);
+  }
+  // Move the diff baselines forward so a subsequent save compares against the
+  // just-saved state (status <select>, assignee checkbox set).
   if (statusSel) statusSel.querySelectorAll("option").forEach(o => o.toggleAttribute("selected", o.value === statusSel.value));
-  if (assigneeSel) assigneeSel.querySelectorAll("option").forEach(o => o.toggleAttribute("selected", o.value === assigneeSel.value));
+  if (assigneeList) {
+    const nowChecked = [...assigneeList.querySelectorAll('input[type="checkbox"]:checked')]
+      .map(cb => Number(cb.value)).sort((a, b) => a - b).join(",");
+    assigneeList.dataset.orig = nowChecked;
+  }
 }
 
 function dealGroup(label, deals, kind) {
@@ -472,6 +504,11 @@ function wireEditors(body) {
     if (toggle) { toggleEditPanel(toggle); return; }
     const save = e.target.closest("[data-edit-save]");
     if (save) { saveEdits(save); return; }
+  });
+  // Keep the assignee row's highlight in sync as checkboxes toggle.
+  body.addEventListener("change", (e) => {
+    const cb = e.target.closest('.companies-assignee-opt input[type="checkbox"]');
+    if (cb) cb.closest(".companies-assignee-opt")?.classList.toggle("on", cb.checked);
   });
 }
 

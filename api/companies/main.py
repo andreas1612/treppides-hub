@@ -804,7 +804,10 @@ class StatusBody(BaseModel):
 
 
 class AssigneeBody(BaseModel):
-    assignee_id: int | None = None   # ClickUp user id; null clears the assignee
+    # The FULL desired set of ClickUp user ids for the task ([] clears all).
+    # The endpoint diffs this against the task's current assignees to compute the
+    # add/remove sets ClickUp needs.
+    assignee_ids: list[int] = []
 
 
 class CommentBody(BaseModel):
@@ -887,27 +890,36 @@ def edit_assignee(task_id: str, body: AssigneeBody, db: Session = Depends(get_db
     raw = sync_engine.fetch_task(task_id)
     if raw is None:
         raise HTTPException(status_code=404, detail="Task no longer exists in ClickUp.")
-    current_ids = [a.get("id") for a in raw.get("assignees", []) if a.get("id") is not None]
-    current_names = [a.get("username") or a.get("email") for a in raw.get("assignees", [])]
+    current = {a.get("id"): (a.get("username") or a.get("email"))
+               for a in raw.get("assignees", []) if a.get("id") is not None}
+    current_ids = set(current)
+    desired_ids = set(body.assignee_ids or [])
 
-    if body.assignee_id is None:
-        add_ids, rem_ids = [], current_ids            # clear
-        new_label = None
-    else:
-        add_ids = [body.assignee_id]
-        rem_ids = [i for i in current_ids if i != body.assignee_id]   # single, replaceable
-        new_label = str(body.assignee_id)
+    # Diff the desired set against the current one → ClickUp add/remove lists.
+    add_ids = list(desired_ids - current_ids)
+    rem_ids = list(current_ids - desired_ids)
+
+    old_label = ", ".join(current.values()) or "(none)"
+    # For the audit trail, resolve desired ids to names where we can (roster),
+    # falling back to the id for anyone not in the current set.
+    roster = {m["id"]: (m.get("username") or m.get("email") or str(m["id"]))
+              for m in clickup_write.list_members()}
+    new_label = ", ".join(roster.get(i, str(i)) for i in body.assignee_ids) or "(none)"
+
+    if not add_ids and not rem_ids:
+        # Nothing to change — still reconcile so the UI gets a fresh task back.
+        return _reconcile_and_return(task_id)
 
     try:
         clickup_write.set_assignee(task_id, add_ids, rem_ids)
     except HTTPException:
         audit.record(who=user, task_id=task_id, tid=t.tid, field="assignee",
-                     old_value=", ".join(current_names), new_value=new_label,
+                     old_value=old_label, new_value=new_label,
                      dry_run=clickup_write.DRY_RUN, result="clickup_error")
         raise
 
     audit.record(who=user, task_id=task_id, tid=t.tid, field="assignee",
-                 old_value=", ".join(current_names), new_value=new_label,
+                 old_value=old_label, new_value=new_label,
                  dry_run=clickup_write.DRY_RUN, result="ok")
     return _reconcile_and_return(task_id)
 
