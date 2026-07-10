@@ -21,8 +21,24 @@
 
 ## Deploy status
 
-**⚠ PENDING DEPLOY (2026-06-25) — `origin/main` now at `f830ebe`. Several commits since the
-last deploy; this needs a BACKEND restart (not just a pull):**
+**⚠ PENDING DEPLOY (2026-07-10) — `origin/main` now at `806c67b`. This batch includes the
+FIRST activation of the Group Dashboard inline-edit feature (writes to ClickUp), so it needs
+a `companies-api` restart AND one new `.env` line. Full copy-paste steps in the
+["Server deploy steps (2026-07-10)"](#server-deploy-steps-2026-07-10) section below.**
+
+- `8bdcc46` **feat(companies)** — **Group Dashboard live edits → ClickUp** (status / assignee /
+  comment on a deal's detail card). Auth-gated (server-side `/api/me` check) + audit-logged +
+  single-task re-sync. Backend (`companies-api`, port 8003) → **restart + new `.env` line
+  (`TM_INTERNAL_BASE`)**. Adds an `audit_log` table (auto-creates on start — no migration).
+- `9be0fb9` **feat(companies)** — the same editor now supports **multiple assignees** (checkbox
+  list). Backend-only change in the same service — covered by the same restart.
+- `806c67b` **feat(tbratio)** — Clear/New TB button, real comparative TB (filename + remove,
+  code-based mapping carry-over, prior-BS retained-earnings bridge), classification fallback
+  for TBs without 1-digit group rows, and multi-select bulk move in the mapping panel.
+  **Frontend-only** — live on `git pull` + hard refresh.
+
+**⚠ Older still-pending items from 2026-06-25 (`f830ebe`) — deploy these together in the same
+pull if they never went out:**
 - `ef9b16e` **feat(forms)** — new **Forms tool** (Lead/Deal → creates a real ClickUp task).
   Backend changes in the `clickup-fees` service (port 8001) → needs **`pip install` +
   `systemctl restart clickup-fees`** AND two new lines in `api/clickup/.env`.
@@ -338,6 +354,93 @@ sudo fail2ban-client status
 8. **Never hardcode redirect-uri** --- Task Manager auto-generates from Host header. Hardcoding breaks hub vs direct access.
 9. **TM backend changes need rebuild** --- `cd ~/taskmanager && ./mvnw package -DskipTests && sudo systemctl restart taskmanager`.
 10. **Auth proxy paths are critical** --- `/projects/*`, `/oauth2/*`, `/login/oauth2/*` must all proxy to port 8080.
+
+---
+
+## Server deploy steps (2026-07-10)
+
+**Brings down everything up to `806c67b`.** This is the FIRST time the Group Dashboard
+inline-edit feature goes live — it WRITES to ClickUp (status / assignee / comment on deals),
+so treat it carefully. TB Ratio changes are frontend-only. All commands run **directly on the
+server** (`192.168.0.221`, no SSH needed).
+
+> **Before you start:** the write path only works if Task Manager (port 8080) is up (the
+> edit endpoints validate the user's session against TM's `/api/me`). It normally is — that's
+> the Hub's own auth. No new dependencies to install (no `requirements.txt` change this batch).
+
+### 1. Pull the code
+```bash
+cd ~/treppides-hub
+git pull                                   # → 806c67b
+```
+
+### 2. Add ONE new line to the companies-api .env
+The edit endpoints need to know where to reach Task Manager for the server-side auth check.
+```bash
+nano api/companies/.env
+```
+Add (TM is on the same host):
+```
+TM_INTERNAL_BASE=http://127.0.0.1:8080
+```
+**Do NOT add `COMPANIES_LOCAL_DEV` or `COMPANIES_DRY_RUN`** — those are local-dev only. If
+either is present on the server, auth is bypassed / writes are faked. (The service logs a loud
+warning at startup if it sees them — check the logs in step 4.) The `CLICKUP_API_TOKEN` is
+already there; no other `.env` change.
+
+### 3. Restart the companies-api service (backend changed — a pull alone is NOT enough)
+```bash
+sudo systemctl restart companies-api
+sudo systemctl status companies-api --no-pager        # should be active (running)
+```
+The new `audit_log` table auto-creates on startup (`init_db()`) — **no manual DB migration**,
+and the existing `companies.db` is upgraded in place. The service sandbox already allows writes
+to `api/companies/` (where the DB lives), so no unit-file change is needed.
+
+### 4. Confirm it came up clean
+```bash
+journalctl -u companies-api -n 40 --no-pager
+curl -s http://127.0.0.1:8003/api/companies/health        # → {"ok":true}
+```
+In the log you should see NO "AUTH BYPASS" / "DRY_RUN" warnings. If you do, remove those lines
+from `.env` and restart.
+
+### 5. Frontend — no build step
+`git pull` already updated `companies.js` / `companies.css` / `tbratio.js` / `tbratio.css`
+(served statically by nginx). Just make browsers pick them up:
+```bash
+sudo systemctl reload nginx        # only if nginx caches static assets
+```
+Then **hard-refresh** the Hub in the browser (Ctrl-F5).
+
+### 6. Smoke-test on the server — against a THROWAWAY deal first
+Writes are real and immediate (no dry-run on the server).
+1. Open the Group Dashboard → search a company → click a row → expand the open card.
+2. On a deal, click **✎ Edit**. Confirm the Status dropdown + the **Assignees checkbox list**
+   populate (proves auth + ClickUp reads work with a real session).
+3. On a **test/throwaway deal**: tick two assignees, change the status, add a comment, **Save** →
+   it should say "Saved to ClickUp ✓" (NOT "dry run").
+4. Verify in ClickUp that the change landed, and check the audit trail:
+   ```bash
+   sqlite3 ~/treppides-hub/api/companies/companies.db \
+     "SELECT ts_ms, who_email, field, old_value, new_value, result FROM audit_log ORDER BY id DESC LIMIT 5;"
+   ```
+5. TB Ratio: open the tool, load a TB, confirm the **Clear / New TB** button appears, the
+   mapping panel supports **click-select + drag-together**, and (if you have a prior-year TB)
+   **Add comparative TB** shows the filename + Remove.
+
+### Rollback if anything's wrong
+```bash
+cd ~/treppides-hub
+git reset --hard d6adb9c            # commit before this batch
+sudo systemctl restart companies-api
+```
+
+### Security reminders (unchanged, but now newly relevant)
+- This wires the full-access `pk_` ClickUp token into a UI write path — it strengthens the case
+  for the token rotation already on the security TODO. See `SNAPSHOT_SECURITY_AUDIT.md`.
+- The write endpoints are the FIRST auth-gated routes on `companies-api`. Read routes remain
+  open (unchanged) — tightening those is a separate hardening pass.
 
 ---
 
