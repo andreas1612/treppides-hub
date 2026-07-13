@@ -566,6 +566,35 @@
 #section-tbratio .tbr-btn-ghost:hover { border-color: var(--text-secondary); }
 #section-tbratio #tbr-rerun { margin-top: 12px; }
 
+/* ---- Download PDF split-button dropdown ---- */
+#section-tbratio .tbr-pdf-menu { position: relative; display: inline-block; }
+#section-tbratio .tbr-pdf-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 200px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-hover);
+  padding: 4px;
+  z-index: 20;
+}
+#section-tbratio .tbr-pdf-dropdown[hidden] { display: none; }
+#section-tbratio .tbr-pdf-dropdown button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 14px;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+#section-tbratio .tbr-pdf-dropdown button:hover { background: var(--page-bg); }
+
 /* ---- Statement groups (each statement + its own ratios) ---- */
 #section-tbratio .tbr-group { margin-top: 28px; }
 #section-tbratio .tbr-group:first-of-type { margin-top: 16px; }

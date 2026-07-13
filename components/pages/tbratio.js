@@ -166,14 +166,26 @@ const VENDOR_SCRIPTS = [
 const EPSILON = 0.01; // currency rounding tolerance for balance checks
 
 // ============================================================
-// PART 1 — PARSER  (E-Soft trial-balance sheet → posting rows)
+// PART 1 — PARSER  (trial-balance sheet → posting rows)
 //
-// The E-Soft export is a formatted sheet, not a clean table: metadata
-// rows on top, a header row with Code / Name / Type + three Debit/Credit
-// pairs (Opening, Period Movement, Closing), hierarchical accounts keyed
-// by a 1-digit group code, and roll-up rows. We locate the table by its
-// header, resolve columns by header text (not fixed index), skip blank +
-// roll-up rows, and derive figures from posting rows only.
+// Handles three export formats with a similar table shape:
+//   • E-Soft — metadata rows on top, a header row with Code / Name / Type +
+//     three Debit/Credit pairs (Opening, Period Movement, Closing), accounts
+//     under 1-digit group headers, and roll-up rows.
+//   • Cycom (.xls, legacy) — same header/columns, number-coded accounts under
+//     "Header"-typed category rows, but with a per-category SUBTOTAL row after
+//     each group's accounts ("Total <Category>" / "Subtotal"). These are caught
+//     as roll-ups (ROLLUP_PATTERNS + Type=Total→Header) so they never post.
+//   • ESOFT (.xlsx) — a DIFFERENT layout: Account / Name / Type + a SINGLE
+//     Debit/Credit balance pair (not three), no group-header rows, and a
+//     NUMERIC "Type" column (100/200/320/420/600/710/900) that encodes the
+//     category. Detected by pairCount===1 (cols.singleBalance): the one balance
+//     feeds both movement (P&L) and closing (BS), it's treated as single-period
+//     (no fabricated prior), the group comes from groupFromEsoftType(), and the
+//     repeated page-break header + "Number of Accounts" footer are skipped.
+//
+// We locate the table by its header, resolve columns by header text (not fixed
+// index), skip blank + roll-up rows, and derive figures from posting rows only.
 // ============================================================
 
 // Code (1 digit) -> canonical top-level group name.
@@ -189,6 +201,7 @@ export const TOP_LEVEL_GROUPS = {
 };
 
 // Roll-up / total rows — captured for validation, never mapped.
+// The `probe` these test against is "<name> <code>" (see isRollupRow).
 const ROLLUP_PATTERNS = [
   /second\s*level\s*sub\s*total/i,
   /second\s*level\s*balance/i,
@@ -197,7 +210,15 @@ const ROLLUP_PATTERNS = [
   /report\s*total/i,
   /report\s*balance/i,
   /number\s*of\s*records/i,
+  /number\s*of\s*accounts/i,   // ESOFT footer: "Number of Accounts:"
   /grand\s*total/i,
+  // Cycom (.xls) emits a per-category subtotal after each group's accounts,
+  // labelled like "Total Fixed Assets" / "Sub Total" / "Subtotal" / "Total".
+  // Anchor to the START of the label so a real account merely CONTAINING the
+  // word "total" (e.g. "Total Insurance Ltd") is NOT swallowed. These rows would
+  // otherwise be treated as postings and double-count each category.
+  /^\s*sub[\s-]*total\b/i,
+  /^\s*total\b/i,
 ];
 
 // Header-cell synonyms used to locate the header row + resolve columns.
@@ -273,6 +294,11 @@ export function parseTrialBalance(aoa) {
     // the tool — they have no Code.
     if (!code) continue;
 
+    // Multi-page reports (ESOFT) repeat the column-HEADER row at each page break.
+    // Skip a re-occurrence of the header — its code cell literally reads
+    // "Account" / "Code" — so it isn't mistaken for an account.
+    if (matchesAny(code, HEADER_SYNONYMS.code)) continue;
+
     // Ignore any row explicitly typed as a group/section header (Type = "Header"),
     // even if it carries a code — these are sub-group headings, not accounts.
     if (normalizeType(type) === "Header") continue;
@@ -281,10 +307,14 @@ export function parseTrialBalance(aoa) {
     const movement = readPair(raw, columns, "movement");
     const closing  = readPair(raw, columns, "closing");
 
-    // Group context: an explicit 1-digit group-header row (E-Soft format) wins;
-    // otherwise fall back to the account code's leading digit, for TBs that lay
-    // out accounts without those header rows. groupName follows suit.
-    const derivedGroup = currentGroupCode || groupFromCode(code);
+    // Group context, in priority order:
+    //   1. explicit 1-digit group-header row (E-Soft format)
+    //   2. ESOFT numeric Type column (100/200/… → 1–8) when this is a
+    //      single-balance ESOFT sheet
+    //   3. the account code's leading digit (Cycom / coded charts w/o headers)
+    const derivedGroup = currentGroupCode
+      || (columns.singleBalance ? groupFromEsoftType(type) : null)
+      || groupFromCode(code);
     const derivedGroupName = currentGroupName
       || (derivedGroup ? (TOP_LEVEL_GROUPS[derivedGroup] || `GROUP ${derivedGroup}`) : null);
 
@@ -341,12 +371,31 @@ function resolveColumns(headerRow) {
     else if (matchesAny(c, HEADER_SYNONYMS.credit)) creditCols.push(i);
   });
 
+  // How many Debit/Credit pairs did we find? E-Soft/Cycom carry THREE (Opening,
+  // Period Movement, Closing). The ESOFT (.xlsx) export carries just ONE balance
+  // column pair. We record it so the parser can branch on layout.
+  cols.pairCount = Math.min(debitCols.length, creditCols.length);
+
   cols.pairs = {};
   for (let p = 0; p < PAIR_ORDER.length; p++) {
     cols.pairs[PAIR_ORDER[p]] = {
       debit:  debitCols[p]  ?? -1,
       credit: creditCols[p] ?? -1,
     };
+  }
+
+  // Single-balance layout (ESOFT): one Debit/Credit pair, no Opening/Movement/
+  // Closing split. Alias that one balance to MOVEMENT (drives the P&L) and
+  // CLOSING (drives the BS) — but leave OPENING empty, so the tool correctly
+  // treats this as a single period and does NOT fabricate a prior-year column
+  // (meta.hasOpening keys off opening balances).
+  if (cols.pairCount === 1) {
+    const only = { debit: debitCols[0], credit: creditCols[0] };
+    cols.pairs.opening  = { debit: -1, credit: -1 };
+    cols.pairs.movement = { ...only };
+    cols.pairs.closing  = { ...only };
+    cols.singleBalance = true;
+    return cols;
   }
 
   // Fallback: infer six numeric columns to the right of Type if Debit/Credit
@@ -429,6 +478,30 @@ function groupFromCode(code) {
   const m = /^\s*([1-8])\d*/.exec(String(code || ""));
   return m ? m[1] : null;
 }
+
+// ESOFT (.xlsx) uses a NUMERIC "Type" column as the category (e.g. 100, 320,
+// 900) rather than a word ("Asset") or a 1-digit group row. Map ESOFT's Type
+// (by its leading digit / range) onto the tool's 1–8 group scheme so the normal
+// classify() rules place the account. Ranges per the firm's ESOFT chart:
+//   1xx → Fixed assets            → group 1
+//   2xx → Investments / non-current & current assets → group 2 (current assets)
+//   3xx → Current assets (incl. 320 loan receivable, 350 bank) → group 2
+//   4xx → Liabilities (400 current, 420 loans payable) → group 3
+//   6xx → Equity                 → group 4
+//   7xx → Income                 → group 5
+//   9xx → Expenses               → group 7
+// Returns a "1".."8" string, or null if the Type code isn't recognised.
+function groupFromEsoftType(typeCode) {
+  const n = parseInt(String(typeCode || "").trim(), 10);
+  if (!Number.isFinite(n)) return null;
+  if (n >= 100 && n < 200) return "1";   // fixed assets
+  if (n >= 200 && n < 400) return "2";   // investments + current assets (incl. 320 loans recv, 350 bank)
+  if (n >= 400 && n < 600) return "3";   // liabilities (400 current, 420 loans payable)
+  if (n >= 600 && n < 700) return "4";   // equity
+  if (n >= 700 && n < 800) return "5";   // income
+  if (n >= 800 && n < 1000) return "7";  // expenses (8xx/9xx)
+  return null;
+}
 function isRollupRow(code, name) {
   const probe = `${name} ${code}`.trim();
   return ROLLUP_PATTERNS.some(re => re.test(probe));
@@ -440,7 +513,9 @@ function cellStr(v) {
 }
 
 function matchesAny(cell, synonyms) {
-  const c = cell.replace(/\s+/g, " ").trim();
+  // cell may be undefined when a row array is SPARSE (Excel exports with blank/
+  // merged header cells produce holes that Array.map preserves) — coerce safely.
+  const c = cellStr(cell).replace(/\s+/g, " ").trim().toLowerCase();
   if (!c) return false;
   return synonyms.some(s => c === s || c.startsWith(s + " ") || c.endsWith(" " + s) || c.includes(" " + s + " "));
 }
@@ -481,6 +556,10 @@ const TYPE_MAP = {
   liability: "Liability", expenditure: "Expenditure", expense: "Expenditure",
   income: "Income", revenue: "Income", header: "Header",
   capital: "Capital", equity: "Capital",
+  // Cycom subtotal rows carry a Type like "Total"/"Subtotal" — treat them as
+  // section headers (which the parser skips), so they never count as postings
+  // even if their label somehow slips past the rollup patterns.
+  total: "Header", subtotal: "Header", "sub total": "Header",
 };
 
 export function normalizeType(type) {
@@ -1215,10 +1294,12 @@ export function exportWorkbook(model, filename) {
 function exportTitle(model) {
   return stripExt(state.fileName) || "Financial Statements";
 }
-/** Filesystem-safe base derived from the export title. */
+/** Filesystem-safe base for export filenames. Fixed "TB" prefix — the uploaded
+ *  file's name is intentionally NOT included (exports are named e.g.
+ *  TB_balance_sheet.pdf / TB_financial_statements.xlsx). The on-page PDF title
+ *  still shows the full name via exportTitle(). */
 function safeFileBase(model) {
-  return (exportTitle(model) || "statements")
-    .replace(/[^\w\d-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 40) || "statements";
+  return "TB";
 }
 /** Drop a trailing .xlsx/.xls/.csv extension from a filename for display. */
 function stripExt(name) {
@@ -1519,27 +1600,119 @@ async function handleFile(file, slot) {
     runMapping();
   } catch (err) {
     console.error("TB Ratio Tool: parse failed", err);
-    const msg = err instanceof ParseError ? err.message : "Could not read this file. Make sure it is a trial balance sheet export (.xlsx or .csv).";
+    const msg = err instanceof ParseError ? err.message : "Could not read this file. Make sure it is a trial balance sheet export (.xlsx, .xls or .csv).";
     status.innerHTML = errorBanner(escapeHtml(msg));
   }
 }
 
-/** Read a File into an array-of-arrays via SheetJS (xlsx or csv). */
+/**
+ * Read a File into an array-of-arrays. Handles the range of things "trial
+ * balance export" turns out to mean in practice:
+ *   • .xlsx / genuine binary .xls (BIFF)  → SheetJS from the raw bytes
+ *   • legacy .xls that is really an HTML TABLE with an .xls extension (common
+ *     from old accounting tools like Cycom) → parsed via the browser's own
+ *     DOMParser, independent of SheetJS's (limited) HTML support
+ *   • .csv / tab-delimited mislabelled .xls → SheetJS string read
+ * We try binary first, then sniff the text for HTML, then fall back to a string
+ * read. A single clear error is thrown only if every strategy fails.
+ */
 function readSheet(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = e => {
-      try {
-        const data = new Uint8Array(e.target.result);
-        const wb = XLSX.read(data, { type: "array" });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: true, raw: true });
-        resolve(aoa);
-      } catch (err) { reject(err); }
-    };
     reader.onerror = () => reject(new Error("File read error"));
+    reader.onload = e => {
+      const bytes = new Uint8Array(e.target.result);
+
+      // Sniff the leading bytes to route to the right reader FIRST. This matters
+      // because SheetJS, handed HTML, grabs the FIRST <table> (often a layout /
+      // report-header table), not the data grid — so for HTML we parse it
+      // ourselves (largest table) instead of letting SheetJS pick wrong.
+      const text = bytesToText(bytes);
+      const head = text.slice(0, 1000).toLowerCase();
+      const looksHtml = head.includes("<table") || head.includes("<html") ||
+                        head.includes("<tr") || head.includes("<!doctype html");
+
+      // Strategy A — HTML masquerading as .xls (legacy tools like Cycom).
+      if (looksHtml) {
+        try {
+          const aoa = htmlTableToAoa(text);
+          if (aoa && aoa.length) return resolve(aoa);
+        } catch (_) { /* fall through */ }
+      }
+
+      // Strategy B — binary workbook (.xlsx or real BIFF .xls).
+      try {
+        const aoa = sheetToAoa(XLSX.read(bytes, { type: "array" }));
+        if (aoa && aoa.length) return resolve(aoa);
+      } catch (_) { /* fall through */ }
+
+      // Strategy C — delimited text (CSV / TSV) via SheetJS string read.
+      // Guard: don't run on HTML (already tried) — CSV read on markup yields junk.
+      if (!looksHtml) {
+        try {
+          const aoa = sheetToAoa(XLSX.read(text, { type: "string" }));
+          if (aoa && aoa.length) return resolve(aoa);
+        } catch (_) { /* fall through */ }
+      }
+
+      reject(new ParseError(
+        "Could not read this file. Supported: Excel (.xlsx, .xls) or CSV trial-balance " +
+        "exports. If this is from a legacy tool, try re-saving it as .xlsx or .csv."));
+    };
     reader.readAsArrayBuffer(file);
   });
+}
+
+/** Workbook → array-of-arrays of the first sheet. */
+function sheetToAoa(wb) {
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  if (!ws) return [];
+  return XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: true, raw: true });
+}
+
+/** Decode bytes to text, honouring a UTF-16/UTF-8 BOM if present (legacy .xls
+ *  HTML exports are often UTF-16). Falls back to UTF-8. */
+function bytesToText(bytes) {
+  try {
+    if (bytes[0] === 0xFF && bytes[1] === 0xFE) return new TextDecoder("utf-16le").decode(bytes);
+    if (bytes[0] === 0xFE && bytes[1] === 0xFF) return new TextDecoder("utf-16be").decode(bytes);
+    return new TextDecoder("utf-8").decode(bytes);
+  } catch (_) {
+    // Last resort: latin1-ish manual decode.
+    let s = ""; for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+    return s;
+  }
+}
+
+/**
+ * Parse an HTML table (from an HTML-disguised .xls) into an array-of-arrays.
+ * Uses DOMParser (always available in-browser). Picks the LARGEST table on the
+ * page (the data grid, not a header/layout table). colspan is expanded to blank
+ * cells; rowspan is approximated by leaving lower cells blank (fine for a TB —
+ * the parser keys on the header row + per-row codes, not merged cells).
+ */
+function htmlTableToAoa(text) {
+  const doc = new DOMParser().parseFromString(text, "text/html");
+  const tables = [...doc.querySelectorAll("table")];
+  if (!tables.length) return [];
+  // Largest by cell count = the real data table.
+  let best = tables[0], bestCells = -1;
+  for (const t of tables) {
+    const n = t.querySelectorAll("td,th").length;
+    if (n > bestCells) { best = t; bestCells = n; }
+  }
+  const aoa = [];
+  for (const tr of best.querySelectorAll("tr")) {
+    const row = [];
+    for (const cell of tr.querySelectorAll("td,th")) {
+      const span = Math.max(1, parseInt(cell.getAttribute("colspan") || "1", 10) || 1);
+      const val = cell.textContent.replace(/ /g, " ").trim();
+      row.push(val);
+      for (let k = 1; k < span; k++) row.push("");   // expand colspan → blanks
+    }
+    aoa.push(row);
+  }
+  return aoa;
 }
 
 // ---- Mapping + render ----------------------------------------
@@ -1591,7 +1764,14 @@ function render() {
 
     <div class="tbr-actions">
       <button class="tbr-btn tbr-btn-primary" id="tbr-export">Export to .xlsx</button>
-      <button class="tbr-btn tbr-btn-ghost" id="tbr-pdf">Download PDF</button>
+      <div class="tbr-pdf-menu" id="tbr-pdf-menu">
+        <button class="tbr-btn tbr-btn-ghost" id="tbr-pdf" aria-haspopup="true" aria-expanded="false">Download PDF ▾</button>
+        <div class="tbr-pdf-dropdown" role="menu" hidden>
+          <button type="button" role="menuitem" data-pdf-scope="all">Both statements</button>
+          <button type="button" role="menuitem" data-pdf-scope="bs">Balance Sheet only</button>
+          <button type="button" role="menuitem" data-pdf-scope="pnl">P&amp;L only</button>
+        </div>
+      </div>
       <label class="tbr-btn tbr-btn-ghost">
         ${state.priorFileName ? "Replace comparative TB" : "Add comparative TB"}
         <input type="file" id="tbr-file-prior" accept=".xlsx,.xls,.csv" hidden>
@@ -1604,7 +1784,7 @@ function render() {
 
   wirePriorUpload(out);
   out.querySelector("#tbr-export")?.addEventListener("click", onExport);
-  out.querySelector("#tbr-pdf")?.addEventListener("click", onExportPdf);
+  wirePdfMenu(out);
   wireMappingPanel(out);
 
   // "Clear saved mappings" link lives in the #tbr-status banner.
@@ -2139,45 +2319,93 @@ function onExport() {
  * full page — only possible for a long commentary card — falls back to slicing
  * just that one block.)
  */
-async function onExportPdf() {
+/** Wire the "Download PDF ▾" split-button dropdown: toggle open/close, pick a
+ *  scope, and close on outside-click / Escape. */
+function wirePdfMenu(out) {
+  const menu = out.querySelector("#tbr-pdf-menu");
+  if (!menu) return;
+  const trigger = menu.querySelector("#tbr-pdf");
+  const dropdown = menu.querySelector(".tbr-pdf-dropdown");
+  const close = () => { dropdown.hidden = true; trigger.setAttribute("aria-expanded", "false"); };
+  const open = () => { dropdown.hidden = false; trigger.setAttribute("aria-expanded", "true"); };
+
+  trigger.addEventListener("click", (e) => {
+    e.stopPropagation();
+    dropdown.hidden ? open() : close();
+  });
+  dropdown.querySelectorAll("[data-pdf-scope]").forEach(item => {
+    item.addEventListener("click", () => {
+      close();
+      onExportPdf(item.getAttribute("data-pdf-scope"));
+    });
+  });
+  // Close on outside click / Escape.
+  document.addEventListener("click", (e) => { if (!menu.contains(e.target)) close(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
+}
+
+// Export the statements to PDF. `scope`:
+//   "all" → both Balance Sheet and P&L (default)
+//   "bs"  → Balance Sheet only (statement table)
+//   "pnl" → Profit & Loss only (statement table)
+async function onExportPdf(scope = "all") {
   const status = document.getElementById("tbr-status");
-  const btn = document.getElementById("tbr-pdf");
+  const menuBtn = document.getElementById("tbr-pdf");   // the single "Download PDF ▾" button
+  const btnLabel = menuBtn ? menuBtn.textContent : "Download PDF ▾";
   const root = document.getElementById("tbr-statements");
   if (!root) return;
+  let stage = null;
   try {
     await loadVendor();
     if (!window.jspdf || !window.html2canvas) throw new Error("PDF engine not loaded.");
-    if (btn) { btn.disabled = true; btn.textContent = "Preparing PDF…"; }
+    if (menuBtn) { menuBtn.disabled = true; menuBtn.textContent = "Preparing PDF…"; }
 
-    // Both statements live in tab panes, one of which is hidden on screen.
-    // html2canvas won't render a hidden element, so temporarily reveal every pane
-    // for the capture, then restore the on-screen tab state afterwards.
-    const panes = Array.from(root.querySelectorAll(".tbr-tabpane"));
-    const wasHidden = panes.map(p => p.hidden);
-    panes.forEach(p => { p.hidden = false; });
+    // Which panes to include. "all" → both; "bs"/"pnl" → just that one.
+    const wantPanes = Array.from(root.querySelectorAll(".tbr-tabpane"))
+      .filter(p => scope === "all" || p.getAttribute("data-pane") === scope);
 
-    // Build the ordered list of result blocks (skipping the mapping panels). For
-    // each pane: a section heading (the .tbr-group-title), then every .tbr-card
-    // inside its .tbr-group. The .tbr-mapping card lives OUTSIDE .tbr-group, so it
-    // is naturally excluded.
-    const blocks = []; // { type: "heading", text } | { type: "card", el }
-    for (const pane of panes) {
+    // Build the ordered list of result blocks by CLONING the target elements into
+    // an OFF-SCREEN staging container, then capturing from there. Cloning (rather
+    // than un-hiding the live hidden pane) means the visible page never reflows /
+    // scrolls during export — no "page jumping". The scope also controls depth:
+    //   • bs / pnl → the STATEMENT TABLE ONLY (the first .tbr-card = the numbers)
+    //   • all      → every result card (statement + ratios + comments) per pane
+    stage = document.createElement("div");
+    stage.className = "tbr-pdf-stage";
+    // Fixed on-screen WIDTH so captured tables match the normal layout, but
+    // positioned far off-screen so the user never sees it. CRITICAL: append it
+    // INSIDE #section-tbratio (not document.body) so the tool's scoped CSS
+    // (#section-tbratio .tbr-card / .tbr-table / .tbr-statement …) applies to the
+    // clones — otherwise the captured cards render unstyled and the PDF looks
+    // nothing like the on-screen tool.
+    stage.style.cssText =
+      "position:fixed; left:-10000px; top:0; width:900px; background:#fff; padding:0; z-index:-1;";
+    (document.getElementById(SECTION_ID) || document.body).appendChild(stage);
+
+    const blocks = []; // { type:"heading", text } | { type:"card", el }
+    for (const pane of wantPanes) {
       const group = pane.querySelector(".tbr-group");
       if (!group) continue;
       const title = group.querySelector(".tbr-group-title");
       blocks.push({ type: "heading", text: title ? title.textContent.trim() : "" });
-      group.querySelectorAll(":scope > .tbr-card").forEach(el => blocks.push({ type: "card", el }));
+      let cards = Array.from(group.querySelectorAll(":scope > .tbr-card"));
+      // Drop the chart card: it's a <canvas> that doesn't survive cloning, so it
+      // captures as an empty box in the PDF. The chart only visualises the ratio
+      // values already tabulated in the export, so nothing is lost by omitting it.
+      cards = cards.filter(el => !el.querySelector("canvas"));
+      // Statement-only for a scoped export: keep just the first card (the table).
+      const wanted = (scope === "all") ? cards : cards.slice(0, 1);
+      for (const el of wanted) {
+        const clone = el.cloneNode(true);
+        stage.appendChild(clone);
+        blocks.push({ type: "card", el: clone });
+      }
     }
 
-    // Capture every card to its own canvas before we touch the PDF (async work
-    // done up front, while the panes are revealed).
-    try {
-      for (const b of blocks) {
-        if (b.type !== "card") continue;
-        b.canvas = await window.html2canvas(b.el, { scale: 2, backgroundColor: "#ffffff", logging: false });
-      }
-    } finally {
-      panes.forEach((p, i) => { p.hidden = wasHidden[i]; });
+    // Capture every cloned card to its own canvas.
+    for (const b of blocks) {
+      if (b.type !== "card") continue;
+      b.canvas = await window.html2canvas(b.el, { scale: 2, backgroundColor: "#ffffff", logging: false });
     }
 
     const { jsPDF } = window.jspdf;
@@ -2261,13 +2489,15 @@ async function onExportPdf() {
       }
     }
 
-    const safe = company.replace(/[^\w\d-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 40) || "statements";
-    doc.save(`${safe}_financial_statements.pdf`);
+    // Filename: shared "TB_<name>" base (see safeFileBase) + the scope suffix.
+    const suffix = scope === "bs" ? "balance_sheet" : scope === "pnl" ? "profit_and_loss" : "financial_statements";
+    doc.save(`${safeFileBase(state.model)}_${suffix}.pdf`);
   } catch (err) {
     console.error("TB Ratio Tool: PDF export failed", err);
     if (status) status.innerHTML = errorBanner("Could not generate the PDF. Try again, or use the .xlsx export.");
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = "Download PDF"; }
+    if (stage && stage.parentNode) stage.parentNode.removeChild(stage);  // remove off-screen clone
+    if (menuBtn) { menuBtn.disabled = false; menuBtn.textContent = btnLabel; }
   }
 }
 
@@ -2729,7 +2959,7 @@ const SHELL_HTML = `
         <line x1="12" y1="3" x2="12" y2="15"/>
       </svg>
       <p><strong>Drop a trial balance sheet here</strong> or click to choose a file</p>
-      <p class="tbr-hint">.xlsx or .csv &middot; the file is processed in your browser and never uploaded</p>
+      <p class="tbr-hint">.xlsx, .xls or .csv &middot; the file is processed in your browser and never uploaded</p>
       <input type="file" id="tbr-file" accept=".xlsx,.xls,.csv" hidden>
     </div>
 

@@ -10,12 +10,15 @@
 // Ported from valuation-tour.js, with two differences for this tool:
 //   - The tool's tabs are the BS / P&L map tabs (.tbr-map-tab),
 //     not valuation's .tab-btn — and there are no <details> accordions.
-//   - The page is EMPTY until a trial balance is uploaded: the mapping
-//     panel, statements, ratios and export buttons only render inside
-//     #tbr-output after a file is parsed. So steps that need that UI are
-//     flagged `requiresData`; the tour shows a gentle "upload first" card
-//     when the user reaches them with no TB loaded, and spotlights the
-//     real elements once a TB is in.
+//   - The page is EMPTY until a trial balance is uploaded: the Clear button,
+//     mapping panel, statements, ratios and export controls only render inside
+//     #tbr-output (and the header) after a file is parsed. So steps that need
+//     that UI are flagged `requiresData`; the tour shows a gentle "upload first"
+//     card when the user reaches them with no TB loaded, and spotlights the real
+//     elements once a TB is in.
+//
+// Step count is derived from STEPS.length (shown as "Step N of M"), so adding or
+// removing steps updates the progress automatically — no hardcoded totals.
 //
 // No build step, no CDN, no framework — drop-in ES module.
 // ============================================================
@@ -44,11 +47,18 @@ const STEPS = [
   },
   {
     title: "Start by uploading",
-    body: "Drop a trial-balance export here, or click to choose a file (.xlsx or .csv). The tool reads it on the spot — the figures never leave this page.",
+    body: "Drop a trial-balance export here, or click to choose a file (.xlsx, .xls or .csv). It reads several layouts automatically — E-Soft, ESOFT and legacy Cycom exports — so you can usually just upload and go. The figures never leave this page.",
     anchor: "#tbr-drop",
     placement: "bottom",
   },
   // ---- Everything below needs a parsed TB in #tbr-output ----
+  {
+    title: "Clear or start over",
+    body: "Once a trial balance is loaded, this button clears it and returns you to the upload screen so you can drop a new file. Your manual mapping tweaks for a client are remembered and re-applied next time you upload that same trial balance.",
+    anchor: "#tbr-clear-tb",
+    requiresData: true,
+    placement: "bottom",
+  },
   {
     title: "Review the mapping",
     body: "Each account is sorted onto a statement line automatically. This panel shows that mapping so you can check it — and fix anything the tool guessed wrong.",
@@ -68,6 +78,14 @@ const STEPS = [
   {
     title: "Drag to re-map",
     body: "Every account is a chip you can drag onto a different line — even across to the other statement. The statements and ratios recalculate instantly when you drop.",
+    anchor: ".tbr-bucket",
+    tab: "bs",
+    requiresData: true,
+    placement: "right",
+  },
+  {
+    title: "Move several at once",
+    body: "Click accounts to select them (Ctrl or Cmd-click to add more, Shift-click for a range), then drag any one of them to move the whole selection to a line together. Click empty space to clear the selection.",
     anchor: ".tbr-bucket",
     tab: "bs",
     requiresData: true,
@@ -130,16 +148,32 @@ const STEPS = [
     placement: "top",
   },
   {
-    title: "Export your work",
-    body: "Download the statements and ratios as an Excel workbook, or as a branded PDF. You can also add a comparative trial balance to fill the prior-year column.",
+    title: "Export to Excel",
+    body: "Export the full workbook — both statements plus all the ratios and comments — as an .xlsx file.",
     anchor: "#tbr-export",
     tab: "pnl",
     requiresData: true,
     placement: "top",
   },
   {
+    title: "Export to PDF",
+    body: "Open this menu to download a PDF: both statements together, the Balance Sheet only, or the Profit & Loss only. The single-statement options export just that statement's table — handy for sharing one page.",
+    anchor: "#tbr-pdf-menu",
+    tab: "pnl",
+    requiresData: true,
+    placement: "top",
+  },
+  {
+    title: "Add a comparative year",
+    body: "Load a second trial balance to fill the prior-year column and compare the two periods side by side. Once loaded, its file name shows here with a link to remove it.",
+    anchor: '#tbr-output label.tbr-btn-ghost',
+    tab: "pnl",
+    requiresData: true,
+    placement: "top",
+  },
+  {
     title: "You're ready",
-    body: "That's the workflow: upload a trial balance, check the mapping, then read off the statements and ratios. You can replay this tour any time from the Tutorial button.",
+    body: "That's the workflow: upload a trial balance, check the mapping, then read off the statements and ratios and export them. You can replay this tour any time from the Tutorial button.",
     center: true,
   },
 ];
