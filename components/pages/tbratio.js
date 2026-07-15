@@ -3036,16 +3036,25 @@ async function onExportPdf(scope = "all") {
     if (hiddenPanes.length) {
       // Force a synchronous layout so the canvases now have real dimensions.
       void root.offsetHeight;
-      // Repaint each canvas chart into its now-sized canvas — resize() on the
-      // instance AND a window resize event (Chart.js's responsive listener), so a
-      // chart first created while hidden still recovers and yields a real
-      // (non-blank) canvas bitmap.
-      for (const ch of [_pnlChart, _pnlWaterfallChart]) { try { ch?.resize(); ch?.update("none"); } catch (_) {} }
-      try { window.dispatchEvent(new Event("resize")); } catch (_) {}
-      // Two frames + a tick: let layout settle and Chart.js finish drawing before
-      // chartElementToImage() reads canvas.toDataURL() / the SVG's laid-out size.
-      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-      await new Promise(r => setTimeout(r, 40));
+      // Repaint each P&L canvas chart. Resizing with NO args makes Chart.js
+      // re-measure the (just-revealed, off-screen) container — which races: if the
+      // measurement hasn't settled, the canvas stays at its tiny hidden-default
+      // size and toDataURL() captures a "tiny mess in the corner". So resize to
+      // EXPLICIT pixels taken from the chart's own wrapper (.tbr-chartwrap is a
+      // fixed 260px tall; its width is now real), which is deterministic — no race.
+      for (const ch of [_pnlChart, _pnlWaterfallChart]) {
+        if (!ch) continue;
+        try {
+          const wrap = ch.canvas?.parentElement;
+          const w = Math.round(wrap?.clientWidth || 860);
+          const h = Math.round(wrap?.clientHeight || 260);
+          ch.resize(w, h);
+          ch.update("none");
+        } catch (_) {}
+      }
+      // One frame for Chart.js to finish drawing before chartElementToImage()
+      // reads canvas.toDataURL() / the SVG's laid-out size.
+      await new Promise(r => requestAnimationFrame(r));
     }
 
     // Off-screen staging container — only TEXT cards (tables/ratios/comments) get
@@ -3060,17 +3069,13 @@ async function onExportPdf(scope = "all") {
       "position:fixed; left:-10000px; top:0; width:900px; background:#fff; padding:0; z-index:-1;";
     (document.getElementById(SECTION_ID) || document.body).appendChild(stage);
 
-    // Build the block list. Cards are handled by what they contain:
-    //   • CANVAS chart (P&L profitability, waterfall) → rasterised DIRECTLY to a
-    //     PNG and placed via jsPDF.addImage — html2canvas can't clone a canvas.
-    //     These cards are ONLY the chart, so nothing else is lost.
-    //   • SVG chart card (BS composition, gauge) → the card also carries essential
-    //     HTML around the SVG (headline number + status, legend, insolvency note).
-    //     So we clone the WHOLE card, swap the live <svg> for a raster <img> of it
-    //     (html2canvas mangles inline SVG, but handles <img> + HTML fine), and
-    //     html2canvas the clone — capturing chart AND its surrounding data.
-    //   • TEXT card (tables, ratios, comments) → html2canvas the clone as-is.
-    const blocks = []; // {type:"heading",text} | {type:"text",el} | {type:"chart",img}
+    // Build the block list. Every card is cloned WHOLE (keeping its title,
+    // subtitle, legend, notes); any chart element inside (canvas OR svg) is
+    // rasterised and swapped for a static <img>, then the clone goes through
+    // html2canvas. html2canvas can't reproduce a live canvas or inline SVG, but
+    // renders an <img> + surrounding HTML reliably — so every chart card keeps its
+    // full context and they all place identically. Text cards just clone as-is.
+    const blocks = []; // {type:"heading",text} | {type:"text",el}
     for (const pane of wantPanes) {
       const group = pane.querySelector(".tbr-group");
       if (!group) continue;
@@ -3114,7 +3119,7 @@ async function onExportPdf(scope = "all") {
     // Capture every TEXT card (incl. SVG-chart cards) to its own canvas.
     for (const b of blocks) {
       if (b.type !== "text") continue;
-      b.canvas = await window.html2canvas(b.el, { scale: 2, backgroundColor: "#ffffff", logging: false });
+      b.canvas = await window.html2canvas(b.el, { scale: 1.5, backgroundColor: "#ffffff", logging: false });
     }
 
     const { jsPDF } = window.jspdf;
