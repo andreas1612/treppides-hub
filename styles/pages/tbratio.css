@@ -534,12 +534,126 @@
   height: 260px;
 }
 
+/* Sub-caption under a chart title (what the chart shows / how to read it). */
+#section-tbratio .tbr-chart-sub {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  text-align: center;
+  margin: -6px auto 14px;
+  max-width: 620px;
+  line-height: 1.4;
+}
+
+/* ---- BS-1: Assets vs Financing composition (SVG) ---- */
+#section-tbratio .tbr-bs-comp-svg {
+  display: block;
+  width: 100%;
+  max-width: 620px;
+  height: auto;
+  margin: 0 auto;
+}
+#section-tbratio .tbr-bs-comp-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 18px;
+  margin: 12px auto 0;
+  max-width: 620px;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+#section-tbratio .tbr-bs-comp-leg { display: inline-flex; align-items: center; gap: 6px; }
+#section-tbratio .tbr-bs-comp-leg i {
+  width: 12px; height: 12px; border-radius: 3px; display: inline-block; flex: none;
+}
+#section-tbratio .tbr-bs-comp-leg b { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+#section-tbratio .tbr-bs-comp-leg.neg i { border: 1px solid #c0392b; }
+#section-tbratio .tbr-bs-comp-leg.neg b { color: #c0392b; }
+
+#section-tbratio .tbr-bs-comp-note {
+  margin: 10px auto 0;
+  max-width: 620px;
+  padding: 8px 12px;
+  font-size: 12.5px;
+  color: #8a2b2b;
+  background: #fbeaea;
+  border: 1px solid #f0cccc;
+  border-radius: var(--radius);
+  text-align: center;
+}
+
+/* ---- BS-2: current-ratio liquidity gauge (SVG bullet) ---- */
+#section-tbratio #tbr-bs-gauge { text-align: center; }
+#section-tbratio .tbr-gauge-headline {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+#section-tbratio .tbr-gauge-value {
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1;
+}
+#section-tbratio .tbr-gauge-prior {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+#section-tbratio .tbr-gauge-svg {
+  display: block;
+  width: 100%;
+  max-width: 620px;
+  height: auto;
+  margin: 0 auto;
+}
+#section-tbratio .tbr-gauge-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 18px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+#section-tbratio .tbr-gauge-legend span { display: inline-flex; align-items: center; gap: 6px; }
+#section-tbratio .tbr-gauge-legend i {
+  width: 12px; height: 12px; border-radius: 3px; display: inline-block;
+}
+
 /* ---- Buttons / actions ---- */
 #section-tbratio .tbr-actions {
   display: flex;
   gap: 12px;
   margin: 20px 0 8px;
   flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+/* ---- Export file-name field ---- */
+#section-tbratio .tbr-filename {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+#section-tbratio .tbr-filename-label {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+#section-tbratio .tbr-filename-input {
+  min-width: 220px;
+  padding: 9px 12px;
+  font-size: 14px;
+  color: var(--text-primary);
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: border-color var(--transition);
+}
+#section-tbratio .tbr-filename-input:focus {
+  outline: none;
+  border-color: var(--accent);
 }
 #section-tbratio .tbr-btn {
   display: inline-flex;

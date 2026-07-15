@@ -92,6 +92,15 @@ const rules = [
   // ---- Balance Sheet ----
   { target: "intangibleAssets", group: "1", name: /intangible|goodwill|trademark|patent|software/i },
   { target: "tangibleAssets",   group: "1" },
+  // Bank & Cash by CODE RANGE — the authoritative signal per the firm's charts.
+  // In the actual TB files these accounts are typed plain "Asset" and often named
+  // "FBME…"/"Eurobank…" (no "bank"/"cash" word), so name/type alone would drop
+  // them into Trade Debtors. Each rule is format-scoped so the two charts' code
+  // notations never cross:
+  //   • Cycom/general: the 27xx range (2711 Cash … 2780) is bank & cash.
+  //   • ESOFT (.xlsx): the 350xxx range (350010 bank … 350020 petty cash).
+  { target: "bank",         group: "2", format: "cycom", code: /^27\d/ },
+  { target: "bank",         group: "2", format: "esoft", code: /^350\d/ },
   { target: "bank",         group: "2", name: /bank|cash|petty cash/i },
   { target: "tradeDebtors", group: "2", type: "Receivable" },
   { target: "tradeDebtors", group: "2", name: /debtor|receivable/i },
@@ -178,11 +187,21 @@ const EPSILON = 0.01; // currency rounding tolerance for balance checks
 //     as roll-ups (ROLLUP_PATTERNS + Type=Total→Header) so they never post.
 //   • ESOFT (.xlsx) — a DIFFERENT layout: Account / Name / Type + a SINGLE
 //     Debit/Credit balance pair (not three), no group-header rows, and a
-//     NUMERIC "Type" column (100/200/320/420/600/710/900) that encodes the
-//     category. Detected by pairCount===1 (cols.singleBalance): the one balance
-//     feeds both movement (P&L) and closing (BS), it's treated as single-period
-//     (no fabricated prior), the group comes from groupFromEsoftType(), and the
+//     NUMERIC "Type" column (100/200/320/420/600/710/720/900/990…) that encodes
+//     the category. Detected by pairCount===1 (cols.singleBalance): the one
+//     balance feeds both movement (P&L) and closing (BS), it's treated as
+//     single-period (no fabricated prior), the group comes from
+//     groupFromEsoftType() (which is consulted ONLY for this format — 720=cost of
+//     sales, 990=taxation are broken out per the firm's ESOFT chart), and the
 //     repeated page-break header + "Number of Accounts" footer are skipped.
+//
+// The two formats use DISTINCT code notations and never share resolution: the
+// numeric-Type → group map (groupFromEsoftType) fires only for a detected ESOFT
+// sheet; Cycom/general resolves the group from a 1-digit header row or the
+// account code's leading digit (groupFromCode). Sub-category rules that key on a
+// code RANGE (e.g. bank & cash — Cycom 27xx vs ESOFT 350xxx) are format-scoped in
+// the mapping rules (rule.format), so one chart's codes are never tested against
+// the other's.
 //
 // We locate the table by its header, resolve columns by header text (not fixed
 // index), skip blank + roll-up rows, and derive figures from posting rows only.
@@ -325,6 +344,10 @@ export function parseTrialBalance(aoa) {
       name,
       type: normalizeType(type),
       rawType: type,
+      // Which format this row came from, so code-notation-specific rules (e.g.
+      // the bank code ranges, which differ between the two charts) can scope
+      // themselves and never cross formats. ESOFT = the single-balance layout.
+      format: columns.singleBalance ? "esoft" : "cycom",
       groupCode: derivedGroup,
       groupName: derivedGroupName,
       opening, movement, closing,
@@ -480,25 +503,37 @@ function groupFromCode(code) {
 }
 
 // ESOFT (.xlsx) uses a NUMERIC "Type" column as the category (e.g. 100, 320,
-// 900) rather than a word ("Asset") or a 1-digit group row. Map ESOFT's Type
-// (by its leading digit / range) onto the tool's 1–8 group scheme so the normal
-// classify() rules place the account. Ranges per the firm's ESOFT chart:
-//   1xx → Fixed assets            → group 1
-//   2xx → Investments / non-current & current assets → group 2 (current assets)
-//   3xx → Current assets (incl. 320 loan receivable, 350 bank) → group 2
-//   4xx → Liabilities (400 current, 420 loans payable) → group 3
-//   6xx → Equity                 → group 4
-//   7xx → Income                 → group 5
-//   9xx → Expenses               → group 7
+// 900) rather than a word ("Asset") or a 1-digit group row. This is a code
+// notation SPECIFIC TO THE ESOFT FORMAT — never applied to Cycom/general codes
+// (those use groupFromCode's leading digit). It's only consulted when the parser
+// has detected a single-balance ESOFT sheet (columns.singleBalance).
+//
+// Map ESOFT's Type onto the tool's 1–8 group scheme so the normal classify()
+// rules place the account. Ranges transcribed from the firm's ESOFT chart of
+// accounts ("E-soft - Chart of Accounts.xlsx" legend + HD section headers):
+//   1xx → Fixed assets                                   → group 1
+//   2xx → Investments (200) / non-current assets         → group 2 (current assets)
+//   3xx → Current assets (incl. 320 debtors, 350 bank)   → group 2
+//   4xx → Liabilities (400 current, 420 creditors, 460 accruals, 490 VAT) → group 3
+//   5xx → Long-term liabilities (500/510 long-term loans) → group 3 (name rules
+//         + GROUP4_SPLIT still split out the long-term loan line where present)
+//   6xx → Capital & reserves (610 equity, 620 retained)  → group 4
+//   710 → Income                                          → group 5
+//   720 → COST OF SALES                                   → group 6  (NOT income)
+//   730 → Other income                                    → group 5
+//   9xx → Expenses (900/910/920 admin+selling, 980 finance) → group 7
+//   990 → TAXATION                                        → group 8  (NOT expenses)
 // Returns a "1".."8" string, or null if the Type code isn't recognised.
 function groupFromEsoftType(typeCode) {
   const n = parseInt(String(typeCode || "").trim(), 10);
   if (!Number.isFinite(n)) return null;
   if (n >= 100 && n < 200) return "1";   // fixed assets
-  if (n >= 200 && n < 400) return "2";   // investments + current assets (incl. 320 loans recv, 350 bank)
-  if (n >= 400 && n < 600) return "3";   // liabilities (400 current, 420 loans payable)
-  if (n >= 600 && n < 700) return "4";   // equity
-  if (n >= 700 && n < 800) return "5";   // income
+  if (n >= 200 && n < 400) return "2";   // investments + current assets (incl. 320 debtors, 350 bank)
+  if (n >= 400 && n < 600) return "3";   // liabilities (400 current, 500 long-term)
+  if (n >= 600 && n < 700) return "4";   // capital & reserves (equity + retained)
+  if (n === 720)           return "6";   // cost of sales (before the 7xx income range)
+  if (n >= 700 && n < 800) return "5";   // income (710) + other income (730)
+  if (n === 990)           return "8";   // taxation (before the 9xx expenses range)
   if (n >= 800 && n < 1000) return "7";  // expenses (8xx/9xx)
   return null;
 }
@@ -700,7 +735,14 @@ export function classify(row, config) {
 }
 
 function ruleMatches(rule, row) {
+  // format — restrict a rule to one export format ("esoft" | "cycom"). Used by
+  // rules that key on a format-specific code notation (e.g. bank code ranges),
+  // so the two charts' distinct code schemes can never be matched against each other.
+  if (rule.format !== undefined && String(rule.format) !== String(row.format)) return false;
   if (rule.group !== undefined && String(rule.group) !== String(row.groupCode)) return false;
+  // code — regex tested against the account CODE (not the name). Enables routing
+  // by code range where a chart encodes the sub-category in the code itself.
+  if (rule.code !== undefined && !(rule.code instanceof RegExp ? rule.code.test(String(row.code || "")) : String(row.code || "").startsWith(String(rule.code)))) return false;
   if (rule.type !== undefined) {
     const types = Array.isArray(rule.type) ? rule.type : [rule.type];
     if (!types.some(t => String(t).toLowerCase() === String(row.type).toLowerCase())) return false;
@@ -1294,12 +1336,41 @@ export function exportWorkbook(model, filename) {
 function exportTitle(model) {
   return stripExt(state.fileName) || "Financial Statements";
 }
-/** Filesystem-safe base for export filenames. Fixed "TB" prefix — the uploaded
- *  file's name is intentionally NOT included (exports are named e.g.
- *  TB_balance_sheet.pdf / TB_financial_statements.xlsx). The on-page PDF title
- *  still shows the full name via exportTitle(). */
+/** Filesystem-safe base for export filenames. Priority:
+ *   1. the user's chosen export name (from the actions-row input), sanitised
+ *   2. the uploaded trial-balance filename (stripped of extension), sanitised
+ *   3. a fixed "TB" fallback
+ * A scope suffix (_balance_sheet / _profit_and_loss / _financial_statements) is
+ * still appended by the callers, so the three PDF variants + the xlsx stay
+ * distinguishable even when the user gives them all the same base name. */
 function safeFileBase(model) {
-  return "TB";
+  const chosen = sanitizeFileBase(state.exportName);
+  if (chosen) return chosen;
+  return defaultExportBase();
+}
+
+/** The default export base shown in (and used when the user clears) the file-name
+ *  input: the uploaded trial-balance filename, sanitised, or "TB" if none. */
+function defaultExportBase() {
+  return sanitizeFileBase(stripExt(state.fileName)) || "TB";
+}
+
+/** Make a string safe to use as a filename base: drop path separators and
+ *  characters illegal on Windows/macOS/Linux, collapse whitespace to underscores,
+ *  and cap the length. Returns "" if nothing usable remains (caller falls back). */
+function sanitizeFileBase(name) {
+  // Strip control chars (0x00–0x1f) without an in-regex control range (which is
+  // fragile to save round-trips); do it by char code, then handle the rest.
+  const noControl = Array.from(String(name || ""))
+    .filter(ch => ch.charCodeAt(0) >= 0x20)
+    .join("");
+  return noControl
+    .replace(/\.(xlsx|xls|csv|pdf)$/i, "")   // drop a trailing extension if the user typed one
+    .replace(/[<>:"/\\|?*]/g, "")             // chars reserved on Windows/macOS/Linux
+    .replace(/\s+/g, "_")                     // whitespace -> underscores
+    .replace(/_{2,}/g, "_")                   // collapse repeats
+    .replace(/^[_.]+|[_.]+$/g, "")            // trim leading/trailing _ or .
+    .slice(0, 100);
 }
 /** Drop a trailing .xlsx/.xls/.csv extension from a filename for display. */
 function stripExt(name) {
@@ -1317,6 +1388,7 @@ const state = {
   overrides: {},       // { rowIndex: targetId } user reassignments (current upload)
   fileName: null,
   priorFileName: null, // filename of the loaded comparative TB (null = none / opening-balance prior)
+  exportName: null,    // user-chosen base name for downloads (null = use the default: uploaded filename)
 };
 
 // ---- Trial-balance override persistence (localStorage) -------------------
@@ -1549,6 +1621,21 @@ function wirePriorUpload(out) {
   });
 }
 
+/**
+ * Wire the export file-name input. The user's raw text is held in state.exportName
+ * and only sanitised at download time (safeFileBase), so typing spaces/punctuation
+ * stays natural in the field. An empty field means "use the default" (the uploaded
+ * filename) — we store null so the placeholder shows through. Re-created inside
+ * #tbr-output every render, so this runs each render.
+ */
+function wireExportName(out) {
+  const input = out.querySelector("#tbr-export-name");
+  input?.addEventListener("input", e => {
+    const v = e.target.value;
+    state.exportName = v.trim() === "" ? null : v;
+  });
+}
+
 // Reject files larger than this before parsing. A normal E-Soft trial balance
 // is well under 1 MB; this guards against an oversized/crafted file hanging or
 // OOM-ing the user's tab (self-DoS — the file is parsed in-browser).
@@ -1577,6 +1664,7 @@ async function handleFile(file, slot) {
       // period for the same client carries over.
       state.primary = parsed;
       state.fileName = file.name;
+      state.exportName = null; // default the export name to this new file's name
       state.overrides = loadOverrides(parsed);
       // Count of mappings restored from a previous period (for the notice
       // banner). Cleared once the user starts dragging, so the notice only
@@ -1748,6 +1836,7 @@ function render() {
         <section class="tbr-group">
           <h2 class="tbr-group-title">Balance Sheet</h2>
           ${renderBalanceSheet(m)}
+          ${renderBsCharts(m)}
           ${renderBalanceSheetRatios(m)}
         </section>
       </section>
@@ -1757,12 +1846,20 @@ function render() {
         <section class="tbr-group">
           <h2 class="tbr-group-title">Profit &amp; Loss</h2>
           ${renderStatement("Statement", m.pnl.lines, m)}
+          ${renderPnlWaterfallCard(m)}
           ${renderPnlRatios(m)}
         </section>
       </section>
     </div>
 
     <div class="tbr-actions">
+      <label class="tbr-filename" title="Base name for the downloaded files. A suffix (_balance_sheet / _profit_and_loss / _financial_statements) is added automatically.">
+        <span class="tbr-filename-label">File name</span>
+        <input type="text" id="tbr-export-name" class="tbr-filename-input"
+               value="${escapeHtml(state.exportName ?? defaultExportBase())}"
+               placeholder="${escapeHtml(defaultExportBase())}"
+               spellcheck="false" autocomplete="off" maxlength="100" />
+      </label>
       <button class="tbr-btn tbr-btn-primary" id="tbr-export">Export to .xlsx</button>
       <div class="tbr-pdf-menu" id="tbr-pdf-menu">
         <button class="tbr-btn tbr-btn-ghost" id="tbr-pdf" aria-haspopup="true" aria-expanded="false">Download PDF ▾</button>
@@ -1783,6 +1880,7 @@ function render() {
   `;
 
   wirePriorUpload(out);
+  wireExportName(out);
   out.querySelector("#tbr-export")?.addEventListener("click", onExport);
   wirePdfMenu(out);
   wireMappingPanel(out);
@@ -1793,8 +1891,11 @@ function render() {
     clearSavedOverrides();
   });
 
-  // Profitability bar chart (canvas is in the DOM now that innerHTML is set).
-  renderPnlChart(m);
+  // Charts (canvases are in the DOM now that innerHTML is set).
+  renderPnlChart(m);        // P&L: profitability ratios (existing)
+  renderBsCompositionChart(m); // BS: assets vs financing composition
+  renderBsGauge(m);         // BS: current-ratio liquidity gauge (SVG, no canvas)
+  renderPnlWaterfall(m);    // P&L: revenue → net profit waterfall
 
   // Reveal the header "Clear / New TB" button + compact the drop zone.
   updateHeaderControls();
@@ -1832,12 +1933,13 @@ function resetTool() {
   state.overrides = {};
   state.restoredCount = 0;
   state.fileName = null;
+  state.exportName = null;   // back to the default (next upload's filename)
   _mapTab = "bs";
   _search = "";
   _collapsed.clear();
   _selected.clear();
   _selectAnchor = null;
-  if (_pnlChart) { try { _pnlChart.destroy(); } catch (_) {} _pnlChart = null; }
+  destroyCharts();
   // Empty the results + status; the persistent drop zone stays wired (it lives
   // in the shell and was wired once in init), so the tool is ready for a new file.
   const out = document.getElementById("tbr-output");
@@ -1876,10 +1978,10 @@ function wireMappingPanel(out) {
         b.classList.toggle("active", b.getAttribute("data-maptab") === _mapTab));
       out.querySelectorAll(".tbr-tabpane").forEach(p =>
         p.hidden = p.getAttribute("data-pane") !== _mapTab);
-      // The profitability chart's canvas sits in the P&L pane; Chart.js can't
-      // size a canvas while its container is display:none, so nudge it to
-      // resize once the pane becomes visible.
-      if (_mapTab === "pnl" && _pnlChart) _pnlChart.resize();
+      // Chart.js can't size a canvas while its pane is display:none, so nudge the
+      // now-visible pane's charts to resize once it's shown.
+      // BS composition is SVG (auto-scales); only the canvas charts need a resize.
+      if (_mapTab === "pnl") { _pnlChart?.resize(); _pnlWaterfallChart?.resize(); }
     });
   });
 
@@ -2247,8 +2349,127 @@ function stopAutoScroll() {
   if (_autoScrollRAF != null) { cancelAnimationFrame(_autoScrollRAF); _autoScrollRAF = null; }
 }
 
-// Holds the live Chart.js instance so we can destroy it before re-rendering.
-let _pnlChart = null;
+// Live Chart.js instances — destroyed before each re-render / reset.
+let _pnlChart = null;            // P&L profitability-ratios bars (existing)
+// (BS assets-vs-financing composition is now SVG — no Chart.js instance to hold.)
+let _pnlWaterfallChart = null;   // P&L revenue→net-profit waterfall
+
+// ---- Chart palette (from the validated data-viz reference categorical set) ----
+// Light-surface slots, fixed order = the CVD-safety mechanism (worst adjacent
+// ΔE 24.2). Cards render on white, brighter than the reference surface, so
+// contrast only improves; aqua/yellow are sub-3:1 on white, mitigated by the
+// direct value labels every chart here carries (the "relief rule").
+const VIZ = {
+  blue:   "#2a78d6",
+  aqua:   "#1baf7a",
+  yellow: "#eda100",
+  green:  "#008300",
+  violet: "#4a3aa7",
+  red:    "#e34948",
+  orange: "#eb6834",
+  // Chart chrome / ink (reference "Chart chrome & ink", light column).
+  ink:     "#0b0b0b",
+  ink2:    "#52514e",
+  muted:   "#898781",
+  grid:    "#e1e0d9",
+  neutral: "#c3c2b7",  // subtotal / anchor bars in the waterfall
+};
+// Status palette (fixed, never themed) — matches the ratio status badges so the
+// gauge reads consistently with the commentary.
+const VIZ_STATUS = { good: "#0ca30c", warning: "#fab219", bad: "#d03b3b" };
+
+/**
+ * Minimal inline Chart.js plugin: draw a value label on each bar/segment.
+ * Vendored Chart.js here has no datalabels plugin, and the hub forbids adding CDN/
+ * vendor deps for this, so we register a tiny local one. Per-dataset `dataLabel`:
+ *   { insideColor, outsideColor, format(v,ctx)->string, skipZero, minInside }
+ * A bar tall enough (>= minInside px) gets the label centred INSIDE in insideColor;
+ * a short bar gets it just ABOVE the bar in outsideColor, so tiny steps stay
+ * readable instead of a label crushed onto a 2px sliver (per marks-and-anatomy:
+ * measure first, move outside if it won't fit; never crop).
+ */
+const tbrDataLabels = {
+  id: "tbrDataLabels",
+  afterDatasetsDraw(chart) {
+    const { ctx } = chart;
+    chart.data.datasets.forEach((ds, di) => {
+      const cfg = ds.dataLabel;
+      if (!cfg) return;
+      const meta = chart.getDatasetMeta(di);
+      if (meta.hidden) return;
+      const minInside = cfg.minInside ?? 22;
+      ctx.save();
+      ctx.font = "600 11px system-ui, -apple-system, 'Segoe UI', sans-serif";
+      ctx.textAlign = "center";
+      meta.data.forEach((el, i) => {
+        const raw = ds.data[i];
+        // Floating bars arrive as [start,end]; magnitude is the span between them.
+        const val = Array.isArray(raw) ? (raw[1] - raw[0]) : raw;
+        if (val == null || (cfg.skipZero && Math.abs(val) < 0.005)) return;
+        const { x, y, base } = el.getProps(["x", "y", "base"], true);
+        const span = Math.abs((base ?? 0) - y);
+        const text = cfg.format ? cfg.format(val, { di, i }) : String(val);
+        const top = Math.min(y, base ?? 0);
+        if (span >= minInside) {
+          ctx.fillStyle = cfg.insideColor || "#fff";
+          ctx.textBaseline = "middle";
+          ctx.fillText(text, x, (y + (base ?? 0)) / 2);
+        } else {
+          ctx.fillStyle = cfg.outsideColor || VIZ.ink2;
+          ctx.textBaseline = "bottom";
+          ctx.fillText(text, x, top - 3); // just above the (short) bar
+        }
+      });
+      ctx.restore();
+    });
+  },
+};
+
+/**
+ * Waterfall connector plugin: draws the thin horizontal "step" lines that link
+ * each bar's landing level to the next bar, so the chart reads as a cascade
+ * (Revenue → less COGS → Gross → …) instead of disconnected columns. Reads
+ * chart.$waterfallConnect = [{ from:index, y:value }] set by the waterfall
+ * builder; drawn BEFORE the bars so bars sit on top of the hairline.
+ */
+const tbrWaterfallConnectors = {
+  id: "tbrWaterfallConnectors",
+  beforeDatasetsDraw(chart) {
+    const spec = chart.$waterfallConnect;
+    if (!spec) return;
+    const meta = chart.getDatasetMeta(0);
+    if (!meta || !meta.data.length) return;
+    const { ctx } = chart;
+    const yScale = chart.scales.y;
+    ctx.save();
+    ctx.strokeStyle = VIZ.muted;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 2]);
+    for (const c of spec) {
+      const a = meta.data[c.from], b = meta.data[c.from + 1];
+      if (!a || !b) continue;
+      const yPix = yScale.getPixelForValue(c.y);
+      // from the right edge of bar `from` to the left edge of the next bar
+      ctx.beginPath();
+      ctx.moveTo(a.x + a.width / 2, yPix);
+      ctx.lineTo(b.x - b.width / 2, yPix);
+      ctx.stroke();
+    }
+    ctx.restore();
+  },
+};
+let _tbrPluginRegistered = false;
+function ensureChartPlugin() {
+  if (_tbrPluginRegistered || typeof window.Chart === "undefined") return;
+  window.Chart.register(tbrDataLabels, tbrWaterfallConnectors);
+  _tbrPluginRegistered = true;
+}
+
+/** Destroy all live chart instances (before re-render / on reset). */
+function destroyCharts() {
+  if (_pnlChart) { try { _pnlChart.destroy(); } catch (_) {} _pnlChart = null; }
+  if (_pnlWaterfallChart) { try { _pnlWaterfallChart.destroy(); } catch (_) {} _pnlWaterfallChart = null; }
+}
 
 /** Render the Profitability Ratios bar chart (vendored Chart.js). */
 function renderPnlChart(m) {
@@ -2295,6 +2516,390 @@ function renderPnlChart(m) {
       },
     },
   });
+}
+
+// ============================================================
+// BS-1 — Assets vs Financing composition (stacked bars)
+// Two stacked bars: what the assets are made of, and how they're financed. They
+// are the same height by construction (the sheet balances), which is the visual
+// proof it ties out, while each bar's segments show the mix.
+// ============================================================
+
+/** Markup: the composition chart card (SVG host — filled by renderBsCompositionChart). */
+function renderBsCharts(m) {
+  return `
+    <div class="tbr-card">
+      <h3 class="tbr-chart-title">Assets vs Financing</h3>
+      <p class="tbr-chart-sub">The accounting identity: <strong>Total Assets = Liabilities + Equity</strong>. The two bars are the same height (they always balance); each bar's bands show the mix. Negative equity is shown as a red deficit band.</p>
+      <div id="tbr-bs-composition"></div>
+    </div>
+    ${renderBsGaugeCard(m)}`;
+}
+
+/**
+ * Assets vs Financing as two EQUAL-HEIGHT bars (SVG). Both bars represent the same
+ * total (Total Assets = Liabilities + Equity, always equal), so their heights match
+ * by construction — the reader compares the *mix*, not guesses whether it balances.
+ *
+ * SVG (not Chart.js) is deliberate: it gives exact height control, sidesteps
+ * stacked-bar negative-value quirks, and renders into the PDF clone like the gauge.
+ *
+ * Negative equity (accumulated losses) is the case a naive stacked bar mangles.
+ * Here the financing bar is always drawn to the full Total-Assets height; the
+ * liability bands fill from the bottom, and negative equity is shown as a distinct
+ * RED "deficit" band. Because liabilities then exceed total assets, the deficit
+ * band overlays the top portion — clearly labelled — instead of a giant below-zero
+ * overhang that crushes the asset bars.
+ */
+function renderBsCompositionChart(m) {
+  const host = document.getElementById("tbr-bs-composition");
+  if (!host) return;
+  const t = m.balanceSheet.totals;
+  const cur = (k) => num(t[k]?.current);
+
+  const currentAssets = cur("currentAssets");
+  const fixedAssets   = cur("fixedAssets");
+  const currentLiab   = cur("currentLiabilities");
+  const longTermLiab  = cur("longTermLiabilities");
+  const equity        = cur("equity");
+  const totalAssets   = currentAssets + fixedAssets;
+  const totalLiab     = currentLiab + longTermLiab;
+
+  if (totalAssets <= 0 && totalLiab <= 0) { host.innerHTML = ""; return; }
+
+  // Geometry. Labels now live in the legend below, so the plot only holds two
+  // bars — wider bars, tighter gap, no side gutters needed.
+  const W = 620, H = 300, padTop = 14, padBottom = 34, barTop = padTop, barH = H - padTop - padBottom;
+  const barW = 190, gap = 110, x0 = (W - (barW * 2 + gap)) / 2;
+  const xAssets = x0, xFin = x0 + barW + gap;
+
+  // Define the two sides' bands (signed — any section may be negative, e.g. a
+  // fixed-asset pool net of accumulated depreciation, a debit-balance creditor,
+  // or accumulated-loss equity).
+  const assetBands = [
+    { label: "Current Assets", value: currentAssets, color: VIZ.blue },
+    { label: "Fixed Assets",   value: fixedAssets,   color: VIZ.aqua },
+  ];
+  const finBands = [
+    { label: "Current Liabilities",   value: currentLiab,  color: VIZ.yellow },
+    { label: "Long-term Liabilities", value: longTermLiab, color: VIZ.orange },
+    { label: "Equity",                value: equity,       color: VIZ.violet },
+  ];
+
+  // Per side: gross-positive sum (the tallest thing we draw) and the net total.
+  const grossPos = (bands) => bands.reduce((s, b) => s + Math.max(0, b.value), 0);
+  const net      = (bands) => bands.reduce((s, b) => s + b.value, 0);
+  const netAssets = net(assetBands), netFin = net(finBands);
+
+  // Scale to the LARGER gross-positive side so the tallest stack fills the frame
+  // and nothing overflows — negatives are drawn as reducing bands off the top of
+  // their own side's positive stack, which never exceeds grossPos. Both NET tops
+  // are equal when the sheet balances (they always do); a negative on one side
+  // makes that side's positive stack rise above the net line, and the red reducing
+  // band brings it back down to the net.
+  const scale = Math.max(grossPos(assetBands), grossPos(finBands), 1);
+  const px = (v) => (Math.abs(v) / scale) * barH;
+  const baseY = barTop + barH;
+  const DEFICIT_FILL = "#f3d2d2", DEFICIT_STROKE = "#c0392b";
+
+  // Draw one side. Positives stack up from the baseline; each negative then draws
+  // as a RED reducing band stepping DOWN from the current top (so it visibly
+  // subtracts). Value labels sit inside a band only when it's tall enough (>=24px);
+  // otherwise the legend carries the number. Returns { svg, netTopY }.
+  const drawSide = (x, bands) => {
+    const out = [];
+    let yTop = baseY;                    // running TOP of the positive stack
+    for (const b of bands) {
+      if (b.value <= 0) continue;
+      const h = px(b.value);
+      if (h < 0.5) continue;
+      const y = yTop - h;
+      out.push(`<rect x="${x}" y="${y.toFixed(1)}" width="${barW}" height="${h.toFixed(1)}" fill="${b.color}" rx="2"/>`);
+      if (h >= 24) out.push(`<text x="${x + barW / 2}" y="${(y + h / 2 + 4).toFixed(1)}" text-anchor="middle" font-size="12" font-weight="700" fill="#ffffff">${escapeHtml(fmtShort(b.value))}</text>`);
+      yTop = y;
+    }
+    // Negatives: step back DOWN from the positive-stack top, drawn as red bands.
+    let yNeg = yTop;
+    for (const b of bands) {
+      if (b.value >= 0) continue;
+      const h = px(b.value);
+      if (h < 0.5) continue;
+      out.push(`<rect x="${x}" y="${yNeg.toFixed(1)}" width="${barW}" height="${h.toFixed(1)}" fill="${DEFICIT_FILL}" stroke="${DEFICIT_STROKE}" stroke-width="1.25" stroke-dasharray="4 2" rx="2"/>`);
+      if (h >= 24) out.push(`<text x="${x + barW / 2}" y="${(yNeg + h / 2 + 4).toFixed(1)}" text-anchor="middle" font-size="12" font-weight="700" fill="${DEFICIT_STROKE}">−${escapeHtml(fmtShort(Math.abs(b.value)))}</text>`);
+      yNeg += h;
+    }
+    const netTopY = yNeg; // after subtracting the negatives, this is the net top
+    return { svg: out.join(""), netTopY };
+  };
+
+  const assets = drawSide(xAssets, assetBands);
+  const fin    = drawSide(xFin, finBands);
+
+  // A dashed net line across each bar's true net top makes the reducing bands read
+  // as "gross minus this = net". Only drawn when a side actually has a negative.
+  const hasNeg = [...assetBands, ...finBands].some(b => b.value < 0);
+  const netLine = (side, x) =>
+    `<line x1="${(x - 6).toFixed(1)}" y1="${side.netTopY.toFixed(1)}" x2="${(x + barW + 6).toFixed(1)}" y2="${side.netTopY.toFixed(1)}" stroke="${VIZ.ink}" stroke-width="1.25"/>`;
+  const netLines = hasNeg ? `${netLine(assets, xAssets)}${netLine(fin, xFin)}` : "";
+
+  const axisLabel = (x, txt, sub) =>
+    `<text x="${x + barW / 2}" y="${H - 16}" text-anchor="middle" font-size="13" font-weight="600" fill="${VIZ.ink}">${txt}</text>
+     <text x="${x + barW / 2}" y="${H - 2}" text-anchor="middle" font-size="11" font-weight="600" fill="${VIZ.ink2}">${sub}</text>`;
+
+  // Legend below the chart: every band + amount, one clean row item, so no text
+  // ever has to ride a small or red bar. Negative bands flagged red.
+  const legendItem = (label, value, color) =>
+    `<span class="tbr-bs-comp-leg ${value < 0 ? "neg" : ""}"><i style="background:${value < 0 ? DEFICIT_FILL : color}"></i>${escapeHtml(label)} <b>${fmt(value)}</b></span>`;
+  const legend = [...assetBands, ...finBands].map(b => legendItem(b.label, b.value, b.color)).join("");
+
+  // Note: list any negative sections (usually accumulated-loss equity, but a
+  // negative asset/liability often signals a mapping issue worth checking).
+  const negs = [...assetBands, ...finBands].filter(b => b.value < 0);
+  let negNote = "";
+  if (negs.length) {
+    const names = negs.map(b => `${b.label} (${fmt(b.value)})`).join(", ");
+    const equityNeg = equity < 0;
+    negNote = `<div class="tbr-bs-comp-note">⚠ Negative section${negs.length > 1 ? "s" : ""}: <strong>${escapeHtml(names)}</strong>. ${
+      equityNeg
+        ? "Negative equity means liabilities exceed assets (balance-sheet insolvent)."
+        : "A negative asset or liability often points to a contra on the wrong mapping line — worth reviewing."
+    } Shown as red reducing bands; the black line marks each side's net total.</div>`;
+  }
+
+  host.innerHTML = `
+    <svg viewBox="0 0 ${W} ${H}" class="tbr-bs-comp-svg" role="img"
+         aria-label="Assets versus financing composition">
+      <line x1="${x0 - 10}" y1="${baseY}" x2="${W - (x0 - 10)}" y2="${baseY}" stroke="${VIZ.neutral}" stroke-width="1"/>
+      ${assets.svg}
+      ${fin.svg}
+      ${netLines}
+      ${axisLabel(xAssets, "Assets", fmtShort(netAssets))}
+      ${axisLabel(xFin, "Financing", fmtShort(netFin))}
+    </svg>
+    <div class="tbr-bs-comp-legend">${legend}</div>
+    ${negNote}`;
+}
+
+// ============================================================
+// BS-2 — Current-ratio liquidity gauge (SVG bullet)
+// One value judged against a standard: the health band (Bad / Caution / Good)
+// with a needle at the company's current ratio. SVG (not canvas) so it renders
+// crisply and also survives the PDF clone. Reuses the ratio's own thresholds.
+// ============================================================
+
+function renderBsGaugeCard(m) {
+  const r = (m.bsRatios || []).find(x => x.id === "currentRatio");
+  if (!r || r.current == null) return "";
+  return `
+    <div class="tbr-card">
+      <h3 class="tbr-chart-title">Liquidity — Current Ratio</h3>
+      <p class="tbr-chart-sub">Current assets ÷ current liabilities. The band shows the firm's health zones; the marker is this period.</p>
+      <div id="tbr-bs-gauge"></div>
+    </div>`;
+}
+
+/** Build the SVG bullet gauge for the current ratio. */
+function renderBsGauge(m) {
+  const host = document.getElementById("tbr-bs-gauge");
+  if (!host) return;
+  const r = (m.bsRatios || []).find(x => x.id === "currentRatio");
+  if (!r || r.current == null) { host.innerHTML = ""; return; }
+
+  // Scale 0..4 (current ratio rarely exceeds this; clamp the needle if it does).
+  // Zones per BS_RATIO_DEFS.currentRatio: Bad <1.0 or >3.0; Good 1.5–3.0; the
+  // 1.0–1.5 sliver is Caution. We render Bad│Caution│Good│Bad across 0..4.
+  const MAX = 4;
+  const W = 620, H = 96, padX = 16, trackY = 40, trackH = 26;
+  const usableW = W - padX * 2;
+  const x = (v) => padX + Math.max(0, Math.min(MAX, v)) / MAX * usableW;
+  const zone = (a, b, fill) => `<rect x="${x(a).toFixed(1)}" y="${trackY}" width="${(x(b) - x(a)).toFixed(1)}" height="${trackH}" fill="${fill}" />`;
+  const val = r.current;
+  const prior = r.prior;
+  const needleX = x(val);
+
+  const tick = (v) => `
+    <line x1="${x(v).toFixed(1)}" y1="${trackY + trackH}" x2="${x(v).toFixed(1)}" y2="${trackY + trackH + 5}" stroke="${VIZ.muted}" stroke-width="1"/>
+    <text x="${x(v).toFixed(1)}" y="${trackY + trackH + 17}" fill="${VIZ.muted}" font-size="11" text-anchor="middle">${v}</text>`;
+
+  const statusColor = r.statusCurrent === "Good" ? VIZ_STATUS.good
+                    : r.statusCurrent === "Bad"  ? VIZ_STATUS.bad : VIZ_STATUS.warning;
+
+  host.innerHTML = `
+    <div class="tbr-gauge-headline">
+      <span class="tbr-gauge-value" style="color:${statusColor}">${fmtDecimal(val)}</span>
+      <span class="tbr-status tbr-status-${r.statusCurrent === "Good" ? "good" : r.statusCurrent === "Bad" ? "bad" : "caution"}">${r.statusCurrent || "—"}</span>
+      ${prior != null ? `<span class="tbr-gauge-prior">prior ${fmtDecimal(prior)}</span>` : ""}
+    </div>
+    <svg viewBox="0 0 ${W} ${H}" class="tbr-gauge-svg" role="img"
+         aria-label="Current ratio ${fmtDecimal(val)}, status ${r.statusCurrent || "unknown"}">
+      <!-- zones: Bad 0–1, Caution 1–1.5, Good 1.5–3, Bad 3–4 -->
+      ${zone(0, 1.0, "#f3d2d2")}
+      ${zone(1.0, 1.5, "#fbe6bf")}
+      ${zone(1.5, 3.0, "#cfe9cf")}
+      ${zone(3.0, MAX, "#f3d2d2")}
+      <!-- ticks -->
+      ${[0, 1, 1.5, 2, 3, 4].map(tick).join("")}
+      ${prior != null ? `<line x1="${x(prior).toFixed(1)}" y1="${trackY - 6}" x2="${x(prior).toFixed(1)}" y2="${trackY + trackH + 6}" stroke="${VIZ.neutral}" stroke-width="2" stroke-dasharray="3 3"/>` : ""}
+      <!-- needle -->
+      <polygon points="${needleX.toFixed(1)},${trackY - 8} ${(needleX - 6).toFixed(1)},${trackY - 18} ${(needleX + 6).toFixed(1)},${trackY - 18}" fill="${VIZ.ink}"/>
+      <line x1="${needleX.toFixed(1)}" y1="${trackY - 8}" x2="${needleX.toFixed(1)}" y2="${trackY + trackH + 6}" stroke="${VIZ.ink}" stroke-width="2.5"/>
+    </svg>
+    <div class="tbr-gauge-legend">
+      <span><i style="background:#cfe9cf"></i>Good (1.5–3.0)</span>
+      <span><i style="background:#fbe6bf"></i>Caution (1.0–1.5)</span>
+      <span><i style="background:#f3d2d2"></i>Bad (&lt;1.0 or &gt;3.0)</span>
+    </div>`;
+}
+
+// ============================================================
+// PL-1 — Profit waterfall (Revenue → Net Profit)
+// A cascade: start at Revenue, step down through each deduction, with the three
+// subtotals (Gross / Operating / Net Profit) as anchored bars from zero. Shows
+// where the money goes — the single most legible read of the P&L.
+// ============================================================
+
+function renderPnlWaterfallCard(m) {
+  return `
+    <div class="tbr-card">
+      <h3 class="tbr-chart-title">Profit Waterfall</h3>
+      <p class="tbr-chart-sub"><strong>Grey</strong> bars are running subtotals (Revenue → Gross → Operating → Net); <strong style="color:#d03b3b">red</strong> bars are the deductions between them. The dotted line carries each subtotal down to the next step.</p>
+      <div class="tbr-chartwrap"><canvas id="tbr-pnl-waterfall" height="320"></canvas></div>
+    </div>`;
+}
+
+function renderPnlWaterfall(m) {
+  const canvas = document.getElementById("tbr-pnl-waterfall");
+  if (!canvas || typeof window.Chart === "undefined") return;
+  ensureChartPlugin();
+  if (_pnlWaterfallChart) { _pnlWaterfallChart.destroy(); _pnlWaterfallChart = null; }
+
+  const d = m.pnl.derived.current || {};
+  const p = m.__pnlCurrent?.pnl || {};
+  const revenue   = num(p.revenue);
+  const cogs      = num(p.costOfSales);
+  const opex      = num(p.operatingExpenses);
+  const depr      = num(p.depreciation);
+  const tax       = num(p.tax);
+  const gross     = num(d.grossProfit);
+  const oper      = num(d.operatingProfit);
+  const net       = num(d.netProfit);
+
+  // Each step carries: a label; its bar as [start,end]; a role ("total" = subtotal
+  // anchored from 0; "down" = a deduction); and `value` = the SIGNED figure the
+  // step represents (a subtotal's own amount, or the deduction magnitude). `value`
+  // is what labels/landing/connectors use, so everything stays correct when a
+  // subtotal is NEGATIVE (loss-making: EBIT/Net Profit below zero) — the earlier
+  // bug labelled the wrong end of the range and the bar collapsed to a blank.
+  const allSteps = [];
+  allSteps.push({ label: "Revenue",        range: [0, revenue],          role: "total", value: revenue });
+  allSteps.push({ label: "Cost of Sales",  range: [gross, revenue],      role: "down",  value: -cogs });
+  allSteps.push({ label: "Gross Profit",   range: [0, gross],            role: "total", value: gross });
+  allSteps.push({ label: "Operating Exp.", range: [oper, gross],         role: "down",  value: -opex });
+  allSteps.push({ label: "Operating Profit", range: [0, oper],           role: "total", value: oper });
+  allSteps.push({ label: "Deprec. & Amort.", range: [oper - depr, oper], role: "down",  value: -depr });
+  allSteps.push({ label: "Taxation",       range: [net, oper - depr],    role: "down",  value: -tax });
+  allSteps.push({ label: "Net Profit",     range: [0, net],              role: "total", value: net });
+
+  // Drop zero-value DEDUCTIONS entirely — a step that removes nothing adds no
+  // information and, left in, renders as a stray blob with a "−0" label and a
+  // connector dangling to nothing (the messy artefact when a P&L section is zero).
+  // Subtotals are always kept (they anchor the cascade), even if zero/negative.
+  const steps = allSteps.filter(s => s.role === "total" || Math.abs(s.value) >= 0.005);
+
+  // Keep the TRUE figure for labels/tooltips before any drawing adjustment.
+  for (const s of steps) {
+    s.trueRange = [Math.min(s.range[0], s.range[1]), Math.max(s.range[0], s.range[1])];
+    // The "landing level" a connector runs along = where the running total sits
+    // AFTER this step, i.e. the end that flows into the next one. A subtotal lands
+    // at its own value (may be negative); a deduction lands at its lower edge.
+    s.landing = s.role === "total" ? s.value : Math.min(s.range[0], s.range[1]);
+  }
+
+  // Give very short deductions a MINIMUM drawn height so a 10k step on a 500k
+  // axis is still a visible mark, not a 2px line. We nudge the DRAWN range only
+  // (trueRange keeps the real number for the label/tooltip). Scale the floor to
+  // the axis: ~1.5% of the largest subtotal, min 0 (skip if data is tiny).
+  const top = Math.max(...steps.map(s => s.trueRange[1]));
+  const MINSPAN = top * 0.012;
+  const drawRange = steps.map(s => {
+    const [lo, hi] = s.trueRange;
+    if (s.role !== "total" && (hi - lo) < MINSPAN && (hi - lo) > 0) {
+      // grow the bar around its mid so the step stays where it belongs
+      const mid = (lo + hi) / 2;
+      return [mid - MINSPAN / 2, mid + MINSPAN / 2];
+    }
+    return [lo, hi];
+  });
+
+  const colorFor = (s) => s.role === "total" ? VIZ.neutral : (s.role === "up" ? VIZ.green : VIZ.red);
+  const labels = steps.map(s => s.label);
+
+  // Connector spec: link each step's landing level to the next step. Drawn by the
+  // tbrWaterfallConnectors plugin. We connect at the level the NEXT bar starts
+  // from, which for a well-formed cascade equals this step's landing.
+  const connect = [];
+  for (let i = 0; i < steps.length - 1; i++) {
+    connect.push({ from: i, y: steps[i].landing });
+  }
+
+  _pnlWaterfallChart = new window.Chart(canvas.getContext("2d"), {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [{
+        label: "P&L",
+        data: drawRange,
+        backgroundColor: steps.map(colorFor),
+        borderWidth: 0,
+        borderRadius: 3,
+        maxBarThickness: 46,
+        dataLabel: {
+          insideColor: "#ffffff",       // ink-on-fill inside tall bars
+          outsideColor: VIZ.ink2,       // above short bars
+          minInside: 22,
+          skipZero: true,               // never print a stray "0" / "−0"
+          // Subtotals show their own amount; deductions what was removed. Uses the
+          // SIGNED value, so a negative subtotal (EBIT/Net Profit loss) labels its
+          // real figure (e.g. −120k) instead of the wrong range end.
+          format: (_v, ctx) => {
+            const fig = steps[ctx.i].value;
+            return Math.abs(fig) < 0.005 ? "" : fmtShort(fig);
+          },
+        },
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      layout: { padding: { top: 18 } }, // room for outside labels above short bars
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (c) => {
+              const s = steps[c.dataIndex];
+              return s.role === "total" ? `${s.label}: ${fmt(s.trueRange[1])}` : `${s.label}: ${fmt(s.mag)}`;
+            },
+          },
+        },
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: VIZ.ink2, maxRotation: 40, minRotation: 0, font: { size: 11 } } },
+        y: { beginAtZero: true, grid: { color: VIZ.grid }, ticks: { color: VIZ.muted, callback: (v) => fmtShort(v) } },
+      },
+    },
+  });
+  // Hand the connector levels to the plugin.
+  _pnlWaterfallChart.$waterfallConnect = connect;
+  _pnlWaterfallChart.update();
+}
+
+/** Compact money for axis ticks / in-bar labels: 12.3k, 4.5M, 890. */
+function fmtShort(n) {
+  if (n === null || n === undefined || !isFinite(n)) return "";
+  const a = Math.abs(n);
+  if (a >= 1e6) return (n / 1e6).toFixed(1).replace(/\.0$/, "") + "M";
+  if (a >= 1e3) return (n / 1e3).toFixed(1).replace(/\.0$/, "") + "k";
+  return Math.round(n).toLocaleString("en-GB");
 }
 
 function onExport() {
@@ -2344,10 +2949,60 @@ function wirePdfMenu(out) {
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
 }
 
+/**
+ * Rasterise a chart element to a PNG data-URL + its natural pixel size, WITHOUT
+ * html2canvas. Charts are placed into the PDF directly via jsPDF.addImage, which
+ * gives pixel-perfect fidelity and exact sizing — html2canvas 1.4.1 mangled them
+ * (wrong fonts, off-centre bars for SVG; tiny corner mish-mash for canvas images).
+ *
+ * @returns {Promise<{dataUrl,w,h}|null>}  null if the element can't be rasterised.
+ */
+async function chartElementToImage(el) {
+  if (!el) return null;
+  const tag = el.tagName.toLowerCase();
+  if (tag === "canvas") {
+    // The live Chart.js canvas already holds the rendered bitmap at devicePixel
+    // resolution. Grab it 1:1 — no scaling, no reflow.
+    try {
+      return { dataUrl: el.toDataURL("image/png"), w: el.width, h: el.height };
+    } catch (_) { return null; }
+  }
+  if (tag === "svg") {
+    // Serialise the SVG, load it into an <img>, then paint it onto an offscreen
+    // canvas at 2× for crispness. This is fully under our control — no html2canvas.
+    const rect = el.getBoundingClientRect();
+    const w = Math.max(1, Math.round(rect.width || el.viewBox?.baseVal?.width || 620));
+    const h = Math.max(1, Math.round(rect.height || el.viewBox?.baseVal?.height || 300));
+    const copy = el.cloneNode(true);
+    copy.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    copy.setAttribute("width", w);
+    copy.setAttribute("height", h);
+    // Bake in the UI sans — a standalone serialised SVG otherwise rasterises text
+    // in a default serif, which looks off in the PDF.
+    copy.setAttribute("font-family", "system-ui, -apple-system, 'Segoe UI', Arial, sans-serif");
+    const xml = new XMLSerializer().serializeToString(copy);
+    const svgUrl = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(xml);
+    const img = new Image();
+    const loaded = new Promise((res, rej) => { img.onload = res; img.onerror = rej; });
+    img.src = svgUrl;
+    try { await loaded; } catch (_) { return null; }
+    const SCALE = 2;
+    const cv = document.createElement("canvas");
+    cv.width = w * SCALE; cv.height = h * SCALE;
+    const cx = cv.getContext("2d");
+    cx.fillStyle = "#ffffff"; cx.fillRect(0, 0, cv.width, cv.height);
+    cx.drawImage(img, 0, 0, cv.width, cv.height);
+    try {
+      return { dataUrl: cv.toDataURL("image/png"), w: cv.width, h: cv.height };
+    } catch (_) { return null; }
+  }
+  return null;
+}
+
 // Export the statements to PDF. `scope`:
 //   "all" → both Balance Sheet and P&L (default)
-//   "bs"  → Balance Sheet only (statement table)
-//   "pnl" → Profit & Loss only (statement table)
+//   "bs"  → Balance Sheet only (statement + its charts + ratios)
+//   "pnl" → Profit & Loss only (statement + its charts + ratios)
 async function onExportPdf(scope = "all") {
   const status = document.getElementById("tbr-status");
   const menuBtn = document.getElementById("tbr-pdf");   // the single "Download PDF ▾" button
@@ -2355,6 +3010,7 @@ async function onExportPdf(scope = "all") {
   const root = document.getElementById("tbr-statements");
   if (!root) return;
   let stage = null;
+  let hiddenPanes = [];
   try {
     await loadVendor();
     if (!window.jspdf || !window.html2canvas) throw new Error("PDF engine not loaded.");
@@ -2364,47 +3020,100 @@ async function onExportPdf(scope = "all") {
     const wantPanes = Array.from(root.querySelectorAll(".tbr-tabpane"))
       .filter(p => scope === "all" || p.getAttribute("data-pane") === scope);
 
-    // Build the ordered list of result blocks by CLONING the target elements into
-    // an OFF-SCREEN staging container, then capturing from there. Cloning (rather
-    // than un-hiding the live hidden pane) means the visible page never reflows /
-    // scrolls during export — no "page jumping". The scope also controls depth:
-    //   • bs / pnl → the STATEMENT TABLE ONLY (the first .tbr-card = the numbers)
-    //   • all      → every result card (statement + ratios + comments) per pane
+    // Chart.js CANNOT render into a display:none canvas — the inactive tab's pane
+    // is hidden (.tbr-tabpane[hidden]{display:none}), so its canvas charts hold a
+    // 0×0 BLANK bitmap and toDataURL() snapshots nothing. (Confirmed: on the BS
+    // tab the P&L canvases report rect 0×0 / dataURL BLANK.) Fix: genuinely SHOW
+    // the wanted panes off-screen (display:block — NOT visibility:hidden, which
+    // still yields 0×0), then resize each live chart so it paints at a real size,
+    // and WAIT for the paint before we read the bitmaps. Restored in `finally`.
+    hiddenPanes = wantPanes.filter(p => p.hasAttribute("hidden"));
+    for (const p of hiddenPanes) {
+      p.removeAttribute("hidden");
+      // Off-screen but truly laid out: absolute + fixed width, on-screen height.
+      p.style.cssText = "position:absolute; left:-10000px; top:0; width:900px; display:block;";
+    }
+    if (hiddenPanes.length) {
+      // Force a synchronous layout so the canvases now have real dimensions.
+      void root.offsetHeight;
+      // Repaint each canvas chart into its now-sized canvas — resize() on the
+      // instance AND a window resize event (Chart.js's responsive listener), so a
+      // chart first created while hidden still recovers and yields a real
+      // (non-blank) canvas bitmap.
+      for (const ch of [_pnlChart, _pnlWaterfallChart]) { try { ch?.resize(); ch?.update("none"); } catch (_) {} }
+      try { window.dispatchEvent(new Event("resize")); } catch (_) {}
+      // Two frames + a tick: let layout settle and Chart.js finish drawing before
+      // chartElementToImage() reads canvas.toDataURL() / the SVG's laid-out size.
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      await new Promise(r => setTimeout(r, 40));
+    }
+
+    // Off-screen staging container — only TEXT cards (tables/ratios/comments) get
+    // cloned into it for html2canvas; charts are rasterised straight from the live
+    // elements. Positioned far off-screen so the visible page never reflows.
+    // CRITICAL: append it INSIDE #section-tbratio so the tool's scoped CSS
+    // (#section-tbratio .tbr-card / .tbr-table …) styles the clones — otherwise the
+    // captured text cards render unstyled.
     stage = document.createElement("div");
     stage.className = "tbr-pdf-stage";
-    // Fixed on-screen WIDTH so captured tables match the normal layout, but
-    // positioned far off-screen so the user never sees it. CRITICAL: append it
-    // INSIDE #section-tbratio (not document.body) so the tool's scoped CSS
-    // (#section-tbratio .tbr-card / .tbr-table / .tbr-statement …) applies to the
-    // clones — otherwise the captured cards render unstyled and the PDF looks
-    // nothing like the on-screen tool.
     stage.style.cssText =
       "position:fixed; left:-10000px; top:0; width:900px; background:#fff; padding:0; z-index:-1;";
     (document.getElementById(SECTION_ID) || document.body).appendChild(stage);
 
-    const blocks = []; // { type:"heading", text } | { type:"card", el }
+    // Build the block list. Cards are handled by what they contain:
+    //   • CANVAS chart (P&L profitability, waterfall) → rasterised DIRECTLY to a
+    //     PNG and placed via jsPDF.addImage — html2canvas can't clone a canvas.
+    //     These cards are ONLY the chart, so nothing else is lost.
+    //   • SVG chart card (BS composition, gauge) → the card also carries essential
+    //     HTML around the SVG (headline number + status, legend, insolvency note).
+    //     So we clone the WHOLE card, swap the live <svg> for a raster <img> of it
+    //     (html2canvas mangles inline SVG, but handles <img> + HTML fine), and
+    //     html2canvas the clone — capturing chart AND its surrounding data.
+    //   • TEXT card (tables, ratios, comments) → html2canvas the clone as-is.
+    const blocks = []; // {type:"heading",text} | {type:"text",el} | {type:"chart",img}
     for (const pane of wantPanes) {
       const group = pane.querySelector(".tbr-group");
       if (!group) continue;
       const title = group.querySelector(".tbr-group-title");
       blocks.push({ type: "heading", text: title ? title.textContent.trim() : "" });
-      let cards = Array.from(group.querySelectorAll(":scope > .tbr-card"));
-      // Drop the chart card: it's a <canvas> that doesn't survive cloning, so it
-      // captures as an empty box in the PDF. The chart only visualises the ratio
-      // values already tabulated in the export, so nothing is lost by omitting it.
-      cards = cards.filter(el => !el.querySelector("canvas"));
-      // Statement-only for a scoped export: keep just the first card (the table).
-      const wanted = (scope === "all") ? cards : cards.slice(0, 1);
-      for (const el of wanted) {
+      const cards = Array.from(group.querySelectorAll(":scope > .tbr-card"));
+      for (const el of cards) {
+        // Clone the WHOLE card so its title/subtitle/legend/notes are always kept.
         const clone = el.cloneNode(true);
+        // Any chart element (canvas OR svg) inside it is rasterised and swapped for
+        // a static <img> in the clone — html2canvas can't reproduce a live canvas
+        // or inline SVG, but renders an <img> + the surrounding HTML perfectly. So
+        // EVERY chart card carries its full on-page context (heading + description)
+        // and they all place identically (centred). Text cards have no chart to
+        // swap and clone as-is.
+        const liveCharts = el.querySelectorAll("canvas, svg");
+        const cloneCharts = clone.querySelectorAll("canvas, svg");
+        for (let i = 0; i < cloneCharts.length; i++) {
+          const raster = await chartElementToImage(liveCharts[i]);
+          if (!raster) continue;
+          const rect = liveCharts[i].getBoundingClientRect();
+          const img = document.createElement("img");
+          img.src = raster.dataUrl;
+          img.style.width = Math.round(rect.width || (raster.w / 2)) + "px";
+          img.style.height = Math.round(rect.height || (raster.h / 2)) + "px";
+          img.style.display = "block";
+          img.style.margin = "0 auto";   // centre the chart within its card
+          cloneCharts[i].replaceWith(img);
+        }
         stage.appendChild(clone);
-        blocks.push({ type: "card", el: clone });
+        blocks.push({ type: "text", el: clone });
       }
     }
 
-    // Capture every cloned card to its own canvas.
+    // Let any swapped-in raster <img> decode before html2canvas reads it.
+    await Promise.all(
+      Array.from(stage.querySelectorAll("img")).map(img =>
+        (img.complete && img.naturalWidth) ? Promise.resolve()
+          : new Promise(res => { img.onload = img.onerror = res; })));
+
+    // Capture every TEXT card (incl. SVG-chart cards) to its own canvas.
     for (const b of blocks) {
-      if (b.type !== "card") continue;
+      if (b.type !== "text") continue;
       b.canvas = await window.html2canvas(b.el, { scale: 2, backgroundColor: "#ffffff", logging: false });
     }
 
@@ -2428,20 +3137,17 @@ async function onExportPdf(scope = "all") {
     const GAP = 4;         // mm gap between blocks
 
     // Output height (mm) of a captured card at the current content width.
-    const cardHmm = (b) => (b.canvas.height / b.canvas.width) * contentW;
+    const textHmm = (b) => (b.canvas.height / b.canvas.width) * contentW;
 
     for (let i = 0; i < blocks.length; i++) {
       const b = blocks[i];
       if (b.type === "heading") {
         if (!b.text) continue;
-        // Keep a heading WITH its first table: a heading must never be orphaned on
-        // a page without the block it introduces. Look ahead to the next card and
-        // break before the heading unless the heading + that card both fit here.
-        const next = blocks.slice(i + 1).find(x => x.type === "card");
-        const needed = HEADING_H + (next ? cardHmm(next) : 0);
+        // Keep a heading WITH its first block: never orphan a heading on a page
+        // without what it introduces. Look ahead to the next placeable block.
+        const next = blocks.slice(i + 1).find(x => x.type === "text");
+        const needed = HEADING_H + (next ? textHmm(next) : 0);
         const atPageTop = y <= margin + 1;
-        // Break only if it helps — never break to an identical empty page when the
-        // pair is simply taller than a whole page (the card will paginate itself).
         if (!atPageTop && y + needed > bottom) { doc.addPage(); y = margin; }
         doc.setFont("helvetica", "bold"); doc.setFontSize(13);
         doc.text(b.text, margin, y + 6);
@@ -2449,30 +3155,22 @@ async function onExportPdf(scope = "all") {
         continue;
       }
 
-      // A result card: place it whole.
-      const blockHmm = cardHmm(b);
+      // TEXT block: place it whole; if taller than a page, slice across pages.
+      const blockHmm = textHmm(b);
       const data = b.canvas.toDataURL("image/png");
-
-      // Block fits on the rest of the current page → place it whole.
       if (y + blockHmm <= bottom) {
         doc.addImage(data, "PNG", margin, y, contentW, blockHmm);
         y += blockHmm + GAP;
         continue;
       }
-
-      // Doesn't fit here. If it fits on a fresh page, move it there whole (no split).
       if (blockHmm <= pageH - margin * 2) {
         doc.addPage(); y = margin;
         doc.addImage(data, "PNG", margin, y, contentW, blockHmm);
         y += blockHmm + GAP;
         continue;
       }
-
-      // Last resort: the block is taller than a full page (e.g. a long commentary
-      // card). Slice only THIS block across pages.
       const pxPerMm = b.canvas.width / contentW;
-      let sy = 0;
-      let first = true;
+      let sy = 0, first = true;
       while (sy < b.canvas.height) {
         if (!first || y + 1 > bottom) { doc.addPage(); y = margin; }
         const slotPx = Math.floor((bottom - y) * pxPerMm);
@@ -2497,6 +3195,10 @@ async function onExportPdf(scope = "all") {
     if (status) status.innerHTML = errorBanner("Could not generate the PDF. Try again, or use the .xlsx export.");
   } finally {
     if (stage && stage.parentNode) stage.parentNode.removeChild(stage);  // remove off-screen clone
+    // Re-hide the panes we temporarily revealed, and clear the inline style, so the
+    // on-screen view returns exactly as it was; then re-fit the charts to it.
+    for (const p of hiddenPanes) { p.style.cssText = ""; p.setAttribute("hidden", ""); }
+    for (const ch of [_pnlChart, _pnlWaterfallChart]) { try { ch?.resize(); } catch (_) {} }
     if (menuBtn) { menuBtn.disabled = false; menuBtn.textContent = btnLabel; }
   }
 }
