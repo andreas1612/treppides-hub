@@ -2506,6 +2506,8 @@ function renderPnlChart(m) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      animation: false,   // instant final render — no grow-from-zero animation, so
+                          // a PDF capture right after (re)render is never mid-animation
       plugins: {
         legend: { display: hasPrior },     // single-year: bars already labelled on x-axis
         title: { display: false },
@@ -2870,6 +2872,8 @@ function renderPnlWaterfall(m) {
     },
     options: {
       responsive: true, maintainAspectRatio: false,
+      animation: false,   // instant final render (see profitability chart) — makes
+                          // PDF capture reliable and keeps the connectors present
       layout: { padding: { top: 18 } }, // room for outside labels above short bars
       plugins: {
         legend: { display: false },
@@ -2961,8 +2965,11 @@ async function chartElementToImage(el) {
   if (!el) return null;
   const tag = el.tagName.toLowerCase();
   if (tag === "canvas") {
-    // The live Chart.js canvas already holds the rendered bitmap at devicePixel
-    // resolution. Grab it 1:1 — no scaling, no reflow.
+    // Grab the live canvas bitmap 1:1. This is correct because the export
+    // activates each pane on-screen before capturing (see onExportPdf) — a visible,
+    // fully-rendered Chart.js canvas holds the complete image, INCLUDING per-
+    // instance plugin output like the waterfall's dashed connectors (a rebuilt
+    // clone would lose that instance state). No rebuild, no resize.
     try {
       return { dataUrl: el.toDataURL("image/png"), w: el.width, h: el.height };
     } catch (_) { return null; }
@@ -3010,7 +3017,7 @@ async function onExportPdf(scope = "all") {
   const root = document.getElementById("tbr-statements");
   if (!root) return;
   let stage = null;
-  let hiddenPanes = [];
+  let _pdfPrevTab = null; // tab active before export, restored in finally
   try {
     await loadVendor();
     if (!window.jspdf || !window.html2canvas) throw new Error("PDF engine not loaded.");
@@ -3020,42 +3027,13 @@ async function onExportPdf(scope = "all") {
     const wantPanes = Array.from(root.querySelectorAll(".tbr-tabpane"))
       .filter(p => scope === "all" || p.getAttribute("data-pane") === scope);
 
-    // Chart.js CANNOT render into a display:none canvas — the inactive tab's pane
-    // is hidden (.tbr-tabpane[hidden]{display:none}), so its canvas charts hold a
-    // 0×0 BLANK bitmap and toDataURL() snapshots nothing. (Confirmed: on the BS
-    // tab the P&L canvases report rect 0×0 / dataURL BLANK.) Fix: genuinely SHOW
-    // the wanted panes off-screen (display:block — NOT visibility:hidden, which
-    // still yields 0×0), then resize each live chart so it paints at a real size,
-    // and WAIT for the paint before we read the bitmaps. Restored in `finally`.
-    hiddenPanes = wantPanes.filter(p => p.hasAttribute("hidden"));
-    for (const p of hiddenPanes) {
-      p.removeAttribute("hidden");
-      // Off-screen but truly laid out: absolute + fixed width, on-screen height.
-      p.style.cssText = "position:absolute; left:-10000px; top:0; width:900px; display:block;";
-    }
-    if (hiddenPanes.length) {
-      // Force a synchronous layout so the canvases now have real dimensions.
-      void root.offsetHeight;
-      // Repaint each P&L canvas chart. Resizing with NO args makes Chart.js
-      // re-measure the (just-revealed, off-screen) container — which races: if the
-      // measurement hasn't settled, the canvas stays at its tiny hidden-default
-      // size and toDataURL() captures a "tiny mess in the corner". So resize to
-      // EXPLICIT pixels taken from the chart's own wrapper (.tbr-chartwrap is a
-      // fixed 260px tall; its width is now real), which is deterministic — no race.
-      for (const ch of [_pnlChart, _pnlWaterfallChart]) {
-        if (!ch) continue;
-        try {
-          const wrap = ch.canvas?.parentElement;
-          const w = Math.round(wrap?.clientWidth || 860);
-          const h = Math.round(wrap?.clientHeight || 260);
-          ch.resize(w, h);
-          ch.update("none");
-        } catch (_) {}
-      }
-      // One frame for Chart.js to finish drawing before chartElementToImage()
-      // reads canvas.toDataURL() / the SVG's laid-out size.
-      await new Promise(r => requestAnimationFrame(r));
-    }
+    // Record the current tab so we can restore it after export. A Chart.js canvas
+    // only paints a correct, full-size bitmap while its pane is genuinely VISIBLE
+    // (a hidden display:none pane → 0×0 → the "tiny mess in the corner"). Every
+    // off-screen resize trick raced and failed. So below we capture each pane's
+    // cards while that pane is briefly ACTIVE on-screen, via the tool's own tab
+    // switch — the exact path that renders charts correctly on a user click.
+    _pdfPrevTab = (document.querySelector(".tbr-map-tab.active")?.getAttribute("data-maptab")) || "bs";
 
     // Off-screen staging container — only TEXT cards (tables/ratios/comments) get
     // cloned into it for html2canvas; charts are rasterised straight from the live
@@ -3077,6 +3055,17 @@ async function onExportPdf(scope = "all") {
     // full context and they all place identically. Text cards just clone as-is.
     const blocks = []; // {type:"heading",text} | {type:"text",el}
     for (const pane of wantPanes) {
+      // Make THIS pane the active/visible one so its charts are fully rendered
+      // (real size, correct bitmap + SVG layout) at the moment we rasterise them.
+      const paneName = pane.getAttribute("data-pane");
+      const tabBtn = document.querySelector(`.tbr-map-tab[data-maptab="${paneName}"]`);
+      if (tabBtn && !tabBtn.classList.contains("active")) tabBtn.click();
+      void root.offsetHeight;
+      // One frame so a newly-activated pane has real layout — needed for the SVG
+      // charts' getBoundingClientRect. Canvas charts are rebuilt fresh at a fixed
+      // size in chartElementToImage(), so they don't depend on this at all.
+      await new Promise(r => requestAnimationFrame(r));
+
       const group = pane.querySelector(".tbr-group");
       if (!group) continue;
       const title = group.querySelector(".tbr-group-title");
@@ -3096,13 +3085,21 @@ async function onExportPdf(scope = "all") {
         for (let i = 0; i < cloneCharts.length; i++) {
           const raster = await chartElementToImage(liveCharts[i]);
           if (!raster) continue;
-          const rect = liveCharts[i].getBoundingClientRect();
           const img = document.createElement("img");
           img.src = raster.dataUrl;
-          img.style.width = Math.round(rect.width || (raster.w / 2)) + "px";
-          img.style.height = Math.round(rect.height || (raster.h / 2)) + "px";
+          // Fit the chart to its CARD, never to the live on-screen pixel width —
+          // the live canvas can be wider than the 900px capture stage, which made
+          // it overflow the card and html2canvas cropped the right edge (missing
+          // Net Profit / ROE). width:100% + height:auto scales the raster down to
+          // fit and preserves its (already-correct) aspect ratio.
+          img.style.width = "100%";
+          img.style.height = "auto";
           img.style.display = "block";
-          img.style.margin = "0 auto";   // centre the chart within its card
+          img.style.margin = "0 auto";   // centre within the card
+          // The canvas charts sit in .tbr-chartwrap (fixed height:260px). With the
+          // img at height:auto that fixed height would clip it — let it grow.
+          const wrap = cloneCharts[i].closest(".tbr-chartwrap");
+          if (wrap) { wrap.style.height = "auto"; }
           cloneCharts[i].replaceWith(img);
         }
         stage.appendChild(clone);
@@ -3200,10 +3197,12 @@ async function onExportPdf(scope = "all") {
     if (status) status.innerHTML = errorBanner("Could not generate the PDF. Try again, or use the .xlsx export.");
   } finally {
     if (stage && stage.parentNode) stage.parentNode.removeChild(stage);  // remove off-screen clone
-    // Re-hide the panes we temporarily revealed, and clear the inline style, so the
-    // on-screen view returns exactly as it was; then re-fit the charts to it.
-    for (const p of hiddenPanes) { p.style.cssText = ""; p.setAttribute("hidden", ""); }
-    for (const ch of [_pnlChart, _pnlWaterfallChart]) { try { ch?.resize(); } catch (_) {} }
+    // Restore the tab the user was on before export (we switched tabs to render
+    // each pane's charts for capture).
+    if (_pdfPrevTab) {
+      const btn = document.querySelector(`.tbr-map-tab[data-maptab="${_pdfPrevTab}"]`);
+      if (btn && !btn.classList.contains("active")) btn.click();
+    }
     if (menuBtn) { menuBtn.disabled = false; menuBtn.textContent = btnLabel; }
   }
 }
