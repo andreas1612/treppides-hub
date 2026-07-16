@@ -1336,6 +1336,16 @@ export function exportWorkbook(model, filename) {
 function exportTitle(model) {
   return stripExt(state.fileName) || "Financial Statements";
 }
+
+/** Heading printed on the PDF: the user's chosen file name (the actions-row field,
+ *  raw text so spaces read naturally) or, if unset, the uploaded filename — paired
+ *  as "<File Name> - Trial Balance Ratios". */
+function pdfTitle() {
+  const name = (state.exportName && state.exportName.trim())
+    || stripExt(state.fileName)
+    || "Trial Balance";
+  return `${name} - Trial Balance Ratios`;
+}
 /** Filesystem-safe base for export filenames. Priority:
  *   1. the user's chosen export name (from the actions-row input), sanitised
  *   2. the uploaded trial-balance filename (stripped of extension), sanitised
@@ -3127,8 +3137,8 @@ async function onExportPdf(scope = "all") {
     const contentW = pageW - margin * 2;
     const bottom = pageH - margin;
 
-    // Document title block.
-    const company = exportTitle(state.model);
+    // Document title block: "<file name> - Trial Balance Ratios".
+    const company = pdfTitle();
     const period = state.model?.meta?.periodLabel || "";
     doc.setFont("helvetica", "bold"); doc.setFontSize(14);
     doc.text(company, margin, margin + 4);
