@@ -64,7 +64,12 @@ function deptColor(dept) {
   return _deptColorMap[dept];
 }
 
-// Event type badges
+// Event type colors — distinct palette per type
+const TYPE_COLORS = {
+  LEAVE:    { bg: "rgba(245,158,11,.14)", border: "#f59e0b", tx: "#92400e", badge: "#f59e0b", label: "Leave" },
+  MEETING:  { bg: "rgba(59,130,246,.14)", border: "#3b82f6", tx: "#1e3a5f", badge: "#3b82f6", label: "Meeting" },
+  DEADLINE: { bg: "rgba(239,68,68,.14)",  border: "#ef4444", tx: "#7f1d1d", badge: "#ef4444", label: "Deadline" },
+};
 const TYPE_BADGE = { LEAVE: "L", MEETING: "M", DEADLINE: "D" };
 
 // ── State ───────────────────────────────────────────────────
@@ -341,11 +346,12 @@ function render() {
         const evEnd   = parseDate(ev.endDate);
         const isMulti = ev.startDate !== ev.endDate;
         const typeCls = ev.eventType.toLowerCase();
+        const tc = TYPE_COLORS[ev.eventType] || TYPE_COLORS.LEAVE;
         const epc = personColor(ev.ownerEmail.toLowerCase());
 
         // Span classes for multi-day leave
         let spanCls = `tcal-event ev-${typeCls}`;
-        if (typeCls === "leave" && isMulti) {
+        if (isMulti) {
           if (sameDay(d, evStart))      spanCls += " ev-start";
           else if (sameDay(d, evEnd))   spanCls += " ev-end";
           else                          spanCls += " ev-mid";
@@ -354,10 +360,12 @@ function render() {
         // Label: show title on first day or single-day events
         const showLabel = !isMulti || sameDay(d, evStart);
         const badge = TYPE_BADGE[ev.eventType] || "";
-        const label = showLabel ? `<span class="ev-badge">${badge}</span>${esc(ev.title)}` : "";
+        const label = showLabel
+          ? `<span class="ev-badge" style="background:${tc.badge};color:#fff">${badge}</span>${esc(ev.title)}`
+          : `<span class="ev-badge ev-badge-sm" style="background:${tc.badge};color:#fff">${badge}</span>`;
 
-        eventsHtml += `<div class="${spanCls}" data-event-id="${ev.eventId}" title="${esc(ev.title)}"
-          style="background:${epc.bg};border-color:${epc.h};color:${epc.tx}">${label}</div>`;
+        eventsHtml += `<div class="${spanCls}" data-event-id="${ev.eventId}" title="${esc(ev.title)} (${tc.label})"
+          style="background:${tc.bg};border-color:${epc.h};color:${tc.tx}">${label}</div>`;
       }
 
       const monCls = d.getDay() === 1 && _viewMode === "month" ? " week-start" : "";
@@ -409,6 +417,13 @@ function render() {
       </div>
 
       ${deptChipsHtml}
+
+
+      <div class="tcal-legend">
+        <span class="tcal-legend-item"><span class="ev-badge" style="background:#f59e0b;color:#fff">L</span> Leave</span>
+        <span class="tcal-legend-item"><span class="ev-badge" style="background:#3b82f6;color:#fff">M</span> Meeting</span>
+        <span class="tcal-legend-item"><span class="ev-badge" style="background:#ef4444;color:#fff">D</span> Deadline</span>
+      </div>
 
       <div class="tcal-grid-wrapper ${_viewMode === "week" ? "tcal-week-mode" : "tcal-month-mode"}">
         <div class="tcal-grid" style="grid-template-columns: 180px repeat(${dates.length}, 1fr);">

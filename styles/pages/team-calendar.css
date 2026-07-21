@@ -165,6 +165,22 @@
   border-color: var(--accent);
 }
 
+/* ── Type legend ────────────────────────────────────────────── */
+.tcal-legend {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+.tcal-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
 /* ── Calendar grid ──────────────────────────────────────────── */
 .tcal-grid-wrapper {
   background: var(--card-bg);
@@ -358,22 +374,26 @@
   z-index: 5;
 }
 
-/* Type badge (L/M/D) */
+/* Type badge (L/M/D) — prominent colored pill */
 .ev-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 14px;
-  height: 14px;
+  width: 15px;
+  height: 15px;
   border-radius: 3px;
-  font-size: 8px;
+  font-size: 8.5px;
   font-weight: 800;
   letter-spacing: 0;
   flex-shrink: 0;
-  background: rgba(0,0,0,.08);
-  color: inherit;
-  opacity: .7;
 }
+/* Tiny badge on mid/end spans (no title shown) */
+.ev-badge.ev-badge-sm {
+  width: 13px;
+  height: 13px;
+  font-size: 7.5px;
+}
+
 
 /* Multi-day spanning */
 .tcal-event.ev-start {
@@ -421,8 +441,13 @@
   gap: 2px;
 }
 .tcal-month-mode .ev-badge {
-  width: 12px;
-  height: 12px;
+  width: 13px;
+  height: 13px;
+  font-size: 7.5px;
+}
+.tcal-month-mode .ev-badge.ev-badge-sm {
+  width: 11px;
+  height: 11px;
   font-size: 7px;
 }
 .tcal-month-mode .tcal-cell {
