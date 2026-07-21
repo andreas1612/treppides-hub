@@ -1,0 +1,521 @@
+/* ============================================================
+   team-calendar.css — Team Calendar tool styles
+   ============================================================ */
+
+/* ── Header row ─────────────────────────────────────────────── */
+.tcal-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.tcal-back-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+  flex-shrink: 0;
+}
+.tcal-back-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+  background: rgba(0, 0, 0, .02);
+}
+.tcal-back-btn svg { width: 18px; height: 18px; }
+
+.tcal-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+.tcal-subtitle {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 2px 0 0;
+}
+
+/* ── Controls bar ───────────────────────────────────────────── */
+.tcal-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.tcal-nav-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tcal-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 16px;
+  transition: all var(--transition);
+}
+.tcal-nav-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+}
+
+.tcal-month-label {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  min-width: 140px;
+  text-align: center;
+}
+
+/* View toggle (Month / Week) */
+.tcal-view-toggle {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.tcal-view-btn {
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  border: none;
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.tcal-view-btn + .tcal-view-btn {
+  border-left: 1px solid var(--border);
+}
+.tcal-view-btn.active {
+  background: var(--accent);
+  color: #000;
+}
+
+/* New Event button */
+.tcal-add-btn {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: #000;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+.tcal-add-btn:hover { background: var(--accent-hover); }
+.tcal-add-btn svg { width: 14px; height: 14px; }
+
+/* ── Department picker chips ────────────────────────────────── */
+.tcal-dept-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.tcal-dept-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.tcal-dept-chip {
+  padding: 5px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.tcal-dept-chip:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+.tcal-dept-chip.active {
+  background: var(--accent);
+  color: #000;
+  border-color: var(--accent);
+}
+
+/* ── Calendar grid ──────────────────────────────────────────── */
+.tcal-grid-wrapper {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow-x: auto;
+}
+
+.tcal-grid {
+  display: grid;
+  min-width: 700px;
+}
+
+/* Column header (day names + dates) */
+.tcal-col-header {
+  display: contents;
+}
+.tcal-day-header {
+  padding: 10px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--text-secondary);
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+  background: rgba(0, 0, 0, .015);
+}
+.tcal-day-header.today {
+  color: var(--accent);
+}
+.tcal-day-header .day-num {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  margin-top: 2px;
+}
+.tcal-day-header.today .day-num {
+  background: var(--accent);
+  color: #000;
+  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2px;
+}
+.tcal-day-header.weekend {
+  background: rgba(0, 0, 0, .03);
+}
+
+/* Name column (first col) */
+.tcal-name-header {
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  background: rgba(0, 0, 0, .015);
+  position: sticky;
+  left: 0;
+  z-index: 2;
+}
+
+/* Person rows */
+.tcal-person-name {
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  border-bottom: 1px solid rgba(0,0,0,.04);
+  border-right: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  position: sticky;
+  left: 0;
+  background: var(--card-bg);
+  z-index: 2;
+}
+.tcal-person-name .dept-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Day cells */
+.tcal-cell {
+  padding: 4px 3px;
+  min-height: 40px;
+  border-bottom: 1px solid rgba(0,0,0,.04);
+  position: relative;
+  cursor: pointer;
+  transition: background .1s;
+}
+.tcal-cell:hover {
+  background: rgba(79, 142, 247, .04);
+}
+.tcal-cell.weekend {
+  background: rgba(0, 0, 0, .02);
+}
+.tcal-cell.weekend:hover {
+  background: rgba(0, 0, 0, .04);
+}
+
+/* ── Event bars & chips ─────────────────────────────────────── */
+.tcal-event {
+  display: flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  position: relative;
+  z-index: 1;
+}
+
+/* LEAVE — amber bar */
+.tcal-event.leave {
+  background: rgba(237, 176, 21, .18);
+  color: #92650a;
+  border-left: 3px solid #d69e2e;
+}
+/* Multi-day leave: spans across cells */
+.tcal-event.leave-start {
+  border-radius: 4px 0 0 4px;
+  margin-right: -3px;
+}
+.tcal-event.leave-mid {
+  border-radius: 0;
+  border-left: none;
+  margin-left: -3px;
+  margin-right: -3px;
+}
+.tcal-event.leave-end {
+  border-radius: 0 4px 4px 0;
+  border-left: none;
+  margin-left: -3px;
+}
+.tcal-event.leave-single {
+  /* default border-radius */
+}
+
+/* MEETING — blue chip */
+.tcal-event.meeting {
+  background: rgba(79, 142, 247, .15);
+  color: #2b5ea7;
+  border-left: 3px solid #4f8ef7;
+}
+
+/* DEADLINE — red chip */
+.tcal-event.deadline {
+  background: rgba(229, 62, 62, .12);
+  color: #9b2c2c;
+  border-left: 3px solid #e53e3e;
+}
+
+.tcal-event:hover {
+  filter: brightness(0.95);
+}
+
+/* ── Event modal ────────────────────────────────────────────── */
+.tcal-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.tcal-modal-backdrop.hidden { display: none; }
+
+.tcal-modal {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 28px 32px;
+  width: 460px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,.2);
+}
+
+.tcal-modal h3 {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 20px;
+}
+
+.tcal-form-group {
+  margin-bottom: 16px;
+}
+.tcal-form-group label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 5px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.tcal-form-group input,
+.tcal-form-group select,
+.tcal-form-group textarea {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 13px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  font-family: inherit;
+  box-sizing: border-box;
+}
+.tcal-form-group input:focus,
+.tcal-form-group select:focus,
+.tcal-form-group textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.tcal-form-group textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.tcal-form-row {
+  display: flex;
+  gap: 12px;
+}
+.tcal-form-row .tcal-form-group {
+  flex: 1;
+}
+
+.tcal-form-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.tcal-form-check input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+.tcal-form-check label {
+  font-size: 13px;
+  color: var(--text-primary);
+  margin: 0;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+}
+
+.tcal-modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 24px;
+}
+.tcal-modal-actions .btn-primary {
+  padding: 8px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: #000;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+.tcal-modal-actions .btn-primary:hover { background: var(--accent-hover); }
+
+.tcal-modal-actions .btn-secondary {
+  padding: 8px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.tcal-modal-actions .btn-secondary:hover {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+}
+
+.tcal-modal-actions .btn-danger {
+  margin-left: auto;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid rgba(229, 62, 62, .3);
+  border-radius: var(--radius);
+  background: rgba(229, 62, 62, .06);
+  color: #e53e3e;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.tcal-modal-actions .btn-danger:hover {
+  background: rgba(229, 62, 62, .12);
+  border-color: #e53e3e;
+}
+
+/* ── Loading / empty states ─────────────────────────────────── */
+.tcal-loading {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+.tcal-empty {
+  text-align: center;
+  padding: 32px 24px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+/* ── Department color dots (for "All" view) ─────────────────── */
+.dept-color-0  { background: #4f8ef7; }
+.dept-color-1  { background: #48bb78; }
+.dept-color-2  { background: #ed8936; }
+.dept-color-3  { background: #9f7aea; }
+.dept-color-4  { background: #e53e3e; }
+.dept-color-5  { background: #38b2ac; }
+.dept-color-6  { background: #d69e2e; }
+.dept-color-7  { background: #667eea; }
+.dept-color-8  { background: #f56565; }
+.dept-color-9  { background: #ed64a6; }
+
+/* ── Responsive ─────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  .tcal-controls { gap: 8px; }
+  .tcal-month-label { min-width: 110px; font-size: 13px; }
+  .tcal-add-btn { padding: 6px 12px; font-size: 12px; }
+  .tcal-modal { padding: 20px 20px; }
+  .tcal-form-row { flex-direction: column; gap: 0; }
+}

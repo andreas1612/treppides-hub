@@ -191,7 +191,8 @@ export default async function init(config) {
     const btns = [
       _has("performance") ? `<button class="nav-item nav-btn" id="${p}-performance">${ICONS.trendUp} Performance</button>` : "",
       _has("budgetkpi")   ? `<button class="nav-item nav-btn" id="${p}-budgetkpi">${ICONS.dollar} Budget KPI</button>` : "",
-      _has("financials")  ? `<button class="nav-item nav-btn" id="${p}-financials">${ICONS.ledger} Financials</button>` : "",
+      // TEMPORARILY HIDDEN (2026-07-10) — Financials button hidden from sidebar; undo later
+      // _has("financials")  ? `<button class="nav-item nav-btn" id="${p}-financials">${ICONS.ledger} Financials</button>` : "",
     ].filter(Boolean).join("\n        ");
     return btns ? `<div class="nav-label" style="margin-top:12px;">${_label}</div>\n        ${btns}` : "";
   };
@@ -256,8 +257,9 @@ export default async function init(config) {
       if (window.__hub_tbratio)      window.__hub_tbratio.hide();
       if (window.__hub_performance)  window.__hub_performance.hide();
       if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
-      if (window.__hub_forms)        window.__hub_forms.hide();
-      if (window.__hub_reader)       window.__hub_reader.goHome();
+      if (window.__hub_forms)           window.__hub_forms.hide();
+      if (window.__hub_teamcalendar)  window.__hub_teamcalendar.hide();
+      if (window.__hub_reader)        window.__hub_reader.goHome();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
@@ -273,8 +275,9 @@ export default async function init(config) {
       if (window.__hub_tbratio)      window.__hub_tbratio.hide();
       if (window.__hub_performance)  window.__hub_performance.hide();
       if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
-      if (window.__hub_forms)        window.__hub_forms.hide();
-      if (window.__hub_kb)           window.__hub_kb.show();
+      if (window.__hub_forms)           window.__hub_forms.hide();
+      if (window.__hub_teamcalendar)  window.__hub_teamcalendar.hide();
+      if (window.__hub_kb)            window.__hub_kb.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
@@ -290,8 +293,9 @@ export default async function init(config) {
       if (window.__hub_tbratio)      window.__hub_tbratio.hide();
       if (window.__hub_performance)  window.__hub_performance.hide();
       if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
-      if (window.__hub_forms)        window.__hub_forms.hide();
-      if (window.__hub_staff)        window.__hub_staff.show();
+      if (window.__hub_forms)           window.__hub_forms.hide();
+      if (window.__hub_teamcalendar)  window.__hub_teamcalendar.hide();
+      if (window.__hub_staff)         window.__hub_staff.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
@@ -307,8 +311,9 @@ export default async function init(config) {
       if (window.__hub_tbratio)      window.__hub_tbratio.hide();
       if (window.__hub_performance)  window.__hub_performance.hide();
       if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
-      if (window.__hub_forms)        window.__hub_forms.hide();
-      if (window.__hub_projects)     window.__hub_projects.show();
+      if (window.__hub_forms)           window.__hub_forms.hide();
+      if (window.__hub_teamcalendar)  window.__hub_teamcalendar.hide();
+      if (window.__hub_projects)      window.__hub_projects.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
@@ -324,8 +329,9 @@ export default async function init(config) {
       if (window.__hub_companies)    window.__hub_companies.hide();
       if (window.__hub_tbratio)      window.__hub_tbratio.hide();
       if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
-      if (window.__hub_forms)        window.__hub_forms.hide();
-      if (window.__hub_performance)  window.__hub_performance.show();
+      if (window.__hub_forms)           window.__hub_forms.hide();
+      if (window.__hub_teamcalendar)  window.__hub_teamcalendar.hide();
+      if (window.__hub_performance)   window.__hub_performance.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
@@ -341,8 +347,9 @@ export default async function init(config) {
       if (window.__hub_companies)    window.__hub_companies.hide();
       if (window.__hub_tbratio)      window.__hub_tbratio.hide();
       if (window.__hub_performance)  window.__hub_performance.hide();
-      if (window.__hub_forms)        window.__hub_forms.hide();
-      if (window.__hub_budgetkpi)    window.__hub_budgetkpi.show();
+      if (window.__hub_forms)           window.__hub_forms.hide();
+      if (window.__hub_teamcalendar)  window.__hub_teamcalendar.hide();
+      if (window.__hub_budgetkpi)     window.__hub_budgetkpi.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
@@ -410,8 +417,9 @@ export default async function init(config) {
       if (window.__hub_tbratio)      window.__hub_tbratio.hide();
       if (window.__hub_performance)  window.__hub_performance.hide();
       if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
-      if (window.__hub_forms)        window.__hub_forms.hide();
-      if (window.__hub_reader)       window.__hub_reader.goHome();
+      if (window.__hub_forms)           window.__hub_forms.hide();
+      if (window.__hub_teamcalendar)  window.__hub_teamcalendar.hide();
+      if (window.__hub_reader)        window.__hub_reader.goHome();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
@@ -427,8 +435,9 @@ export default async function init(config) {
       if (window.__hub_tbratio)      window.__hub_tbratio.hide();
       if (window.__hub_performance)  window.__hub_performance.hide();
       if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
-      if (window.__hub_forms)        window.__hub_forms.hide();
-      if (window.__hub_kb)           window.__hub_kb.show();
+      if (window.__hub_forms)           window.__hub_forms.hide();
+      if (window.__hub_teamcalendar)  window.__hub_teamcalendar.hide();
+      if (window.__hub_kb)            window.__hub_kb.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
@@ -444,8 +453,9 @@ export default async function init(config) {
       if (window.__hub_tbratio)      window.__hub_tbratio.hide();
       if (window.__hub_performance)  window.__hub_performance.hide();
       if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
-      if (window.__hub_forms)        window.__hub_forms.hide();
-      if (window.__hub_staff)        window.__hub_staff.show();
+      if (window.__hub_forms)           window.__hub_forms.hide();
+      if (window.__hub_teamcalendar)  window.__hub_teamcalendar.hide();
+      if (window.__hub_staff)         window.__hub_staff.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
@@ -462,8 +472,9 @@ export default async function init(config) {
       if (window.__hub_tbratio)      window.__hub_tbratio.hide();
       if (window.__hub_performance)  window.__hub_performance.hide();
       if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
-      if (window.__hub_forms)        window.__hub_forms.hide();
-      if (window.__hub_projects)     window.__hub_projects.show();
+      if (window.__hub_forms)           window.__hub_forms.hide();
+      if (window.__hub_teamcalendar)  window.__hub_teamcalendar.hide();
+      if (window.__hub_projects)      window.__hub_projects.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
@@ -480,8 +491,9 @@ export default async function init(config) {
       if (window.__hub_companies)    window.__hub_companies.hide();
       if (window.__hub_tbratio)      window.__hub_tbratio.hide();
       if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
-      if (window.__hub_forms)        window.__hub_forms.hide();
-      if (window.__hub_performance)  window.__hub_performance.show();
+      if (window.__hub_forms)           window.__hub_forms.hide();
+      if (window.__hub_teamcalendar)  window.__hub_teamcalendar.hide();
+      if (window.__hub_performance)   window.__hub_performance.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
@@ -498,8 +510,9 @@ export default async function init(config) {
       if (window.__hub_companies)    window.__hub_companies.hide();
       if (window.__hub_tbratio)      window.__hub_tbratio.hide();
       if (window.__hub_performance)  window.__hub_performance.hide();
-      if (window.__hub_forms)        window.__hub_forms.hide();
-      if (window.__hub_budgetkpi)    window.__hub_budgetkpi.show();
+      if (window.__hub_forms)           window.__hub_forms.hide();
+      if (window.__hub_teamcalendar)  window.__hub_teamcalendar.hide();
+      if (window.__hub_budgetkpi)     window.__hub_budgetkpi.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
@@ -533,8 +546,9 @@ export default async function init(config) {
       valuation:   ["sb-tools",       "mb-tools"],
       companies:   ["sb-tools",       "mb-tools"],
       tbratio:     ["sb-tools",       "mb-tools"],
-      forms:       ["sb-tools",       "mb-tools"],
-      performance: ["sb-performance", "mb-performance"],
+      forms:        ["sb-tools",       "mb-tools"],
+      teamcalendar: ["sb-tools",       "mb-tools"],     // tool sub-page → highlight Tools
+      performance:  ["sb-performance", "mb-performance"],
       budgetkpi:   ["sb-budgetkpi",   "mb-budgetkpi"],
       financials:  ["sb-financials",  "mb-financials"],
     };

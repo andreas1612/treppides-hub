@@ -17,7 +17,7 @@ import initReader        from "./components/pages/reader.js";
 import initFees          from "./components/pages/fees.js";
 import initAdmin         from "./components/shell/admin.js";
 import initSupport       from "./components/shell/support.js";
-import initStaff         from "./components/pages/staff.js";
+import initStaff         from "./components/pages/staff.js?v=live1";
 import initAml           from "./components/pages/aml.js";
 import initProjects      from "./components/pages/projects.js";
 import initValuation     from "./components/pages/valuation.js";
@@ -27,6 +27,7 @@ import initBudgetKpi      from "./components/pages/budget-kpi.js";
 import initTbratio        from "./components/pages/tbratio.js";
 import initForms          from "./components/pages/forms.js";
 import initFinancials     from "./components/pages/financials.js";
+import initTeamCalendar   from "./components/pages/team-calendar.js";
 
 async function boot() {
   // Auth gate — redirects to Microsoft login if no active session.
@@ -89,6 +90,9 @@ async function boot() {
   // Financials — board/admin reporting (revenue, budget, recoverability, debtors).
   // sidebar.js calls window.__hub_financials.show() when the gated nav item is clicked.
   await initFinancials(CONFIG);
+
+  // Team Calendar — leave, meetings & deadlines (tool, launched from Tools grid).
+  await initTeamCalendar(CONFIG);
 
   // Content sections — initialise in visual page order.
   // Each runs independently; a failure in one does not block others.

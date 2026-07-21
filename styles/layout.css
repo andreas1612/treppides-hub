@@ -421,6 +421,18 @@
 .main.financials-active .reader-overlay      { display: none !important; }
 .main.financials-active #section-financials   { display: block !important; }
 
+/* ============================================================
+   TEAM CALENDAR — dedicated full-page view
+   ============================================================ */
+#section-teamcalendar {
+  display: none;
+  padding: var(--page-gutter, 32px);
+}
+
+.main.teamcalendar-active .page-content          { display: none !important; }
+.main.teamcalendar-active .reader-overlay        { display: none !important; }
+.main.teamcalendar-active #section-teamcalendar   { display: block !important; }
+
 .kpi-back-btn {
   display: inline-flex;
   align-items: center;
