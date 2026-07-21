@@ -115,6 +115,15 @@ DIRECTOR_OVERRIDES = {
             "ekasieri@treppides.com",
         ]},
     ],
+    "cacheriotou@treppides.com": [
+        {"teamKey": "ICAS / Licensing",                 "filter": None},
+        {"teamKey": "ICAS / Internal Audit",            "filter": ["manager", "supervisor"]},
+        {"teamKey": "ICAS / Assurance & Risk Advisory", "emails": [
+            "etheodorou@treppides.com",
+            "ekasieri@treppides.com",
+        ]},
+        {"teamKey": "ICAS / Compliance",                "filter": ["manager"]},
+    ],
 }
 
 
