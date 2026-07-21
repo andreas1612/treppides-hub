@@ -73,7 +73,8 @@ export default async function init() {
   document.getElementById("perf-back-btn")?.addEventListener("click", hidePage);
 
   // Tier: FULL sees the employee dropdown (view anyone); STANDARD sees only their own card.
-  selfMode = getCurrentUser()?.tier !== "FULL";
+  // FULL and SUPER get the admin "view anyone" dropdown; STANDARD gets self-view only.
+  selfMode = !["FULL", "SUPER"].includes(getCurrentUser()?.tier);
   if (selfMode) {
     document.getElementById("perf-employee-select")?.remove();
   } else {

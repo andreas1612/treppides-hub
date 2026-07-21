@@ -80,7 +80,8 @@ export default async function init() {
   buildPeriodBar();
 
   // Tier: FULL sees the manager dropdown (view anyone); STANDARD sees only their own budget.
-  selfMode = getCurrentUser()?.tier !== "FULL";
+  // FULL and SUPER get the admin "view anyone" dropdown; STANDARD gets self-view only.
+  selfMode = !["FULL", "SUPER"].includes(getCurrentUser()?.tier);
   if (selfMode) {
     document.getElementById("kpi-manager-select")?.remove();
     loadSelf();
