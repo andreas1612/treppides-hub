@@ -46,3 +46,8 @@ media/videos/
 
 # Claude Code local settings (per-machine)
 .claude/
+
+# team-calendar secrets + transient sqlite files
+api/team-calendar/.env
+*.db-shm
+*.db-wal
