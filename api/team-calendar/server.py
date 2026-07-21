@@ -90,15 +90,98 @@ def get_staff_by_email() -> dict:
 # ── Team resolution ──────────────────────────────────────────────────────────
 # A "team" = all people sharing the same (department, subDepartment) pair
 # from the staff directory.  e.g. "ICAS / Compliance" or "Technology".
-# Directors will be hardcoded later (multi-team view).
+#
+# Directors get a multi-team view (hardcoded below).
+# Everyone a director oversees also sees the director in their own view.
+
+# Each entry: teamKey to include, with optional filters.
+# "filter": None       → include everyone on that team
+# "filter": [...]      → include only people whose jobTitle contains one of these keywords
+# "emails": [...]      → include only these specific emails from that team
+DIRECTOR_OVERRIDES = {
+    "syiannaki@treppides.com": [
+        {"teamKey": "ICAS / Assurance & Risk Advisory", "filter": None},
+        {"teamKey": "ICAS / Internal Audit",            "filter": None},
+        {"teamKey": "ICAS / Compliance",                "filter": ["director", "manager"]},
+        {"teamKey": "ICAS / Licensing",                 "filter": ["principal", "manager"]},
+        {"teamKey": "Technology",                       "filter": None},
+    ],
+    "msourmeli@treppides.com": [
+        {"teamKey": "ICAS / Compliance",                "filter": None},
+        {"teamKey": "ICAS / Internal Audit",            "filter": None},
+        {"teamKey": "ICAS / Licensing",                 "filter": ["principal", "manager"]},
+        {"teamKey": "ICAS / Assurance & Risk Advisory", "emails": [
+            "etheodorou@treppides.com",
+            "ekasieri@treppides.com",
+        ]},
+    ],
+}
+
+
+def _match_rule(staff_member: dict, rule: dict) -> bool:
+    """Check if a staff member matches a rule's filters."""
+    if staff_member["teamKey"] != rule["teamKey"]:
+        return False
+    # Email whitelist takes priority
+    if "emails" in rule:
+        return staff_member["email"] in rule["emails"]
+    # Title keyword filter
+    filt = rule.get("filter")
+    if filt:
+        title = (staff_member.get("jobTitle") or "").lower()
+        return any(kw in title for kw in filt)
+    # No filter → include everyone
+    return True
+
+
+def _resolve_director(email: str, all_staff: list, by_email: dict) -> list[dict]:
+    """Build the multi-team view for a director."""
+    rules = DIRECTOR_OVERRIDES[email]
+    members = []
+    seen = set()
+
+    for rule in rules:
+        for s in all_staff:
+            if s["email"] in seen:
+                continue
+            if _match_rule(s, rule):
+                members.append(s)
+                seen.add(s["email"])
+
+    # Make sure the director themselves is included
+    if email not in seen:
+        director = by_email.get(email)
+        if director:
+            members.append(director)
+
+    return members
+
+
+def _directors_overseeing(email: str, all_staff: list, by_email: dict) -> list[dict]:
+    """Return any directors who oversee this person (so they appear in their view)."""
+    directors = []
+    for dir_email, rules in DIRECTOR_OVERRIDES.items():
+        if dir_email == email:
+            continue
+        user = by_email.get(email)
+        if not user:
+            continue
+        for rule in rules:
+            if _match_rule(user, rule):
+                director = by_email.get(dir_email)
+                if director:
+                    directors.append(director)
+                break
+    return directors
 
 
 def resolve_team(email: str) -> tuple[list[dict], str]:
     """
     Resolve the team the user belongs to using the staff directory.
 
-    Team = all people with the same (department, subDepartment).
-    Everyone sees all members of their team, regardless of seniority.
+    - Directors (in DIRECTOR_OVERRIDES) get a multi-team view.
+    - Regular staff see their (department, subDepartment) team,
+      plus any directors who oversee them.
 
     Returns (team_members[], viewMode).
     """
@@ -110,8 +193,26 @@ def resolve_team(email: str) -> tuple[list[dict], str]:
     if not user:
         return [], "single"
 
+    # Director: multi-team view
+    if email in DIRECTOR_OVERRIDES:
+        members = _resolve_director(email, all_staff, by_email)
+        # Also add any higher-level directors who oversee this director
+        seen = {m["email"] for m in members}
+        for d in _directors_overseeing(email, all_staff, by_email):
+            if d["email"] not in seen:
+                members.append(d)
+        members.sort(key=lambda m: (m["teamKey"], m["name"]))
+        depts = sorted(set(m["department"] for m in members))
+        return members, "multi" if len(depts) > 1 else "single"
+
+    # Regular staff: same teamKey
     user_key = user["teamKey"]
     teammates = [s for s in all_staff if s["teamKey"] == user_key]
+
+    # Add any directors who oversee this person
+    for d in _directors_overseeing(email, all_staff, by_email):
+        if not any(m["email"] == d["email"] for m in teammates):
+            teammates.append(d)
 
     # Make sure current user is always included
     if not any(m["email"] == email for m in teammates):

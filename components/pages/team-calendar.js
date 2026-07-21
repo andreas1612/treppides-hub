@@ -14,19 +14,58 @@ const MONTHS = ["January","February","March","April","May","June",
                 "July","August","September","October","November","December"];
 const DAYS_SHORT = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
 
-// ── Dept colors for "All" view ──────────────────────────────
-const DEPT_COLORS = [
-  "#4f8ef7","#48bb78","#ed8936","#9f7aea","#e53e3e",
-  "#38b2ac","#d69e2e","#667eea","#f56565","#ed64a6",
+// ── Per-person color palette ────────────────────────────────
+// 16 hand-picked colors — each person gets a unique one via hash.
+const PERSON_PALETTE = [
+  { h: "#4f8ef7", bg: "rgba(79,142,247,.13)",  tx: "#2b5ea7" },  // blue
+  { h: "#48bb78", bg: "rgba(72,187,120,.13)",   tx: "#276749" },  // green
+  { h: "#ed8936", bg: "rgba(237,137,54,.13)",   tx: "#9c4221" },  // orange
+  { h: "#9f7aea", bg: "rgba(159,122,234,.13)",  tx: "#553c9a" },  // purple
+  { h: "#e53e3e", bg: "rgba(229,62,62,.12)",    tx: "#9b2c2c" },  // red
+  { h: "#38b2ac", bg: "rgba(56,178,172,.13)",   tx: "#234e52" },  // teal
+  { h: "#d69e2e", bg: "rgba(214,158,46,.14)",   tx: "#744210" },  // gold
+  { h: "#667eea", bg: "rgba(102,126,234,.13)",  tx: "#3c366b" },  // indigo
+  { h: "#ed64a6", bg: "rgba(237,100,166,.13)",  tx: "#97266d" },  // pink
+  { h: "#3182ce", bg: "rgba(49,130,206,.13)",   tx: "#1a365d" },  // sky
+  { h: "#68d391", bg: "rgba(104,211,145,.14)",  tx: "#22543d" },  // lime
+  { h: "#f6ad55", bg: "rgba(246,173,85,.14)",   tx: "#7b341e" },  // amber
+  { h: "#b794f4", bg: "rgba(183,148,244,.13)",  tx: "#44337a" },  // lavender
+  { h: "#fc8181", bg: "rgba(252,129,129,.13)",  tx: "#822727" },  // coral
+  { h: "#4fd1c5", bg: "rgba(79,209,197,.13)",   tx: "#1d4044" },  // mint
+  { h: "#f687b3", bg: "rgba(246,135,179,.13)",  tx: "#702459" },  // rose
 ];
+
+let _personColorMap = {};
+let _personColorIdx = 0;
+
+function personColor(email) {
+  if (_personColorMap[email]) return _personColorMap[email];
+  // Sequential assignment — guarantees maximum color spread within a team
+  const c = PERSON_PALETTE[_personColorIdx % PERSON_PALETTE.length];
+  _personColorIdx++;
+  _personColorMap[email] = c;
+  return c;
+}
+
+function resetPersonColors() {
+  _personColorMap = {};
+  _personColorIdx = 0;
+}
+
+// Team/dept color for group headers
 let _deptColorMap = {};
 function deptColor(dept) {
   if (!_deptColorMap[dept]) {
-    const idx = Object.keys(_deptColorMap).length % DEPT_COLORS.length;
-    _deptColorMap[dept] = DEPT_COLORS[idx];
+    let hash = 0;
+    for (let i = 0; i < dept.length; i++) hash = ((hash << 5) - hash + dept.charCodeAt(i)) | 0;
+    const idx = Math.abs(hash) % PERSON_PALETTE.length;
+    _deptColorMap[dept] = PERSON_PALETTE[idx].h;
   }
   return _deptColorMap[dept];
 }
+
+// Event type badges
+const TYPE_BADGE = { LEAVE: "L", MEETING: "M", DEADLINE: "D" };
 
 // ── State ───────────────────────────────────────────────────
 let _viewMode   = "month";   // "month" | "week"
@@ -87,6 +126,7 @@ function mondayOf(d) {
 /** Array of dates for the view range. */
 function getViewDates() {
   if (_viewMode === "week") {
+    // Week view: full 7 days (Mon-Sun)
     const mon = _weekStart || mondayOf(new Date());
     const dates = [];
     for (let i = 0; i < 7; i++) {
@@ -96,19 +136,17 @@ function getViewDates() {
     }
     return dates;
   }
-  // Month view: full weeks covering the month
+  // Month view: weekdays only (Mon-Fri) for a readable grid
   const first = new Date(_year, _month, 1);
   const last  = new Date(_year, _month + 1, 0);
-  const start = mondayOf(first);
-  // End on the Sunday after the last day
-  const end = new Date(last);
-  const lastDay = end.getDay();
-  if (lastDay !== 0) end.setDate(end.getDate() + (7 - lastDay));
 
   const dates = [];
-  const cur = new Date(start);
-  while (cur <= end) {
-    dates.push(new Date(cur));
+  const cur = new Date(first);
+  while (cur <= last) {
+    const dow = cur.getDay();
+    if (dow >= 1 && dow <= 5) { // Mon=1 .. Fri=5
+      dates.push(new Date(cur));
+    }
     cur.setDate(cur.getDate() + 1);
   }
   return dates;
@@ -174,6 +212,10 @@ async function loadMyView() {
   _departments = _myView.departments || [];
   _fullTeam = _myView.team || [];
 
+  // Assign colors sequentially so each person in the team gets a distinct color
+  resetPersonColors();
+  for (const s of _fullTeam) personColor(s.email);
+
   // Default dept: "All" if multi-dept, otherwise the first/only dept
   if (!_dept) {
     _dept = _departments.length > 1 ? "All" : (_departments[0] || null);
@@ -181,14 +223,20 @@ async function loadMyView() {
 }
 
 function loadStaff() {
-  // Staff comes from the team array in /my-view (resolved via TEAMID grouping).
+  // Staff comes from the team array in /my-view (resolved via staff directory grouping).
   // Filter by selected department, or show all.
   if (_dept === "All" || !_dept) {
     _staff = [..._fullTeam];
   } else {
     _staff = _fullTeam.filter(s => s.department === _dept);
   }
-  _staff.sort((a, b) => a.name.localeCompare(b.name));
+  // Sort by teamKey first (preserves team grouping), then by name within each team
+  _staff.sort((a, b) => {
+    const tA = a.teamKey || a.department;
+    const tB = b.teamKey || b.department;
+    if (tA !== tB) return tA.localeCompare(tB);
+    return a.name.localeCompare(b.name);
+  });
 }
 
 async function loadEvents() {
@@ -246,24 +294,40 @@ function render() {
   }
 
   // Grid: header row
-  let headerCells = `<div class="tcal-name-header">Staff</div>`;
+  let headerCells = `<div class="tcal-name-header">${_staff.length} staff</div>`;
   for (const d of dates) {
+    const isMonday = d.getDay() === 1;
     const cls = [
       "tcal-day-header",
       isWeekend(d) ? "weekend" : "",
       isToday(d) ? "today" : "",
+      isMonday && _viewMode === "month" ? "week-start" : "",
     ].filter(Boolean).join(" ");
     const dow = DAYS_SHORT[(d.getDay() + 6) % 7]; // Monday = 0
-    headerCells += `<div class="${cls}">${dow}<span class="day-num">${d.getDate()}</span></div>`;
+    const monthTag = (d.getDate() === 1 || d === dates[0]) && _viewMode === "month"
+      ? `<span class="day-month">${MONTHS[d.getMonth()].slice(0,3)}</span>` : "";
+    headerCells += `<div class="${cls}">${dow}<span class="day-num">${d.getDate()}</span>${monthTag}</div>`;
   }
 
-  // Grid: person rows
+  // Grid: person rows — grouped by teamKey when multi-team view
   let rowsHtml = "";
+  const hasMultipleTeams = new Set(_staff.map(s => s.teamKey || s.department)).size > 1;
+  let lastTeamKey = null;
+
   for (const person of _staff) {
-    // Name cell with optional dept color dot
-    const dotStyle = showAllView ? `style="background:${deptColor(person.department)}"` : "";
-    const dotHtml  = showAllView ? `<span class="dept-dot" ${dotStyle}></span>` : "";
-    rowsHtml += `<div class="tcal-person-name" title="${esc(person.department)}">${dotHtml}${esc(person.name)}</div>`;
+    const teamKey = person.teamKey || person.department;
+    const pc = personColor(person.email);
+
+    // Insert team group header when the team changes (multi-team views only)
+    if (hasMultipleTeams && teamKey !== lastTeamKey) {
+      lastTeamKey = teamKey;
+      const teamLabel = person.subDepartment || person.department;
+      rowsHtml += `<div class="tcal-team-header" style="grid-column:1/-1;border-left:3px solid ${deptColor(teamKey)}"><span class="tcal-team-dot" style="background:${deptColor(teamKey)}"></span>${esc(teamLabel)}</div>`;
+    }
+
+    // Name cell — always show person color dot
+    rowsHtml += `<div class="tcal-person-name" title="${esc(person.jobTitle || teamKey)}">
+      <span class="person-dot" style="background:${pc.h}"></span>${esc(person.name)}</div>`;
 
     // Day cells
     for (const d of dates) {
@@ -277,21 +341,27 @@ function render() {
         const evEnd   = parseDate(ev.endDate);
         const isMulti = ev.startDate !== ev.endDate;
         const typeCls = ev.eventType.toLowerCase();
+        const epc = personColor(ev.ownerEmail.toLowerCase());
 
-        let spanCls = typeCls;
+        // Span classes for multi-day leave
+        let spanCls = `tcal-event ev-${typeCls}`;
         if (typeCls === "leave" && isMulti) {
-          if (sameDay(d, evStart))      spanCls += " leave-start";
-          else if (sameDay(d, evEnd))   spanCls += " leave-end";
-          else                          spanCls += " leave-mid";
-        } else if (typeCls === "leave") {
-          spanCls += " leave-single";
+          if (sameDay(d, evStart))      spanCls += " ev-start";
+          else if (sameDay(d, evEnd))   spanCls += " ev-end";
+          else                          spanCls += " ev-mid";
         }
 
-        const label = typeCls === "leave" && isMulti && !sameDay(d, evStart) ? "" : esc(ev.title);
-        eventsHtml += `<div class="tcal-event ${spanCls}" data-event-id="${ev.eventId}" title="${esc(ev.title)}">${label}</div>`;
+        // Label: show title on first day or single-day events
+        const showLabel = !isMulti || sameDay(d, evStart);
+        const badge = TYPE_BADGE[ev.eventType] || "";
+        const label = showLabel ? `<span class="ev-badge">${badge}</span>${esc(ev.title)}` : "";
+
+        eventsHtml += `<div class="${spanCls}" data-event-id="${ev.eventId}" title="${esc(ev.title)}"
+          style="background:${epc.bg};border-color:${epc.h};color:${epc.tx}">${label}</div>`;
       }
 
-      rowsHtml += `<div class="tcal-cell ${wknd}" data-date="${ds}" data-email="${esc(person.email)}">${eventsHtml}</div>`;
+      const monCls = d.getDay() === 1 && _viewMode === "month" ? " week-start" : "";
+      rowsHtml += `<div class="tcal-cell ${wknd}${monCls}" data-date="${ds}" data-email="${esc(person.email)}">${eventsHtml}</div>`;
     }
   }
 
@@ -340,8 +410,8 @@ function render() {
 
       ${deptChipsHtml}
 
-      <div class="tcal-grid-wrapper">
-        <div class="tcal-grid" style="grid-template-columns: 160px repeat(${dates.length}, 1fr);">
+      <div class="tcal-grid-wrapper ${_viewMode === "week" ? "tcal-week-mode" : "tcal-month-mode"}">
+        <div class="tcal-grid" style="grid-template-columns: 180px repeat(${dates.length}, 1fr);">
           ${headerCells}
           ${rowsHtml}
         </div>

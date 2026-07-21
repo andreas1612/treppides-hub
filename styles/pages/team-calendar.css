@@ -49,7 +49,7 @@
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .tcal-nav-group {
@@ -135,7 +135,7 @@
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 .tcal-dept-label {
   font-size: 12px;
@@ -178,48 +178,7 @@
   min-width: 700px;
 }
 
-/* Column header (day names + dates) */
-.tcal-col-header {
-  display: contents;
-}
-.tcal-day-header {
-  padding: 10px 8px;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .05em;
-  color: var(--text-secondary);
-  text-align: center;
-  border-bottom: 1px solid var(--border);
-  background: rgba(0, 0, 0, .015);
-}
-.tcal-day-header.today {
-  color: var(--accent);
-}
-.tcal-day-header .day-num {
-  display: block;
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0;
-  text-transform: none;
-  margin-top: 2px;
-}
-.tcal-day-header.today .day-num {
-  background: var(--accent);
-  color: #000;
-  border-radius: 50%;
-  width: 26px;
-  height: 26px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin-top: 2px;
-}
-.tcal-day-header.weekend {
-  background: rgba(0, 0, 0, .03);
-}
-
-/* Name column (first col) */
+/* ── Column headers (day names + dates) ──────────────────────── */
 .tcal-name-header {
   padding: 10px 14px;
   font-size: 11px;
@@ -227,21 +186,93 @@
   text-transform: uppercase;
   letter-spacing: .05em;
   color: var(--text-secondary);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 2px solid var(--border);
   border-right: 1px solid var(--border);
-  background: rgba(0, 0, 0, .015);
+  background: rgba(0, 0, 0, .02);
   position: sticky;
   left: 0;
-  z-index: 2;
+  z-index: 3;
 }
 
-/* Person rows */
+.tcal-day-header {
+  padding: 8px 4px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--text-secondary);
+  text-align: center;
+  border-bottom: 2px solid var(--border);
+  background: rgba(0, 0, 0, .02);
+  line-height: 1.2;
+}
+.tcal-day-header.today {
+  color: var(--accent);
+  background: rgba(79, 142, 247, .04);
+}
+.tcal-day-header .day-num {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  margin-top: 1px;
+}
+.tcal-day-header.today .day-num {
+  background: var(--accent);
+  color: #000;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.tcal-day-header .day-month {
+  display: block;
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--accent);
+  margin-top: 1px;
+}
+.tcal-day-header.weekend {
+  background: rgba(0, 0, 0, .035);
+  color: rgba(0,0,0,.3);
+}
+/* Monday separator in month view */
+.tcal-day-header.week-start {
+  border-left: 2px solid var(--border);
+}
+
+/* ── Team group header (multi-team views) ──────────────────── */
+.tcal-team-header {
+  padding: 7px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--text-secondary);
+  background: rgba(0,0,0,.025);
+  border-bottom: 1px solid var(--border);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tcal-team-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ── Person name rows ──────────────────────────────────────── */
 .tcal-person-name {
-  padding: 8px 14px;
-  font-size: 13px;
+  padding: 0 14px;
+  font-size: 12.5px;
   font-weight: 600;
   color: var(--text-primary);
-  border-bottom: 1px solid rgba(0,0,0,.04);
+  border-bottom: 1px solid rgba(0,0,0,.08);
   border-right: 1px solid var(--border);
   display: flex;
   align-items: center;
@@ -251,40 +282,65 @@
   left: 0;
   background: var(--card-bg);
   z-index: 2;
+  min-height: 38px;
 }
-.tcal-person-name .dept-dot {
-  width: 8px;
-  height: 8px;
+.tcal-person-name:hover {
+  background: rgba(0,0,0,.015);
+}
+
+/* Person color dot */
+.tcal-person-name .person-dot {
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   flex-shrink: 0;
 }
 
-/* Day cells */
+/* Alternating row tint */
+.tcal-person-name:nth-child(even) {
+  background: rgba(0,0,0,.008);
+}
+
+/* ── Day cells ──────────────────────────────────────────────── */
 .tcal-cell {
-  padding: 4px 3px;
-  min-height: 40px;
-  border-bottom: 1px solid rgba(0,0,0,.04);
+  padding: 3px 2px;
+  min-height: 38px;
+  border-bottom: 1px solid rgba(0,0,0,.08);
   position: relative;
   cursor: pointer;
   transition: background .1s;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  justify-content: center;
 }
 .tcal-cell:hover {
-  background: rgba(79, 142, 247, .04);
+  background: rgba(79, 142, 247, .05);
 }
 .tcal-cell.weekend {
-  background: rgba(0, 0, 0, .02);
+  background: rgba(0, 0, 0, .025);
 }
 .tcal-cell.weekend:hover {
-  background: rgba(0, 0, 0, .04);
+  background: rgba(0, 0, 0, .045);
+}
+.tcal-cell.week-start {
+  border-left: 2px solid var(--border);
 }
 
-/* ── Event bars & chips ─────────────────────────────────────── */
+/* Monday separator in month view */
+.tcal-month-mode .tcal-cell[data-date] {
+  /* JS doesn't add week-start class to cells, so we handle via border on Monday headers only */
+}
+
+/* ── Events — person-colored bars ──────────────────────────── */
 .tcal-event {
   display: flex;
   align-items: center;
-  padding: 2px 6px;
+  gap: 3px;
+  padding: 2px 5px;
   border-radius: 4px;
-  font-size: 11px;
+  border-left: 3px solid;
+  font-size: 10px;
   font-weight: 600;
   line-height: 1.3;
   cursor: pointer;
@@ -293,51 +349,93 @@
   text-overflow: ellipsis;
   position: relative;
   z-index: 1;
+  min-height: 18px;
+  transition: filter .1s, transform .1s;
 }
-
-/* LEAVE — amber bar */
-.tcal-event.leave {
-  background: rgba(237, 176, 21, .18);
-  color: #92650a;
-  border-left: 3px solid #d69e2e;
-}
-/* Multi-day leave: spans across cells */
-.tcal-event.leave-start {
-  border-radius: 4px 0 0 4px;
-  margin-right: -3px;
-}
-.tcal-event.leave-mid {
-  border-radius: 0;
-  border-left: none;
-  margin-left: -3px;
-  margin-right: -3px;
-}
-.tcal-event.leave-end {
-  border-radius: 0 4px 4px 0;
-  border-left: none;
-  margin-left: -3px;
-}
-.tcal-event.leave-single {
-  /* default border-radius */
-}
-
-/* MEETING — blue chip */
-.tcal-event.meeting {
-  background: rgba(79, 142, 247, .15);
-  color: #2b5ea7;
-  border-left: 3px solid #4f8ef7;
-}
-
-/* DEADLINE — red chip */
-.tcal-event.deadline {
-  background: rgba(229, 62, 62, .12);
-  color: #9b2c2c;
-  border-left: 3px solid #e53e3e;
-}
-
 .tcal-event:hover {
-  filter: brightness(0.95);
+  filter: brightness(0.92);
+  transform: scale(1.02);
+  z-index: 5;
 }
+
+/* Type badge (L/M/D) */
+.ev-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0;
+  flex-shrink: 0;
+  background: rgba(0,0,0,.08);
+  color: inherit;
+  opacity: .7;
+}
+
+/* Multi-day spanning */
+.tcal-event.ev-start {
+  border-radius: 4px 0 0 4px;
+  margin-right: -2px;
+}
+.tcal-event.ev-mid {
+  border-radius: 0;
+  border-left-width: 0;
+  margin-left: -2px;
+  margin-right: -2px;
+  padding-left: 4px;
+}
+.tcal-event.ev-end {
+  border-radius: 0 4px 4px 0;
+  border-left-width: 0;
+  margin-left: -2px;
+}
+
+/* ── Week view — roomier cells ─────────────────────────────── */
+.tcal-week-mode .tcal-cell {
+  min-height: 48px;
+  padding: 4px;
+}
+.tcal-week-mode .tcal-event {
+  font-size: 11px;
+  padding: 3px 6px;
+  min-height: 22px;
+}
+.tcal-week-mode .tcal-day-header {
+  padding: 10px 6px 8px;
+}
+.tcal-week-mode .tcal-day-header .day-num {
+  font-size: 16px;
+}
+.tcal-week-mode .tcal-person-name {
+  min-height: 48px;
+}
+
+/* ── Month view — compact ──────────────────────────────────── */
+.tcal-month-mode .tcal-event {
+  font-size: 9.5px;
+  padding: 1px 4px;
+  min-height: 16px;
+  gap: 2px;
+}
+.tcal-month-mode .ev-badge {
+  width: 12px;
+  height: 12px;
+  font-size: 7px;
+}
+.tcal-month-mode .tcal-cell {
+  min-height: 34px;
+  padding: 2px 1px;
+}
+.tcal-month-mode .tcal-person-name {
+  min-height: 34px;
+  font-size: 12px;
+}
+
+/* ── Today column highlight ───────────────────────────────── */
+/* Handled via .today class on header only — cells get subtle tint via JS if needed */
 
 /* ── Event modal ────────────────────────────────────────────── */
 .tcal-modal-backdrop {
@@ -348,18 +446,19 @@
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  backdrop-filter: blur(2px);
 }
 .tcal-modal-backdrop.hidden { display: none; }
 
 .tcal-modal {
   background: var(--card-bg);
-  border-radius: 12px;
+  border-radius: 14px;
   padding: 28px 32px;
   width: 460px;
   max-width: calc(100vw - 32px);
   max-height: calc(100vh - 64px);
   overflow-y: auto;
-  box-shadow: 0 20px 60px rgba(0,0,0,.2);
+  box-shadow: 0 24px 80px rgba(0,0,0,.2), 0 4px 20px rgba(0,0,0,.08);
 }
 
 .tcal-modal h3 {
@@ -399,6 +498,7 @@
 .tcal-form-group textarea:focus {
   outline: none;
   border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(79,142,247,.12);
 }
 .tcal-form-group textarea {
   resize: vertical;
@@ -499,18 +599,6 @@
   font-size: 13px;
 }
 
-/* ── Department color dots (for "All" view) ─────────────────── */
-.dept-color-0  { background: #4f8ef7; }
-.dept-color-1  { background: #48bb78; }
-.dept-color-2  { background: #ed8936; }
-.dept-color-3  { background: #9f7aea; }
-.dept-color-4  { background: #e53e3e; }
-.dept-color-5  { background: #38b2ac; }
-.dept-color-6  { background: #d69e2e; }
-.dept-color-7  { background: #667eea; }
-.dept-color-8  { background: #f56565; }
-.dept-color-9  { background: #ed64a6; }
-
 /* ── Responsive ─────────────────────────────────────────────── */
 @media (max-width: 767px) {
   .tcal-controls { gap: 8px; }
@@ -518,4 +606,6 @@
   .tcal-add-btn { padding: 6px 12px; font-size: 12px; }
   .tcal-modal { padding: 20px 20px; }
   .tcal-form-row { flex-direction: column; gap: 0; }
+  .tcal-person-name { font-size: 11px; padding: 0 8px; }
+  .tcal-grid { min-width: 500px; }
 }
