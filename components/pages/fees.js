@@ -28,7 +28,23 @@ const CHART_ID     = "fees-chart-area";
 const TABLE_ID     = "fees-drilldown";
 const REFRESH_ID   = "fees-refresh";
 const EXPORT_ID    = "fees-export";
+const ADD_ID       = "fees-add";
+const ADD_LABEL_ID = "fees-add-label";
 const BACK_ID      = "fees-back-btn";
+
+// AML list key → the backend form key that creates a task in that list.
+const LIST_FORM_KEY = {
+  new:        "new_client",
+  rejected:   "rejected_client",
+  disengaged: "disengaged_client",
+};
+
+// Per-list button label — matches the client type the form adds.
+const ADD_LABEL = {
+  new:        "Add New Client",
+  rejected:   "Add Rejected Client",
+  disengaged: "Add Disengaged Client",
+};
 
 // ---- Palette -------------------------------------------------------
 // Fixed colors for known client-status values (used on the "new" list).
@@ -869,6 +885,10 @@ async function load(forceRefresh = false) {
   if (titleEl)    titleEl.textContent    = meta.title;
   if (subtitleEl) subtitleEl.textContent = meta.subtitle;
 
+  // Keep the "Add …" button label in sync with the active list.
+  const addLabelEl = document.getElementById(ADD_LABEL_ID);
+  if (addLabelEl) addLabelEl.textContent = ADD_LABEL[_activeList] || "Add Client";
+
   try {
     await loadChartJs();
 
@@ -945,6 +965,14 @@ export default async function init(_config) {
           </div>
         </div>
         <div class="fees-header-actions">
+          <button class="btn-refresh fees-add-btn" id="${ADD_ID}" aria-label="Add a new client via form">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"/>
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            <span id="${ADD_LABEL_ID}">Add Client</span>
+          </button>
           <button class="btn-refresh" id="${EXPORT_ID}" aria-label="Export fees as CSV" disabled>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
                  stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -989,6 +1017,15 @@ export default async function init(_config) {
 
   // Export CSV button
   document.getElementById(EXPORT_ID)?.addEventListener("click", exportCsv);
+
+  // Add Client button — opens the matching AML form (creates a ClickUp task
+  // in this same list). Back from the form returns to this dashboard.
+  document.getElementById(ADD_ID)?.addEventListener("click", () => {
+    const formKey = LIST_FORM_KEY[_activeList];
+    if (!formKey) return;
+    hideFeesPage();
+    window.__hub_forms?.openForm(formKey, "aml");
+  });
 
   // Refresh button
   document.getElementById(REFRESH_ID)?.addEventListener("click", () => load(true));

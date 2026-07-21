@@ -18,6 +18,20 @@ const BACK_BTN_ID = "forms-back-btn";
 
 const API_BASE = "/api/clickup/forms";
 
+// Form keys that belong to the AML Dashboard (opened from inside a fees view
+// via its "+ Add Client" button), NOT the generic Forms tool. They share the
+// same backend endpoints but are hidden from the Forms landing grid so the
+// Forms tool only shows Lead / Deal.
+const AML_FORM_KEYS = new Set(["new_client", "rejected_client", "disengaged_client"]);
+
+// Maps an AML form key → the AML Dashboard list key it feeds, so the form's
+// back button can return to the right dashboard view.
+const AML_FORM_TO_LIST = {
+  new_client:        "new",
+  rejected_client:   "rejected",
+  disengaged_client: "disengaged",
+};
+
 // Cache schemas/members/statuses per form key.
 const _cache = {};   // { key: { schema, members, statuses } }
 
@@ -76,7 +90,21 @@ function hideFormsPage() {
   document.dispatchEvent(new CustomEvent("hub:navchange", { detail: { section: "home" } }));
 }
 
-window.__hub_forms = { show: showFormsPage, hide: hideFormsPage };
+/**
+ * Open a specific form directly (used by the AML Dashboard "+ Add Client"
+ * buttons). Makes the Forms section visible and renders the requested form,
+ * skipping the landing grid. `backTo` controls where the form's back button
+ * returns: "aml" → back to the fees dashboard, else the Forms landing.
+ */
+async function showFormDirect(key, backTo) {
+  const section = document.getElementById(SECTION_ID);
+  if (!section) return;
+  showFormsPage();
+  await showFormView(section, key, backTo);
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+window.__hub_forms = { show: showFormsPage, hide: hideFormsPage, openForm: showFormDirect };
 
 // ---- Data loading --------------------------------------------
 
@@ -424,12 +452,13 @@ function showLanding(section) {
 
 // ---- View: a single form -------------------------------------
 
-async function showFormView(section, key) {
+async function showFormView(section, key, backTo) {
+  const backLabel = backTo === "aml" ? "Back to AML Dashboard" : "Back to Forms";
   section.innerHTML = `
     <div class="hub-section">
       <div class="section-header">
         <div class="forms-header-left">
-          <button class="forms-back-btn" id="${BACK_BTN_ID}" aria-label="Back to Forms">
+          <button class="forms-back-btn" id="${BACK_BTN_ID}" aria-label="${backLabel}">
             ${BACK_TO_HUB_SVG}
           </button>
           <div>
@@ -443,9 +472,16 @@ async function showFormView(section, key) {
       </div>
     </div>`;
 
-  // Back returns to the card grid (not the hub).
+  // Back returns to wherever we came from: the AML dashboard (the list this
+  // form feeds) or the generic Forms card grid.
   section.querySelector(`#${BACK_BTN_ID}`)?.addEventListener("click", () => {
-    showLanding(section);
+    if (backTo === "aml") {
+      const listKey = AML_FORM_TO_LIST[key];
+      hideFormsPage();
+      window.__hub_fees?.show(listKey);
+    } else {
+      showLanding(section);
+    }
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
 
@@ -477,6 +513,9 @@ export default async function init(_config) {
   } catch {
     _availableForms = [];
   }
+  // The AML client forms share this backend but are launched from the AML
+  // Dashboard, not this tool — keep the Forms landing to Lead / Deal only.
+  _availableForms = _availableForms.filter(f => !AML_FORM_KEYS.has(f.key));
   // Fallback so the grid still renders if discovery fails.
   if (!_availableForms.length) {
     _availableForms = [{ key: "lead", title: "Lead" }, { key: "deal", title: "Deal" }];

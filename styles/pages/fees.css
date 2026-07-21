@@ -32,6 +32,21 @@
   flex-shrink: 0;
 }
 
+/* Primary "Add … Client" action — accented so it reads as the main CTA
+   next to the secondary Export / Refresh buttons. Inherits .btn-refresh
+   layout (icon + label, flex) and overrides only the colours. */
+.fees-add-btn {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.fees-add-btn:hover {
+  filter: brightness(0.94);
+  color: #fff;
+  border-color: var(--accent);
+}
+.fees-add-btn svg { width: 16px; height: 16px; }
+
 .fees-header-left {
   display: flex;
   align-items: center;
