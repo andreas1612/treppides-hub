@@ -274,6 +274,15 @@ export function parseTrialBalance(aoa) {
   }
 
   const columns = resolveColumns(aoa[headerRowIndex]);
+  // Some Cycom .xls exports have a header/data column MISALIGNMENT: a spurious or
+  // merged empty header cell shifts a "Debit"/"Credit" label one column to the
+  // right of where the actual figures are written (seen on the CLOSING pair —
+  // header credit at col 10, data at col 9). Left uncorrected, the parser reads an
+  // empty column, so every credit-balance account (all liabilities + equity) nets
+  // to zero and the whole financing side vanishes. Validate the resolved columns
+  // against the real data and nudge any label onto the column that actually holds
+  // the numbers. No-op for correctly-aligned files (E-Soft, well-formed Cycom).
+  realignColumnsToData(columns, aoa, headerRowIndex);
   const meta = extractMeta(aoa, headerRowIndex);
 
   const rows = [];
@@ -326,16 +335,23 @@ export function parseTrialBalance(aoa) {
     const movement = readPair(raw, columns, "movement");
     const closing  = readPair(raw, columns, "closing");
 
-    // Group context, in priority order:
-    //   1. explicit 1-digit group-header row (E-Soft format)
-    //   2. ESOFT numeric Type column (100/200/… → 1–8) when this is a
-    //      single-balance ESOFT sheet
-    //   3. the account code's leading digit (Cycom / coded charts w/o headers)
-    const derivedGroup = currentGroupCode
-      || (columns.singleBalance ? groupFromEsoftType(type) : null)
-      || groupFromCode(code);
-    const derivedGroupName = currentGroupName
-      || (derivedGroup ? (TOP_LEVEL_GROUPS[derivedGroup] || `GROUP ${derivedGroup}`) : null);
+    // Group context. The resolution differs by format:
+    //   • CYCOM (coded charts): the account CODE's own leading digit is the
+    //     authoritative signal (5xxx=income, 7xxx=expenses…). Prefer it over the
+    //     inherited 1-digit section header — a "touched-up" export can DROP a
+    //     top-level header (e.g. no "7 EXPENSES" row, only the "72"/"78" sub-
+    //     headers), which would otherwise leave 7xxx rows stuck on the previous
+    //     section's group (Income) and mis-book every expense. Fall back to the
+    //     inherited header only when the code has no usable leading digit.
+    //   • ESOFT (single-balance): keep the header → numeric-Type priority; its
+    //     codes don't encode the 1–8 group, so the header/Type must drive it.
+    const codeGroup = groupFromCode(code);
+    const derivedGroup = columns.singleBalance
+      ? (currentGroupCode || groupFromEsoftType(type) || codeGroup)
+      : (codeGroup || currentGroupCode);
+    const derivedGroupName = derivedGroup === currentGroupCode
+      ? currentGroupName
+      : (derivedGroup ? (TOP_LEVEL_GROUPS[derivedGroup] || `GROUP ${derivedGroup}`) : (currentGroupName || null));
 
     rows.push({
       rowIndex: r,
@@ -434,6 +450,82 @@ function resolveColumns(headerRow) {
   }
 
   return cols;
+}
+
+/**
+ * Correct header/data column MISALIGNMENT in the Debit/Credit pairs (a Cycom .xls
+ * quirk: a spurious/merged empty header cell shifts a label one column right of the
+ * data). For each resolved Debit/Credit column we count how many posting rows carry
+ * a number there vs. in the immediately-adjacent columns; if the labelled column is
+ * (near-)empty but an UNCLAIMED neighbour clearly holds the values, we move the
+ * column to the neighbour. Conservative by design — only fires on strong evidence,
+ * never reassigns a column already used by another pair — so correctly-aligned
+ * files (E-Soft, well-formed Cycom) are untouched. Mutates cols.pairs in place.
+ */
+function realignColumnsToData(cols, aoa, headerRowIndex) {
+  if (cols.singleBalance) return;            // ESOFT single-pair: no closing split to fix
+  const start = headerRowIndex + 1;
+  // Count non-zero numbers in a column, but ONLY over genuine POSTING rows. This
+  // is critical: the SUBTOTAL / rollup rows in a Cycom export can carry values in
+  // the header-labelled (but for postings empty) column, which would otherwise
+  // make a misaligned column look populated and defeat the correction. So we
+  // exclude group-header rows (1-digit code), rollup/total rows, header-typed
+  // rows, and code-less rows — exactly the rows the parser itself skips.
+  const isPosting = (raw) => {
+    const code = cellStr(raw[cols.code]);
+    const name = cellStr(raw[cols.name]);
+    if (!code) return false;
+    if (isTopLevelCode(code)) return false;
+    if (isRollupRow(code, name)) return false;
+    if (matchesAny(code, HEADER_SYNONYMS.code)) return false;
+    if (normalizeType(cellStr(raw[cols.type])) === "Header") return false;
+    return true;
+  };
+  const dataCount = (c) => {
+    if (c < 0) return 0;
+    let n = 0;
+    for (let r = start; r < aoa.length; r++) {
+      const raw = aoa[r] || [];
+      if (isPosting(raw) && Math.abs(parseNumber(raw[c])) > 0) n++;
+    }
+    return n;
+  };
+  // Every column index currently claimed by any pair (so we never steal one).
+  const claimed = new Set();
+  for (const k of PAIR_ORDER) {
+    const p = cols.pairs[k];
+    if (p.debit  >= 0) claimed.add(p.debit);
+    if (p.credit >= 0) claimed.add(p.credit);
+  }
+  const MIN_EVIDENCE = 3; // need a few real rows before trusting a shift
+  const tryFix = (pair, side) => {
+    const c = pair[side];
+    if (c < 0) return;
+    const here = dataCount(c);
+    // Look at the unclaimed immediate neighbours. Shift the column there when a
+    // neighbour clearly holds the real data — i.e. it has >= MIN_EVIDENCE rows AND
+    // MORE THAN DOUBLE the labelled column's count. The "more than double" test
+    // (not "labelled column is empty") is essential: a real Cycom export can leak
+    // a STRAY value or two into the mislabelled column (seen: closing-credit header
+    // at col 10 with 1 stray row, while the actual 8 credit balances sit in col 9).
+    // Requiring the labelled column to be totally empty missed that and zeroed all
+    // the liabilities/equity. For a correctly-aligned file the labelled column has
+    // the most data, so no neighbour can beat it 2:1 → never fires.
+    let best = c, bestN = here;
+    for (const cand of [c - 1, c + 1]) {
+      if (cand < 0 || claimed.has(cand) || cand === c) continue;
+      const n = dataCount(cand);
+      if (n >= MIN_EVIDENCE && n > here * 2 && n > bestN) { best = cand; bestN = n; }
+    }
+    if (best !== c) {
+      claimed.delete(c); claimed.add(best);
+      pair[side] = best;
+    }
+  };
+  for (const k of PAIR_ORDER) {
+    tryFix(cols.pairs[k], "debit");
+    tryFix(cols.pairs[k], "credit");
+  }
 }
 
 function extractMeta(aoa, headerRowIndex) {

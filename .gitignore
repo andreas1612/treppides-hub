@@ -51,3 +51,7 @@ media/videos/
 api/team-calendar/.env
 *.db-shm
 *.db-wal
+
+# Local TB Ratio test harnesses + sample/real trial-balance files — never commit
+# (contains client data + throwaway standalone/diagnostic pages).
+_test/
