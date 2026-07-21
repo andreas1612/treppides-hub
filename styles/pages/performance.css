@@ -334,6 +334,31 @@
   cursor: pointer;
 }
 
+/* Back control shown when a manager drills into one of their reports. */
+.perf-backbar {
+  margin-bottom: 14px;
+}
+
+.perf-back-team {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+
+.perf-back-team:hover {
+  background: var(--page-bg);
+  color: var(--text-primary);
+}
+
 .perf-mini-card:hover {
   box-shadow: var(--shadow-hover);
   transform: translateY(-1px);

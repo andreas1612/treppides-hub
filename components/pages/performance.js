@@ -36,6 +36,8 @@ let currentYear = null;
 let currentMonth = null;
 // STANDARD tier: self-view only (own /me card, no employee dropdown). FULL: admin view.
 let selfMode = false;
+// STANDARD managers: the report currently drilled into (null = viewing own card).
+let viewingReportCode = null;
 
 // ---- Init ---------------------------------------------------
 
@@ -97,12 +99,12 @@ export default async function init() {
   const teamSection = document.getElementById("perf-team-section");
   teamSection?.addEventListener("click", (e) => {
     const card = e.target.closest(".perf-mini-card[data-code]");
-    if (card) openEmployee(card.getAttribute("data-code"));
+    if (card) onReportClick(card.getAttribute("data-code"));
   });
   teamSection?.addEventListener("keydown", (e) => {
     if (e.key !== "Enter" && e.key !== " ") return;
     const card = e.target.closest(".perf-mini-card[data-code]");
-    if (card) { e.preventDefault(); openEmployee(card.getAttribute("data-code")); }
+    if (card) { e.preventDefault(); onReportClick(card.getAttribute("data-code")); }
   });
 
   // Period toggle
@@ -196,8 +198,12 @@ function setPeriod(period) {
     }
   }
 
-  if (selfMode) loadSelf();
-  else if (selectedCode) loadAndRender();
+  if (selfMode) {
+    if (viewingReportCode) openReport(viewingReportCode);
+    else loadSelf();
+  } else if (selectedCode) {
+    loadAndRender();
+  }
 }
 
 // ---- Load & render ------------------------------------------
@@ -239,6 +245,7 @@ async function loadAndRender() {
 // ---- Self view (STANDARD tier) ------------------------------
 
 async function loadSelf() {
+  viewingReportCode = null;   // own card = not drilled into a report
   const me = getCurrentUser();
   // No eSoft identity → definitely not in the chargeability report.
   if (!me?.esoftCode) { showNotApplicable(); return; }
@@ -289,6 +296,13 @@ function showNotApplicable() {
 
 // ---- Drill into a team member -------------------------------
 
+// Route a team-card click by tier: FULL admins drill via the admin endpoint (any employee);
+// STANDARD managers drill via the manager-scoped endpoint (their own reports only).
+function onReportClick(code) {
+  if (selfMode) openReport(code);
+  else openEmployee(code);
+}
+
 function openEmployee(code) {
   if (!code) return;
   selectedCode = code;
@@ -296,6 +310,48 @@ function openEmployee(code) {
   if (select) select.value = code;        // keep dropdown in sync (reports are in the list)
   loadAndRender();
   document.querySelector(".perf-page")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+// STANDARD manager drilling into one of their own reports (same full detail admins see,
+// scoped to /report/{code}). A "back to my team" control returns to the manager's own view.
+async function openReport(code) {
+  if (!code) return;
+  viewingReportCode = code;
+
+  setSelfLoading();
+  clearTeam();
+
+  let qs = `period=${currentPeriod}`;
+  if (currentPeriod === "month" && currentYear && currentMonth) {
+    qs += `&year=${currentYear}&month=${currentMonth}`;
+  }
+
+  let card;
+  try {
+    card = await apiFetch(`/api/reports/performance/report/${code}?${qs}`);
+  } catch (err) {
+    setSelfError(err.message);
+    return;
+  }
+
+  renderSelfCard(card);
+  updatePeriodDateRange(card);
+  showBackToTeam();
+  document.querySelector(".perf-page")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function showBackToTeam() {
+  const section = document.getElementById("perf-self-section");
+  if (!section) return;
+  const bar = document.createElement("div");
+  bar.className = "perf-backbar";
+  bar.innerHTML = `<button type="button" class="perf-back-team">← Back to my team</button>`;
+  bar.querySelector("button").addEventListener("click", () => {
+    viewingReportCode = null;
+    loadSelf();
+    document.querySelector(".perf-page")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+  section.prepend(bar);
 }
 
 // ---- API helper ---------------------------------------------
@@ -404,8 +460,9 @@ function renderTeamSection(teamCard) {
       <span class="perf-summary-chip red">${summary.redCount ?? 0} Red</span>
     </div>`;
 
-  // FULL can drill into each report (admin /{code}); STANDARD managers get a read-only team view.
-  const drill = !selfMode;
+  // Both tiers drill into a report's full detail: FULL admins via /{code}, STANDARD
+  // managers via /report/{code} (their own reports only). Routed by onReportClick.
+  const drill = true;
   const cardsHtml = reports.map(r => {
     const pctDisplay = r.badge === "EXEMPT"
       ? `<div class="perf-mini-pct EXEMPT">Exempt</div>`
@@ -443,7 +500,7 @@ function renderTeamSection(teamCard) {
 
   // Bind click-to-open directly on each freshly-rendered card (robust against re-renders)
   section.querySelectorAll(".perf-mini-card[data-code]").forEach(cardEl => {
-    const go = () => openEmployee(cardEl.getAttribute("data-code"));
+    const go = () => onReportClick(cardEl.getAttribute("data-code"));
     cardEl.addEventListener("click", go);
     cardEl.addEventListener("keydown", (e) => {
       if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); }
