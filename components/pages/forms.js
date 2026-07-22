@@ -91,6 +91,23 @@ function hideFormsPage() {
 }
 
 /**
+ * Public entry point for the Forms tool (the Group Dashboard "Forms" button).
+ * Makes the section visible AND (re)renders the Lead/Deal landing grid.
+ *
+ * This must render the landing — not just toggle CSS — because #section-forms
+ * is shared with the AML "Add Client" forms (see showFormDirect). Without the
+ * re-render, opening an AML form leaves that form's markup in the section, and
+ * the next "Forms" click would show the stale AML form instead of the landing.
+ */
+function showFormsTool() {
+  const section = document.getElementById(SECTION_ID);
+  if (!section) return;
+  showFormsPage();
+  showLanding(section);
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+/**
  * Open a specific form directly (used by the AML Dashboard "+ Add Client"
  * buttons). Makes the Forms section visible and renders the requested form,
  * skipping the landing grid. `backTo` controls where the form's back button
@@ -104,7 +121,7 @@ async function showFormDirect(key, backTo) {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
-window.__hub_forms = { show: showFormsPage, hide: hideFormsPage, openForm: showFormDirect };
+window.__hub_forms = { show: showFormsTool, hide: hideFormsPage, openForm: showFormDirect };
 
 // ---- Data loading --------------------------------------------
 
