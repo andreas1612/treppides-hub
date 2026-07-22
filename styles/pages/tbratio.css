@@ -167,14 +167,35 @@
 }
 
 /* ---- Top-level results/mapping tab strip (Balance Sheet | Profit & Loss) ---- */
+/* Top row: statement tabs on the left, comparative-TB upload on the right. */
+#section-tbratio .tbr-toprow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin: 16px 0 4px;
+}
 #section-tbratio .tbr-tabs {
   display: inline-flex;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
-  margin: 16px 0 4px;
 }
 #section-tbratio .tbr-tabpane[hidden] { display: none; }
+
+/* Comparative-TB upload control (top-right of the results). */
+#section-tbratio .tbr-comparative {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+#section-tbratio .tbr-comparative-btn { cursor: pointer; }
+#section-tbratio .tbr-comparative-hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
 
 /* ---- Mapping panel (tabbed drag-and-drop) ---- */
 #section-tbratio .tbr-map-head {
@@ -533,6 +554,14 @@
   position: relative;
   height: 260px;
 }
+/* Comparative waterfall: two shorter stacked cascades sharing one scale. */
+#section-tbratio .tbr-chartwrap-mini { height: 215px; }
+#section-tbratio .tbr-wf-mini-label {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin: 10px 0 2px;
+}
 
 /* Sub-caption under a chart title (what the chart shows / how to read it). */
 #section-tbratio .tbr-chart-sub {
@@ -562,6 +591,8 @@
   font-size: 12.5px;
   color: var(--text-secondary);
 }
+/* Year 1 / Year 2 key (comparative composition) — sits just under the chart. */
+#section-tbratio .tbr-year-key { margin-top: 8px; font-weight: 600; color: var(--text-primary); }
 #section-tbratio .tbr-bs-comp-leg { display: inline-flex; align-items: center; gap: 6px; }
 #section-tbratio .tbr-bs-comp-leg i {
   width: 12px; height: 12px; border-radius: 3px; display: inline-block; flex: none;

@@ -1925,9 +1925,23 @@ function render() {
   const bsActive = _mapTab === "bs";
   status.innerHTML = renderValidation(m);
   out.innerHTML = `
-    <div class="tbr-tabs" role="tablist">
-      <button class="tbr-map-tab ${bsActive ? "active" : ""}" data-maptab="bs" role="tab">Balance Sheet</button>
-      <button class="tbr-map-tab ${bsActive ? "" : "active"}" data-maptab="pnl" role="tab">Profit &amp; Loss</button>
+    <div class="tbr-toprow">
+      <div class="tbr-tabs" role="tablist">
+        <button class="tbr-map-tab ${bsActive ? "active" : ""}" data-maptab="bs" role="tab">Balance Sheet</button>
+        <button class="tbr-map-tab ${bsActive ? "" : "active"}" data-maptab="pnl" role="tab">Profit &amp; Loss</button>
+      </div>
+      <!-- Comparative-TB upload lives at the TOP so it's easy to reach without
+           scrolling past all the statements/ratios to the export row. -->
+      <div class="tbr-comparative">
+        <label class="tbr-btn tbr-btn-ghost tbr-comparative-btn">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          ${state.priorFileName ? "Replace comparative TB" : "Add comparative TB"}
+          <input type="file" id="tbr-file-prior" accept=".xlsx,.xls,.csv" hidden>
+        </label>
+        ${state.priorFileName
+          ? `<span class="tbr-prior-name" title="Loaded comparative TB">vs ${escapeHtml(stripExt(state.priorFileName))} <a href="#" id="tbr-remove-prior-2" class="tbr-link">remove</a></span>`
+          : `<span class="tbr-comparative-hint">Compare against a prior-year TB (fills the Prior column)</span>`}
+      </div>
     </div>
 
     ${renderUnmappedPanel(m)}
@@ -1971,13 +1985,6 @@ function render() {
           <button type="button" role="menuitem" data-pdf-scope="pnl">P&amp;L only</button>
         </div>
       </div>
-      <label class="tbr-btn tbr-btn-ghost">
-        ${state.priorFileName ? "Replace comparative TB" : "Add comparative TB"}
-        <input type="file" id="tbr-file-prior" accept=".xlsx,.xls,.csv" hidden>
-      </label>
-      ${state.priorFileName
-        ? `<span class="tbr-prior-name" title="Loaded comparative TB">vs ${escapeHtml(stripExt(state.priorFileName))} <a href="#" id="tbr-remove-prior-2" class="tbr-link">remove</a></span>`
-        : ""}
     </div>
   `;
 
@@ -2083,7 +2090,7 @@ function wireMappingPanel(out) {
       // Chart.js can't size a canvas while its pane is display:none, so nudge the
       // now-visible pane's charts to resize once it's shown.
       // BS composition is SVG (auto-scales); only the canvas charts need a resize.
-      if (_mapTab === "pnl") { _pnlChart?.resize(); _pnlWaterfallChart?.resize(); }
+      if (_mapTab === "pnl") { _pnlChart?.resize(); _pnlWaterfallChart?.resize(); _pnlWaterfallChart2?.resize(); }
     });
   });
 
@@ -2454,7 +2461,8 @@ function stopAutoScroll() {
 // Live Chart.js instances — destroyed before each re-render / reset.
 let _pnlChart = null;            // P&L profitability-ratios bars (existing)
 // (BS assets-vs-financing composition is now SVG — no Chart.js instance to hold.)
-let _pnlWaterfallChart = null;   // P&L revenue→net-profit waterfall
+let _pnlWaterfallChart = null;   // P&L revenue→net-profit waterfall (current year)
+let _pnlWaterfallChart2 = null;  // prior-year mini-waterfall (comparative only)
 
 // ---- Chart palette (from the validated data-viz reference categorical set) ----
 // Light-surface slots, fixed order = the CVD-safety mechanism (worst adjacent
@@ -2571,6 +2579,7 @@ function ensureChartPlugin() {
 function destroyCharts() {
   if (_pnlChart) { try { _pnlChart.destroy(); } catch (_) {} _pnlChart = null; }
   if (_pnlWaterfallChart) { try { _pnlWaterfallChart.destroy(); } catch (_) {} _pnlWaterfallChart = null; }
+  if (_pnlWaterfallChart2) { try { _pnlWaterfallChart2.destroy(); } catch (_) {} _pnlWaterfallChart2 = null; }
 }
 
 /** Render the Profitability Ratios bar chart (vendored Chart.js). */
@@ -2634,7 +2643,7 @@ function renderBsCharts(m) {
   return `
     <div class="tbr-card">
       <h3 class="tbr-chart-title">Assets vs Financing</h3>
-      <p class="tbr-chart-sub">The accounting identity: <strong>Total Assets = Liabilities + Equity</strong>. The two bars are the same height (they always balance); each bar's bands show the mix. Negative equity is shown as a red deficit band.</p>
+      <p class="tbr-chart-sub">The accounting identity: <strong>Total Assets = Liabilities + Equity</strong>. Each bar's bands show the mix; negative equity shows as a red deficit band. With a comparative loaded, each side shows Year 1 (current) next to Year 2 (prior).</p>
       <div id="tbr-bs-composition"></div>
     </div>
     ${renderBsGaugeCard(m)}`;
@@ -2659,128 +2668,150 @@ function renderBsCompositionChart(m) {
   const host = document.getElementById("tbr-bs-composition");
   if (!host) return;
   const t = m.balanceSheet.totals;
-  const cur = (k) => num(t[k]?.current);
+  const val = (k, yr) => num(t[k]?.[yr]);
+  // Comparative when a prior column exists (2nd TB loaded, or opening balances).
+  const hasComp = !!m.meta.hasComparative && t.totalAssets?.prior != null;
+  const years = hasComp ? ["current", "prior"] : ["current"];
 
-  const currentAssets = cur("currentAssets");
-  const fixedAssets   = cur("fixedAssets");
-  const currentLiab   = cur("currentLiabilities");
-  const longTermLiab  = cur("longTermLiabilities");
-  const equity        = cur("equity");
-  const totalAssets   = currentAssets + fixedAssets;
-  const totalLiab     = currentLiab + longTermLiab;
+  // The two sides' bands for a given year (signed — any section may be negative:
+  // a fixed-asset pool net of depreciation, a debit-balance creditor, or
+  // accumulated-loss equity).
+  const bandsFor = (yr) => ({
+    assets: [
+      { label: "Current Assets", value: val("currentAssets", yr), color: VIZ.blue },
+      { label: "Fixed Assets",   value: val("fixedAssets",   yr), color: VIZ.aqua },
+    ],
+    fin: [
+      { label: "Current Liabilities",   value: val("currentLiabilities",   yr), color: VIZ.yellow },
+      { label: "Long-term Liabilities", value: val("longTermLiabilities",  yr), color: VIZ.orange },
+      { label: "Equity",                value: val("equity",               yr), color: VIZ.violet },
+    ],
+  });
 
-  if (totalAssets <= 0 && totalLiab <= 0) { host.innerHTML = ""; return; }
-
-  // Geometry. Labels now live in the legend below, so the plot only holds two
-  // bars — wider bars, tighter gap, no side gutters needed.
-  const W = 620, H = 300, padTop = 14, padBottom = 34, barTop = padTop, barH = H - padTop - padBottom;
-  const barW = 190, gap = 110, x0 = (W - (barW * 2 + gap)) / 2;
-  const xAssets = x0, xFin = x0 + barW + gap;
-
-  // Define the two sides' bands (signed — any section may be negative, e.g. a
-  // fixed-asset pool net of accumulated depreciation, a debit-balance creditor,
-  // or accumulated-loss equity).
-  const assetBands = [
-    { label: "Current Assets", value: currentAssets, color: VIZ.blue },
-    { label: "Fixed Assets",   value: fixedAssets,   color: VIZ.aqua },
-  ];
-  const finBands = [
-    { label: "Current Liabilities",   value: currentLiab,  color: VIZ.yellow },
-    { label: "Long-term Liabilities", value: longTermLiab, color: VIZ.orange },
-    { label: "Equity",                value: equity,       color: VIZ.violet },
-  ];
-
-  // Per side: gross-positive sum (the tallest thing we draw) and the net total.
   const grossPos = (bands) => bands.reduce((s, b) => s + Math.max(0, b.value), 0);
   const net      = (bands) => bands.reduce((s, b) => s + b.value, 0);
-  const netAssets = net(assetBands), netFin = net(finBands);
 
-  // Scale to the LARGER gross-positive side so the tallest stack fills the frame
-  // and nothing overflows — negatives are drawn as reducing bands off the top of
-  // their own side's positive stack, which never exceeds grossPos. Both NET tops
-  // are equal when the sheet balances (they always do); a negative on one side
-  // makes that side's positive stack rise above the net line, and the red reducing
-  // band brings it back down to the net.
-  const scale = Math.max(grossPos(assetBands), grossPos(finBands), 1);
-  const px = (v) => (Math.abs(v) / scale) * barH;
+  // Scale to the largest gross-positive stack across BOTH sides and BOTH years, so
+  // every bar shares one axis and nothing overflows (year-on-year heights are then
+  // directly comparable).
+  let scale = 1;
+  for (const yr of years) { const b = bandsFor(yr); scale = Math.max(scale, grossPos(b.assets), grossPos(b.fin)); }
+
+  // Geometry. Single year: two wide bars. Comparative: each side is a Year1/Year2
+  // pair (narrower bars) so the two periods sit next to each other.
+  const W = 620, H = 300, padTop = 14, padBottom = 40, barTop = padTop, barH = H - padTop - padBottom;
   const baseY = barTop + barH;
   const DEFICIT_FILL = "#f3d2d2", DEFICIT_STROKE = "#c0392b";
+  const px = (v) => (Math.abs(v) / scale) * barH;
 
-  // Draw one side. Positives stack up from the baseline; each negative then draws
-  // as a RED reducing band stepping DOWN from the current top (so it visibly
-  // subtracts). Value labels sit inside a band only when it's tall enough (>=24px);
-  // otherwise the legend carries the number. Returns { svg, netTopY }.
-  const drawSide = (x, bands) => {
+  // Draw one stacked bar at x/width. Positives stack up; negatives draw as RED
+  // reducing bands stepping down from the positive-stack top. `faded` dims the
+  // Year-2 (prior) bars. Returns { svg, netTopY }.
+  const drawBar = (x, barW, bands, faded) => {
+    const op = faded ? ' opacity="0.5"' : "";
     const out = [];
-    let yTop = baseY;                    // running TOP of the positive stack
+    let yTop = baseY;
     for (const b of bands) {
       if (b.value <= 0) continue;
-      const h = px(b.value);
-      if (h < 0.5) continue;
+      const h = px(b.value); if (h < 0.5) continue;
       const y = yTop - h;
-      out.push(`<rect x="${x}" y="${y.toFixed(1)}" width="${barW}" height="${h.toFixed(1)}" fill="${b.color}" rx="2"/>`);
-      if (h >= 24) out.push(`<text x="${x + barW / 2}" y="${(y + h / 2 + 4).toFixed(1)}" text-anchor="middle" font-size="12" font-weight="700" fill="#ffffff">${escapeHtml(fmtShort(b.value))}</text>`);
+      out.push(`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" fill="${b.color}"${op} rx="2"/>`);
+      if (h >= 22 && barW >= 60) out.push(`<text x="${(x + barW / 2).toFixed(1)}" y="${(y + h / 2 + 4).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="700" fill="#ffffff">${escapeHtml(fmtShort(b.value))}</text>`);
       yTop = y;
     }
-    // Negatives: step back DOWN from the positive-stack top, drawn as red bands.
     let yNeg = yTop;
     for (const b of bands) {
       if (b.value >= 0) continue;
-      const h = px(b.value);
-      if (h < 0.5) continue;
-      out.push(`<rect x="${x}" y="${yNeg.toFixed(1)}" width="${barW}" height="${h.toFixed(1)}" fill="${DEFICIT_FILL}" stroke="${DEFICIT_STROKE}" stroke-width="1.25" stroke-dasharray="4 2" rx="2"/>`);
-      if (h >= 24) out.push(`<text x="${x + barW / 2}" y="${(yNeg + h / 2 + 4).toFixed(1)}" text-anchor="middle" font-size="12" font-weight="700" fill="${DEFICIT_STROKE}">−${escapeHtml(fmtShort(Math.abs(b.value)))}</text>`);
+      const h = px(b.value); if (h < 0.5) continue;
+      out.push(`<rect x="${x.toFixed(1)}" y="${yNeg.toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" fill="${DEFICIT_FILL}" stroke="${DEFICIT_STROKE}" stroke-width="1.25" stroke-dasharray="4 2"${op} rx="2"/>`);
+      if (h >= 22 && barW >= 60) out.push(`<text x="${(x + barW / 2).toFixed(1)}" y="${(yNeg + h / 2 + 4).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="700" fill="${DEFICIT_STROKE}">−${escapeHtml(fmtShort(Math.abs(b.value)))}</text>`);
       yNeg += h;
     }
-    const netTopY = yNeg; // after subtracting the negatives, this is the net top
-    return { svg: out.join(""), netTopY };
+    return { svg: out.join(""), netTopY: yNeg };
   };
 
-  const assets = drawSide(xAssets, assetBands);
-  const fin    = drawSide(xFin, finBands);
+  // Layout: build a flat list of bar columns + per-group centre for the axis label.
+  const barSvg = [], netLineSvg = [], barLabels = [], groupLabels = [];
+  const anyNeg = years.some(yr => { const b = bandsFor(yr); return [...b.assets, ...b.fin].some(x => x.value < 0); });
 
-  // A dashed net line across each bar's true net top makes the reducing bands read
-  // as "gross minus this = net". Only drawn when a side actually has a negative.
-  const hasNeg = [...assetBands, ...finBands].some(b => b.value < 0);
-  const netLine = (side, x) =>
-    `<line x1="${(x - 6).toFixed(1)}" y1="${side.netTopY.toFixed(1)}" x2="${(x + barW + 6).toFixed(1)}" y2="${side.netTopY.toFixed(1)}" stroke="${VIZ.ink}" stroke-width="1.25"/>`;
-  const netLines = hasNeg ? `${netLine(assets, xAssets)}${netLine(fin, xFin)}` : "";
+  if (!hasComp) {
+    const barW = 190, gap = 110, x0 = (W - (barW * 2 + gap)) / 2;
+    const b = bandsFor("current");
+    const cols = [
+      { x: x0,                 bands: b.assets, group: "Assets",    total: net(b.assets) },
+      { x: x0 + barW + gap,    bands: b.fin,    group: "Financing", total: net(b.fin) },
+    ];
+    for (const c of cols) {
+      const r = drawBar(c.x, barW, c.bands, false);
+      barSvg.push(r.svg);
+      if (anyNeg) netLineSvg.push(`<line x1="${(c.x - 6).toFixed(1)}" y1="${r.netTopY.toFixed(1)}" x2="${(c.x + barW + 6).toFixed(1)}" y2="${r.netTopY.toFixed(1)}" stroke="${VIZ.ink}" stroke-width="1.25"/>`);
+      groupLabels.push({ cx: c.x + barW / 2, txt: c.group, sub: fmtShort(c.total) });
+    }
+  } else {
+    // Comparative: two groups (Assets, Financing); each = Year1 + Year2 bars.
+    const barW = 96, intra = 16, groupGap = 96;
+    const groupW = barW * 2 + intra;
+    const x0 = (W - (groupW * 2 + groupGap)) / 2;
+    const groups = [
+      { key: "assets", label: "Assets",    x: x0 },
+      { key: "fin",    label: "Financing", x: x0 + groupW + groupGap },
+    ];
+    const cur = bandsFor("current"), pri = bandsFor("prior");
+    for (const g of groups) {
+      const yBars = [
+        { x: g.x,               bands: (g.key === "assets" ? cur.assets : cur.fin), faded: false, yr: "Y1" },
+        { x: g.x + barW + intra, bands: (g.key === "assets" ? pri.assets : pri.fin), faded: true,  yr: "Y2" },
+      ];
+      for (const yb of yBars) {
+        const r = drawBar(yb.x, barW, yb.bands, yb.faded);
+        barSvg.push(r.svg);
+        if (anyNeg) netLineSvg.push(`<line x1="${yb.x.toFixed(1)}" y1="${r.netTopY.toFixed(1)}" x2="${(yb.x + barW).toFixed(1)}" y2="${r.netTopY.toFixed(1)}" stroke="${VIZ.ink}" stroke-width="1"/>`);
+        barLabels.push({ cx: yb.x + barW / 2, txt: yb.yr, sub: fmtShort(net(yb.bands)) });
+      }
+      groupLabels.push({ cx: g.x + groupW / 2, txt: g.label, sub: "" });
+    }
+  }
 
-  const axisLabel = (x, txt, sub) =>
-    `<text x="${x + barW / 2}" y="${H - 16}" text-anchor="middle" font-size="13" font-weight="600" fill="${VIZ.ink}">${txt}</text>
-     <text x="${x + barW / 2}" y="${H - 2}" text-anchor="middle" font-size="11" font-weight="600" fill="${VIZ.ink2}">${sub}</text>`;
+  // Axis: group name (+ single-year total) low; in comparative, per-bar Y1/Y2 + total.
+  const groupLabelSvg = groupLabels.map(l =>
+    `<text x="${l.cx.toFixed(1)}" y="${H - 4}" text-anchor="middle" font-size="13" font-weight="600" fill="${VIZ.ink}">${escapeHtml(l.txt)}</text>` +
+    (l.sub ? `<text x="${l.cx.toFixed(1)}" y="${(H - 4 - 14).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="600" fill="${VIZ.ink2}">${escapeHtml(l.sub)}</text>` : "")
+  ).join("");
+  const barLabelSvg = barLabels.map(l =>
+    `<text x="${l.cx.toFixed(1)}" y="${(H - 22).toFixed(1)}" text-anchor="middle" font-size="10" font-weight="600" fill="${VIZ.ink2}">${escapeHtml(l.txt)} ${escapeHtml(l.sub)}</text>`
+  ).join("");
 
-  // Legend below the chart: every band + amount, one clean row item, so no text
-  // ever has to ride a small or red bar. Negative bands flagged red.
+  // Legend: section colours (current-year amounts) + Year1/Year2 key when comparative.
+  const cb = bandsFor("current");
   const legendItem = (label, value, color) =>
-    `<span class="tbr-bs-comp-leg ${value < 0 ? "neg" : ""}"><i style="background:${value < 0 ? DEFICIT_FILL : color}"></i>${escapeHtml(label)} <b>${fmt(value)}</b></span>`;
-  const legend = [...assetBands, ...finBands].map(b => legendItem(b.label, b.value, b.color)).join("");
+    `<span class="tbr-bs-comp-leg ${value < 0 ? "neg" : ""}"><i style="background:${value < 0 ? DEFICIT_FILL : color}"></i>${escapeHtml(label)}${hasComp ? "" : ` <b>${fmt(value)}</b>`}</span>`;
+  const sectionLegend = [...cb.assets, ...cb.fin].map(b => legendItem(b.label, b.value, b.color)).join("");
+  const yearLegend = hasComp
+    ? `<div class="tbr-bs-comp-legend tbr-year-key"><span class="tbr-bs-comp-leg"><i style="background:${VIZ.ink2}"></i>Year 1 (current)</span><span class="tbr-bs-comp-leg"><i style="background:${VIZ.ink2};opacity:.5"></i>Year 2 (prior)</span></div>`
+    : "";
 
-  // Note: list any negative sections (usually accumulated-loss equity, but a
-  // negative asset/liability often signals a mapping issue worth checking).
-  const negs = [...assetBands, ...finBands].filter(b => b.value < 0);
+  const negs = [...cb.assets, ...cb.fin].filter(b => b.value < 0);
   let negNote = "";
   if (negs.length) {
     const names = negs.map(b => `${b.label} (${fmt(b.value)})`).join(", ");
-    const equityNeg = equity < 0;
-    negNote = `<div class="tbr-bs-comp-note">⚠ Negative section${negs.length > 1 ? "s" : ""}: <strong>${escapeHtml(names)}</strong>. ${
-      equityNeg
+    negNote = `<div class="tbr-bs-comp-note">⚠ Negative section${negs.length > 1 ? "s" : ""} (current year): <strong>${escapeHtml(names)}</strong>. ${
+      (cb.fin.find(b => b.label === "Equity")?.value ?? 0) < 0
         ? "Negative equity means liabilities exceed assets (balance-sheet insolvent)."
         : "A negative asset or liability often points to a contra on the wrong mapping line — worth reviewing."
-    } Shown as red reducing bands; the black line marks each side's net total.</div>`;
+    } Shown as red reducing bands; the black line marks each bar's net total.</div>`;
   }
 
   host.innerHTML = `
     <svg viewBox="0 0 ${W} ${H}" class="tbr-bs-comp-svg" role="img"
          aria-label="Assets versus financing composition">
-      <line x1="${x0 - 10}" y1="${baseY}" x2="${W - (x0 - 10)}" y2="${baseY}" stroke="${VIZ.neutral}" stroke-width="1"/>
-      ${assets.svg}
-      ${fin.svg}
-      ${netLines}
-      ${axisLabel(xAssets, "Assets", fmtShort(netAssets))}
-      ${axisLabel(xFin, "Financing", fmtShort(netFin))}
+      <line x1="16" y1="${baseY}" x2="${W - 16}" y2="${baseY}" stroke="${VIZ.neutral}" stroke-width="1"/>
+      ${barSvg.join("")}
+      ${netLineSvg.join("")}
+      ${barLabelSvg}
+      ${groupLabelSvg}
     </svg>
-    <div class="tbr-bs-comp-legend">${legend}</div>
+    ${yearLegend}
+    <div class="tbr-bs-comp-legend">${sectionLegend}</div>
     ${negNote}`;
 }
 
@@ -2863,11 +2894,26 @@ function renderBsGauge(m) {
 // ============================================================
 
 function renderPnlWaterfallCard(m) {
+  const hasComp = !!m.meta.hasComparative && !!m.__pnlPrior?.pnl && !!m.pnl.derived.prior;
+  const sub = `<strong>Grey</strong> bars are running subtotals (Revenue → Gross → Operating → Net); <strong style="color:#d03b3b">red</strong> bars are the deductions between them. The dotted line carries each subtotal down to the next step.`;
+  if (!hasComp) {
+    return `
+    <div class="tbr-card">
+      <h3 class="tbr-chart-title">Profit Waterfall</h3>
+      <p class="tbr-chart-sub">${sub}</p>
+      <div class="tbr-chartwrap"><canvas id="tbr-pnl-waterfall" height="320"></canvas></div>
+    </div>`;
+  }
+  // Comparative: two stacked mini-waterfalls sharing one y-scale so the periods
+  // compare directly. Year 1 (current) above, Year 2 (prior) below.
   return `
     <div class="tbr-card">
       <h3 class="tbr-chart-title">Profit Waterfall</h3>
-      <p class="tbr-chart-sub"><strong>Grey</strong> bars are running subtotals (Revenue → Gross → Operating → Net); <strong style="color:#d03b3b">red</strong> bars are the deductions between them. The dotted line carries each subtotal down to the next step.</p>
-      <div class="tbr-chartwrap"><canvas id="tbr-pnl-waterfall" height="320"></canvas></div>
+      <p class="tbr-chart-sub">${sub} Two periods shown for comparison — both on the same scale.</p>
+      <div class="tbr-wf-mini-label">Year 1 — current period</div>
+      <div class="tbr-chartwrap tbr-chartwrap-mini"><canvas id="tbr-pnl-waterfall" height="230"></canvas></div>
+      <div class="tbr-wf-mini-label">Year 2 — prior period</div>
+      <div class="tbr-chartwrap tbr-chartwrap-mini"><canvas id="tbr-pnl-waterfall-2" height="230"></canvas></div>
     </div>`;
 }
 
@@ -2876,127 +2922,96 @@ function renderPnlWaterfall(m) {
   if (!canvas || typeof window.Chart === "undefined") return;
   ensureChartPlugin();
   if (_pnlWaterfallChart) { _pnlWaterfallChart.destroy(); _pnlWaterfallChart = null; }
+  if (_pnlWaterfallChart2) { _pnlWaterfallChart2.destroy(); _pnlWaterfallChart2 = null; }
 
-  const d = m.pnl.derived.current || {};
-  const p = m.__pnlCurrent?.pnl || {};
-  const revenue   = num(p.revenue);
-  const cogs      = num(p.costOfSales);
-  const opex      = num(p.operatingExpenses);
-  const depr      = num(p.depreciation);
-  const tax       = num(p.tax);
-  const gross     = num(d.grossProfit);
-  const oper      = num(d.operatingProfit);
-  const net       = num(d.netProfit);
+  // Build the fixed 8-step cascade for one year's figures. Each step: a label; its
+  // bar as [start,end]; a role ("total" = subtotal anchored from 0; "down" = a
+  // deduction); and `value` = the SIGNED figure (subtotal's own amount, or the
+  // deduction magnitude) — what labels/tooltips use, so a NEGATIVE subtotal
+  // (loss-making EBIT/Net Profit) still labels its real figure.
+  const buildSteps = (p, d) => {
+    const revenue = num(p?.revenue), cogs = num(p?.costOfSales), opex = num(p?.operatingExpenses),
+          depr = num(p?.depreciation), tax = num(p?.tax);
+    const gross = num(d?.grossProfit), oper = num(d?.operatingProfit), net = num(d?.netProfit);
+    return [
+      { label: "Revenue",          range: [0, revenue],          role: "total", value: revenue },
+      { label: "Cost of Sales",    range: [gross, revenue],      role: "down",  value: -cogs },
+      { label: "Gross Profit",     range: [0, gross],            role: "total", value: gross },
+      { label: "Operating Exp.",   range: [oper, gross],         role: "down",  value: -opex },
+      { label: "Operating Profit", range: [0, oper],             role: "total", value: oper },
+      { label: "Deprec. & Amort.", range: [oper - depr, oper],   role: "down",  value: -depr },
+      { label: "Taxation",         range: [net, oper - depr],    role: "down",  value: -tax },
+      { label: "Net Profit",       range: [0, net],              role: "total", value: net },
+    ].map(s => ({ ...s,
+      trueRange: [Math.min(s.range[0], s.range[1]), Math.max(s.range[0], s.range[1])],
+      landing: s.role === "total" ? s.value : Math.min(s.range[0], s.range[1]),
+    }));
+  };
 
-  // Each step carries: a label; its bar as [start,end]; a role ("total" = subtotal
-  // anchored from 0; "down" = a deduction); and `value` = the SIGNED figure the
-  // step represents (a subtotal's own amount, or the deduction magnitude). `value`
-  // is what labels/landing/connectors use, so everything stays correct when a
-  // subtotal is NEGATIVE (loss-making: EBIT/Net Profit below zero) — the earlier
-  // bug labelled the wrong end of the range and the bar collapsed to a blank.
-  const allSteps = [];
-  allSteps.push({ label: "Revenue",        range: [0, revenue],          role: "total", value: revenue });
-  allSteps.push({ label: "Cost of Sales",  range: [gross, revenue],      role: "down",  value: -cogs });
-  allSteps.push({ label: "Gross Profit",   range: [0, gross],            role: "total", value: gross });
-  allSteps.push({ label: "Operating Exp.", range: [oper, gross],         role: "down",  value: -opex });
-  allSteps.push({ label: "Operating Profit", range: [0, oper],           role: "total", value: oper });
-  allSteps.push({ label: "Deprec. & Amort.", range: [oper - depr, oper], role: "down",  value: -depr });
-  allSteps.push({ label: "Taxation",       range: [net, oper - depr],    role: "down",  value: -tax });
-  allSteps.push({ label: "Net Profit",     range: [0, net],              role: "total", value: net });
+  const curSteps = buildSteps(m.__pnlCurrent?.pnl, m.pnl.derived.current);
+  const hasComp = !!m.meta.hasComparative && !!m.__pnlPrior?.pnl && !!m.pnl.derived.prior;
+  const priSteps = hasComp ? buildSteps(m.__pnlPrior.pnl, m.pnl.derived.prior) : null;
 
-  // Drop zero-value DEDUCTIONS entirely — a step that removes nothing adds no
-  // information and, left in, renders as a stray blob with a "−0" label and a
-  // connector dangling to nothing (the messy artefact when a P&L section is zero).
-  // Subtotals are always kept (they anchor the cascade), even if zero/negative.
-  const steps = allSteps.filter(s => s.role === "total" || Math.abs(s.value) >= 0.005);
-
-  // Keep the TRUE figure for labels/tooltips before any drawing adjustment.
-  for (const s of steps) {
-    s.trueRange = [Math.min(s.range[0], s.range[1]), Math.max(s.range[0], s.range[1])];
-    // The "landing level" a connector runs along = where the running total sits
-    // AFTER this step, i.e. the end that flows into the next one. A subtotal lands
-    // at its own value (may be negative); a deduction lands at its lower edge.
-    s.landing = s.role === "total" ? s.value : Math.min(s.range[0], s.range[1]);
-  }
-
-  // Give very short deductions a MINIMUM drawn height so a 10k step on a 500k
-  // axis is still a visible mark, not a 2px line. We nudge the DRAWN range only
-  // (trueRange keeps the real number for the label/tooltip). Scale the floor to
-  // the axis: ~1.5% of the largest subtotal, min 0 (skip if data is tiny).
-  const top = Math.max(...steps.map(s => s.trueRange[1]));
-  const MINSPAN = top * 0.012;
-  const drawRange = steps.map(s => {
-    const [lo, hi] = s.trueRange;
-    if (s.role !== "total" && (hi - lo) < MINSPAN && (hi - lo) > 0) {
-      // grow the bar around its mid so the step stays where it belongs
-      const mid = (lo + hi) / 2;
-      return [mid - MINSPAN / 2, mid + MINSPAN / 2];
-    }
-    return [lo, hi];
-  });
-
+  // Shared axis + min-visible-height across BOTH years, so the two mini-waterfalls
+  // are directly comparable (a bar that's taller in Year 1 really is bigger).
+  const allSteps = [...curSteps, ...(priSteps || [])];
+  const yMax = Math.max(0, ...allSteps.map(s => s.trueRange[1]));
+  const yMin = Math.min(0, ...allSteps.map(s => s.trueRange[0]));
+  const MINSPAN = Math.max(yMax - yMin, 1) * 0.012;
   const colorFor = (s) => s.role === "total" ? VIZ.neutral : (s.role === "up" ? VIZ.green : VIZ.red);
-  const labels = steps.map(s => s.label);
 
-  // Connector spec: link each step's landing level to the next step. Drawn by the
-  // tbrWaterfallConnectors plugin. We connect at the level the NEXT bar starts
-  // from, which for a well-formed cascade equals this step's landing.
-  const connect = [];
-  for (let i = 0; i < steps.length - 1; i++) {
-    connect.push({ from: i, y: steps[i].landing });
+  // Draw ONE complete cascade (drop zero deductions, dashed connectors, in-bar
+  // labels) into a given canvas, on the shared [yMin,yMax] scale. Returns the chart.
+  const makeCascade = (canvasEl, allYearSteps) => {
+    const steps = allYearSteps.filter(s => s.role === "total" || Math.abs(s.value) >= 0.005);
+    const drawRange = steps.map(s => {
+      const [lo, hi] = s.trueRange;
+      if (s.role !== "total" && (hi - lo) < MINSPAN && (hi - lo) > 0) {
+        const mid = (lo + hi) / 2; return [mid - MINSPAN / 2, mid + MINSPAN / 2];
+      }
+      return [lo, hi];
+    });
+    canvasEl.__wfSteps = steps; // for tooltip
+    const chart = new window.Chart(canvasEl.getContext("2d"), {
+      type: "bar",
+      data: {
+        labels: steps.map(s => s.label),
+        datasets: [{
+          label: "P&L",
+          data: drawRange,
+          backgroundColor: steps.map(colorFor),
+          borderWidth: 0, borderRadius: 3, maxBarThickness: 46,
+          dataLabel: {
+            insideColor: "#ffffff", outsideColor: VIZ.ink2, minInside: 22, skipZero: true,
+            format: (_v, ctx) => { const fig = steps[ctx.i].value; return Math.abs(fig) < 0.005 ? "" : fmtShort(fig); },
+          },
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false,
+        layout: { padding: { top: 18 } },
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: (c) => { const s = canvasEl.__wfSteps[c.dataIndex]; return s ? `${s.label}: ${fmt(s.value)}` : ""; } } },
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: VIZ.ink2, maxRotation: 40, minRotation: 0, font: { size: 11 } } },
+          y: { min: yMin, max: yMax, grid: { color: VIZ.grid }, ticks: { color: VIZ.muted, callback: (v) => fmtShort(v) } },
+        },
+      },
+    });
+    chart.$waterfallConnect = steps.map((s, i) => i < steps.length - 1 ? { from: i, y: s.landing } : null).filter(Boolean);
+    chart.update();
+    return chart;
+  };
+
+  // Single year: one cascade. Comparative: two stacked mini-cascades (Year 1
+  // current on top, Year 2 prior below) sharing the scale computed above.
+  _pnlWaterfallChart = makeCascade(canvas, curSteps);
+  if (hasComp) {
+    const canvas2 = document.getElementById("tbr-pnl-waterfall-2");
+    if (canvas2) _pnlWaterfallChart2 = makeCascade(canvas2, priSteps);
   }
-
-  _pnlWaterfallChart = new window.Chart(canvas.getContext("2d"), {
-    type: "bar",
-    data: {
-      labels,
-      datasets: [{
-        label: "P&L",
-        data: drawRange,
-        backgroundColor: steps.map(colorFor),
-        borderWidth: 0,
-        borderRadius: 3,
-        maxBarThickness: 46,
-        dataLabel: {
-          insideColor: "#ffffff",       // ink-on-fill inside tall bars
-          outsideColor: VIZ.ink2,       // above short bars
-          minInside: 22,
-          skipZero: true,               // never print a stray "0" / "−0"
-          // Subtotals show their own amount; deductions what was removed. Uses the
-          // SIGNED value, so a negative subtotal (EBIT/Net Profit loss) labels its
-          // real figure (e.g. −120k) instead of the wrong range end.
-          format: (_v, ctx) => {
-            const fig = steps[ctx.i].value;
-            return Math.abs(fig) < 0.005 ? "" : fmtShort(fig);
-          },
-        },
-      }],
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      animation: false,   // instant final render (see profitability chart) — makes
-                          // PDF capture reliable and keeps the connectors present
-      layout: { padding: { top: 18 } }, // room for outside labels above short bars
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: (c) => {
-              const s = steps[c.dataIndex];
-              return s.role === "total" ? `${s.label}: ${fmt(s.trueRange[1])}` : `${s.label}: ${fmt(s.mag)}`;
-            },
-          },
-        },
-      },
-      scales: {
-        x: { grid: { display: false }, ticks: { color: VIZ.ink2, maxRotation: 40, minRotation: 0, font: { size: 11 } } },
-        y: { beginAtZero: true, grid: { color: VIZ.grid }, ticks: { color: VIZ.muted, callback: (v) => fmtShort(v) } },
-      },
-    },
-  });
-  // Hand the connector levels to the plugin.
-  _pnlWaterfallChart.$waterfallConnect = connect;
-  _pnlWaterfallChart.update();
 }
 
 /** Compact money for axis ticks / in-bar labels: 12.3k, 4.5M, 890. */
@@ -3106,6 +3121,20 @@ async function chartElementToImage(el) {
     } catch (_) { return null; }
   }
   return null;
+}
+
+// Load the Treppides logo once (cached) for the PDF header. Resolves to a loaded
+// <img> or null if it can't be fetched — the export never fails over a missing logo.
+let _logoImgPromise = null;
+function loadLogo() {
+  if (_logoImgPromise) return _logoImgPromise;
+  _logoImgPromise = new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = "/logo.png"; // served at the hub root (see sidebar.js)
+  });
+  return _logoImgPromise;
 }
 
 // Export the statements to PDF. `scope`:
@@ -3229,13 +3258,24 @@ async function onExportPdf(scope = "all") {
     const contentW = pageW - margin * 2;
     const bottom = pageH - margin;
 
-    // Document title block: "<file name> - Trial Balance Ratios".
+    // Document header: Treppides logo top-right, title + period top-left.
     const company = pdfTitle();
     const period = state.model?.meta?.periodLabel || "";
+    let logoBottom = margin;
+    const logo = await loadLogo();
+    if (logo && logo.naturalWidth) {
+      const logoW = 36; // mm
+      const logoH = logoW * (logo.naturalHeight / logo.naturalWidth);
+      try {
+        doc.addImage(logo, "PNG", pageW - margin - logoW, margin - 2, logoW, logoH);
+        logoBottom = margin - 2 + logoH;
+      } catch (_) { /* logo optional — never block the export */ }
+    }
     doc.setFont("helvetica", "bold"); doc.setFontSize(14);
     doc.text(company, margin, margin + 4);
     if (period) { doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.text(period, margin, margin + 10); }
-    let y = margin + (period ? 16 : 10);
+    // Start content below BOTH the title block and the logo, so nothing overlaps.
+    let y = Math.max(margin + (period ? 16 : 10), logoBottom + 3);
 
     const HEADING_H = 9;   // mm reserved for a section heading
     const GAP = 4;         // mm gap between blocks

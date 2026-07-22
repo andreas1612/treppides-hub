@@ -197,11 +197,10 @@ const STEPS = [
   },
   {
     title: "Add a comparative year",
-    body: "Load a second trial balance to fill the prior-year column and compare the two periods side by side. Once loaded, its file name shows here with a link to remove it.",
-    anchor: '#tbr-output label.tbr-btn-ghost',
-    tab: "pnl",
+    body: "Load a second trial balance here — top-right of the results — to fill the prior-year column and compare the two periods side by side. Once loaded, its file name shows next to the button with a link to remove it.",
+    anchor: '.tbr-comparative-btn',
     requiresData: true,
-    placement: "top",
+    placement: "bottom",
   },
   {
     title: "You're ready",
