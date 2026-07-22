@@ -51,6 +51,9 @@ const BS_TARGETS = [
   // Fixed assets (group 1)
   { id: "tangibleAssets",    label: "Tangible Assets (net)",      section: "Fixed Assets",          sign: "natural" },
   { id: "intangibleAssets",  label: "Intangible Assets",          section: "Fixed Assets",          sign: "natural" },
+  // Investments (own section, still counts in Total Assets) — matched strictly by
+  // CODE: Cycom 19xx / E-Soft 200xxx (the account name is not used).
+  { id: "investments",       label: "Investments",                section: "Investments",           sign: "natural" },
   // Current assets (group 2)
   { id: "bank",              label: "Bank & Cash",                section: "Current Assets",        sign: "natural" },
   { id: "tradeDebtors",      label: "Trade Debtors",              section: "Current Assets",        sign: "natural" },
@@ -90,6 +93,16 @@ const rules = [
   { target: "operatingExpenses", group: "7" },
   { target: "tax", group: "8" },
   // ---- Balance Sheet ----
+  // Investments — its own asset section, matched STRICTLY BY CODE (the name is
+  // NOT used: an account merely mentioning "investment" — e.g. a fixed-asset
+  // "Shares in ABC Investment Fund", or a P&L "gain on disposal of investment" —
+  // must NOT be pulled in). Matched FIRST among BS rules so a 19xx/200xxx code
+  // isn't swallowed by the generic fixed-asset (group 1) or current-asset
+  // (group 2) catch-alls. Per the firm's charts:
+  //   • Cycom/general: account code starts 19xx (e.g. 1941 "Investment in …").
+  //   • ESOFT (.xlsx): account code starts 200xxx (e.g. 200010 "Investment A").
+  { target: "investments", format: "cycom", code: /^19\d/ },
+  { target: "investments", format: "esoft", code: /^200\d/ },
   { target: "intangibleAssets", group: "1", name: /intangible|goodwill|trademark|patent|software/i },
   { target: "tangibleAssets",   group: "1" },
   // Bank & Cash by CODE RANGE — the authoritative signal per the firm's charts.
@@ -977,14 +990,16 @@ function buildBalanceSheet(config, current, prior) {
   // Section totals (internal keys, used by ratios + the grand totals).
   const totals = {
     fixedAssets:         { current: sumSection(current, "Fixed Assets"),          prior: sumSection(prior, "Fixed Assets") },
+    investments:         { current: sumSection(current, "Investments"),           prior: sumSection(prior, "Investments") },
     currentAssets:       { current: sumSection(current, "Current Assets"),        prior: sumSection(prior, "Current Assets") },
     currentLiabilities:  { current: sumSection(current, "Current Liabilities"),   prior: sumSection(prior, "Current Liabilities") },
     longTermLiabilities: { current: sumSection(current, "Long-term Liabilities"), prior: sumSection(prior, "Long-term Liabilities") },
     equity:              { current: sumSection(current, "Equity"),                prior: sumSection(prior, "Equity") },
   };
+  // Total Assets = Fixed + Investments + Current.
   totals.totalAssets = {
-    current: addN(totals.fixedAssets.current, totals.currentAssets.current),
-    prior:   addN(totals.fixedAssets.prior, totals.currentAssets.prior),
+    current: addN(addN(totals.fixedAssets.current, totals.investments.current), totals.currentAssets.current),
+    prior:   addN(addN(totals.fixedAssets.prior, totals.investments.prior), totals.currentAssets.prior),
   };
   totals.totalLiabilitiesEquity = {
     current: addN(addN(totals.currentLiabilities.current, totals.longTermLiabilities.current), totals.equity.current),
@@ -1012,6 +1027,13 @@ function buildBalanceSheet(config, current, prior) {
   lines.push(header("FIXED ASSETS"));
   lines.push(...acct("Fixed Assets"));
   lines.push(total("TOTAL FIXED ASSETS", "fixedAssets"));
+  // Investments — only shown when the TB actually has investment accounts, so a
+  // company with none doesn't get an empty section.
+  if (acct("Investments").length) {
+    lines.push(header("INVESTMENTS"));
+    lines.push(...acct("Investments"));
+    lines.push(total("TOTAL INVESTMENTS", "investments"));
+  }
   lines.push(grand("TOTAL ASSETS", "totalAssets"));
 
   // ---- LIABILITIES AND OWNER'S EQUITY ----
@@ -1164,10 +1186,11 @@ function bsFigures(bs) {
   const currentAssets = n("bank") + n("tradeDebtors") + n("stock") + n("prepayments");
   const currentLiabilities = n("tradeCreditors") + n("shortTermLoans") + n("vatPaye") + n("accruals");
   const fixedAssets = n("tangibleAssets") + n("intangibleAssets");
+  const investments = n("investments");
   const equity = n("shareCapital") + n("retainedEarnings");
   const debt = n("longTermLoans") + n("shortTermLoans");
   return {
-    totalAssets: fixedAssets + currentAssets,
+    totalAssets: fixedAssets + investments + currentAssets,
     currentAssets, currentLiabilities, equity, debt,
   };
 }
@@ -2676,10 +2699,14 @@ function renderBsCompositionChart(m) {
   // The two sides' bands for a given year (signed — any section may be negative:
   // a fixed-asset pool net of depreciation, a debit-balance creditor, or
   // accumulated-loss equity).
+  // Include the Investments band only when the sheet actually has investments
+  // (either year) — otherwise it's noise for companies without any.
+  const hasInvest = Math.abs(val("investments", "current")) > 0 || Math.abs(val("investments", "prior")) > 0;
   const bandsFor = (yr) => ({
     assets: [
       { label: "Current Assets", value: val("currentAssets", yr), color: VIZ.blue },
       { label: "Fixed Assets",   value: val("fixedAssets",   yr), color: VIZ.aqua },
+      ...(hasInvest ? [{ label: "Investments", value: val("investments", yr), color: VIZ.green }] : []),
     ],
     fin: [
       { label: "Current Liabilities",   value: val("currentLiabilities",   yr), color: VIZ.yellow },
