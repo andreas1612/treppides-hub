@@ -1,5 +1,5 @@
 // ============================================================
-// components/pages/companies.js — Group Dashboard.
+// components/pages/companies.js — Deals Dashboard (reached via the CRM landing).
 //
 // AML-style card landing → two views:
 //   • Search       — find a company by name / TID-XXXXX
@@ -93,7 +93,7 @@ let _calc = { selected: new Map(), page: 1, total: 0 };
 function showPage() {
   const main = document.querySelector(".main");
   if (!main) return;
-  main.classList.remove("fees-active", "staff-active", "aml-active");
+  main.classList.remove("fees-active", "staff-active", "aml-active", "crm-active");
   main.classList.add("companies-active");
   document.dispatchEvent(new CustomEvent("hub:navchange", { detail: { section: "companies" } }));
   goMain();
@@ -629,9 +629,9 @@ function bindFilters(apply) {
 // ---- Shared header (back to hub + refresh) ------------------------
 
 function wireHeader() {
-  // Back arrow returns to the hub; refresh re-syncs.
+  // Back arrow returns to the CRM landing (Tools → CRM → Deals); refresh re-syncs.
   document.getElementById("companies-home-btn")?.addEventListener("click", () => {
-    hidePage(); window.__hub_projects?.show(); window.scrollTo({ top: 0, behavior: "smooth" });
+    hidePage(); window.__hub_crm?.show(); window.scrollTo({ top: 0, behavior: "smooth" });
   });
   document.getElementById("companies-refresh-btn")?.addEventListener("click", onRefresh);
   refreshSyncedLabel();
@@ -678,7 +678,7 @@ async function goMain() {
     <button class="companies-chart-btn" id="companies-chart-btn" title="Compare by chart">${CHART_ICON} Chart</button>`;
   section.innerHTML = `
     <div class="hub-section">
-      ${mainHeaderHtml("Group Dashboard", "Search and filter companies — totals reflect any active filters", headerBtns)}
+      ${mainHeaderHtml("Deals Dashboard", "Search and filter companies — totals reflect any active filters", headerBtns)}
       <div class="companies-searchbar">
         <span class="companies-search-icon">${SEARCH_SVG}</span>
         <input type="search" id="companies-search-input" class="companies-search-input" placeholder="Search company name or TID-XXXXX…" autocomplete="off" spellcheck="false" aria-label="Search company" value="${escapeHtml(_lastQuery)}">
@@ -716,7 +716,7 @@ async function goChart() {
   const section = document.getElementById(SECTION_ID);
   section.innerHTML = `
     <div class="hub-section">
-      ${mainHeaderHtml("Group Dashboard — Chart", "Compare Deal Value by company or UBO — defaults to the top 15", "")}
+      ${mainHeaderHtml("Deals Dashboard — Chart", "Compare Deal Value by company or UBO — defaults to the top 15", "")}
       ${filterBarHtml()}
       <div class="companies-chart-controls">
         <div class="companies-chart-toggle" role="tablist">
@@ -889,7 +889,7 @@ async function goCalc() {
   const section = document.getElementById(SECTION_ID);
   section.innerHTML = `
     <div class="hub-section">
-      ${mainHeaderHtml("Group Dashboard — Custom Total", "Tick deals to build your own total — selection persists as you filter/search", "")}
+      ${mainHeaderHtml("Deals Dashboard — Custom Total", "Tick deals to build your own total — selection persists as you filter/search", "")}
       <div class="companies-searchbar">
         <span class="companies-search-icon">${SEARCH_SVG}</span>
         <input type="search" id="companies-calc-search" class="companies-search-input" placeholder="Search deals by name or TID…" autocomplete="off" spellcheck="false" aria-label="Search deals">

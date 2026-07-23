@@ -1,0 +1,138 @@
+/* ============================================================
+   crm.css — styles for the CRM landing page.
+   Card grid to pick a per-list dashboard (Deals / Leads /
+   Accounts). Mirrors the AML landing show/hide + card pattern.
+   ============================================================ */
+
+/* Default: hidden, hub content visible */
+#section-crm {
+  display: none;
+  padding: var(--page-gutter, 32px);
+}
+
+.main.crm-active .page-content   { display: none !important; }
+.main.crm-active .reader-overlay { display: none !important; }
+.main.crm-active #section-crm    { display: block !important; }
+
+/* ---- Header ---- */
+.crm-header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.crm-back-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.crm-back-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+  background: rgba(0, 0, 0, .02);
+}
+.crm-back-btn svg { width: 18px; height: 18px; }
+
+/* ---- Card grid ---- */
+.crm-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+  margin-top: 24px;
+}
+
+.crm-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px 24px;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow: var(--shadow);
+  transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition);
+}
+.crm-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-hover);
+  border-color: var(--text-secondary);
+}
+
+/* Not-yet-built dashboards: visible but inert. */
+.crm-card.disabled {
+  cursor: default;
+  opacity: .6;
+}
+.crm-card.disabled:hover {
+  transform: none;
+  box-shadow: var(--shadow);
+  border-color: var(--border);
+}
+
+.crm-card-soon {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  background: rgba(0, 0, 0, .06);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+
+.crm-card-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.crm-card-icon svg { width: 26px; height: 26px; stroke-width: 2; }
+
+.crm-card-icon.deals        { background: rgba(47, 133, 90, .12);  color: #2F855A; }
+.crm-card-icon.leads        { background: rgba(74, 144, 217, .12); color: #2B6CB0; }
+.crm-card-icon.accounts-co  { background: rgba(159, 122, 234, .12); color: #6B46C1; }
+.crm-card-icon.accounts-ind { background: rgba(237, 137, 54, .12); color: #B7791F; }
+
+.crm-card-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.crm-card-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.crm-card-cta {
+  margin-top: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-hover, #1a1f2e);
+}
+.crm-card-cta.muted { color: var(--text-secondary); font-weight: 600; }
+.crm-card-cta svg { width: 14px; height: 14px; }

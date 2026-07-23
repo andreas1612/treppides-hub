@@ -101,6 +101,7 @@ function hideAllPages() {
   if (window.__hub_projects)    window.__hub_projects.hide();
   if (window.__hub_valuation)   window.__hub_valuation.hide();
   if (window.__hub_companies)   window.__hub_companies.hide();
+  if (window.__hub_crm)         window.__hub_crm.hide();
   if (window.__hub_tbratio)     window.__hub_tbratio.hide();
   if (window.__hub_performance) window.__hub_performance.hide();
   if (window.__hub_budgetkpi)   window.__hub_budgetkpi.hide();
@@ -159,11 +160,11 @@ export default async function init(config) {
           </div>
         </div>
 
-        <div class="tools-card" data-tool="companies">
+        <div class="tools-card" data-tool="crm">
           <div class="tools-card-icon green">${TOOL_ICONS.companies}</div>
           <div class="tools-card-body">
-            <h3 class="tools-card-title">Group Dashboard</h3>
-            <p class="tools-card-desc">Search a company and find all its tasks across spaces.</p>
+            <h3 class="tools-card-title">CRM</h3>
+            <p class="tools-card-desc">Explore Deals, Leads &amp; Accounts from ClickUp — search, filter and drill in.</p>
           </div>
         </div>
 
@@ -231,9 +232,9 @@ export default async function init(config) {
         window.__hub_valuation?.show();
         window.scrollTo({ top: 0, behavior: "smooth" });
         break;
-      case "companies":
+      case "crm":
         hideAllPages();
-        window.__hub_companies?.show();
+        window.__hub_crm?.show();
         window.scrollTo({ top: 0, behavior: "smooth" });
         break;
       case "tbratio":

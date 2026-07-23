@@ -547,6 +547,8 @@ export default async function init(config) {
       fees:        ["sb-tools",       "mb-tools"],
       valuation:   ["sb-tools",       "mb-tools"],
       companies:   ["sb-tools",       "mb-tools"],
+      crm:         ["sb-tools",       "mb-tools"],
+      crmlist:     ["sb-tools",       "mb-tools"],
       tbratio:     ["sb-tools",       "mb-tools"],
       forms:        ["sb-tools",       "mb-tools"],
       teamcalendar: ["sb-tools",       "mb-tools"],     // tool sub-page → highlight Tools

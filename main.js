@@ -22,6 +22,7 @@ import initAml           from "./components/pages/aml.js";
 import initProjects      from "./components/pages/projects.js";
 import initValuation     from "./components/pages/valuation.js";
 import initCompanies      from "./components/pages/companies.js";
+import initCrm            from "./components/pages/crm.js";
 import initPerformance    from "./components/pages/performance.js";
 import initBudgetKpi      from "./components/pages/budget-kpi.js";
 import initTbratio        from "./components/pages/tbratio.js";
@@ -72,6 +73,10 @@ async function boot() {
   // Company Task Finder must be ready before sidebar clicks fire — sidebar.js
   // calls window.__hub_companies.show(), which companies.js exposes during init.
   await initCompanies(CONFIG);
+
+  // CRM landing — the list-dashboard picker (Deals / Leads / Accounts). Must be
+  // ready before projects.js (Tools grid) fires window.__hub_crm.show().
+  await initCrm(CONFIG);
 
   // Performance Report — admin-only employee chargeability viewer.
   await initPerformance(CONFIG);

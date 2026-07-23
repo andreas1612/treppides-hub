@@ -91,7 +91,7 @@ function hideFormsPage() {
 }
 
 /**
- * Public entry point for the Forms tool (the Group Dashboard "Forms" button).
+ * Public entry point for the Forms tool (the Deals Dashboard "Forms" button).
  * Makes the section visible AND (re)renders the Lead/Deal landing grid.
  *
  * This must render the landing — not just toggle CSS — because #section-forms
