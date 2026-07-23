@@ -17,7 +17,7 @@
 // ============================================================
 
 import { escapeHtml, renderError, renderEmpty } from "../../utils/dom.js";
-import { prettySpace, statusPill, loadChartJs, mountFilterBar, filterQS } from "./crm-shared.js";
+import { prettySpace, statusPill, loadChartJs, mountFilterBar, filterQS, renderEditor } from "./crm-shared.js";
 
 const SECTION_ID = "section-crmlist";
 const IS_LOCAL   = window.location.hostname === "localhost";
@@ -134,6 +134,7 @@ function renderShell() {
       </div>
 
       <div id="crml-filterbar"></div>
+      <div id="crml-detail-host"></div>
       <div id="crml-table" class="companies-table-wrap"></div>
     </div>`;
 
@@ -316,13 +317,15 @@ function anyFilter() {
 // ---- Detail drawer ------------------------------------------------
 
 async function openDetail(id) {
-  const wrap = document.getElementById("crml-table");
-  if (!wrap) return;
-  document.querySelector(".crml-detail-pop")?.remove();
+  // Render into a dedicated host ABOVE the table (not inside #crml-table) so a
+  // background loadRows() after an edit can't wipe the open drawer.
+  const host = document.getElementById("crml-detail-host");
+  if (!host) return;
+  host.innerHTML = "";
   const holder = document.createElement("div");
   holder.className = "crml-detail-pop companies-detail-pop";
   holder.innerHTML = `<button class="companies-detail-close" aria-label="Close">✕ Close</button>${loadingHtml("Loading record…")}`;
-  wrap.prepend(holder);
+  host.appendChild(holder);
   holder.querySelector(".companies-detail-close").addEventListener("click", () => holder.remove());
   holder.scrollIntoView({ behavior: "smooth", block: "start" });
 
@@ -385,8 +388,29 @@ function renderDetail(holder, det) {
       </div>
       <div class="crml-fields">${assignees}${ubos}${fieldRows || (fieldRows === "" && !assignees && !ubos ? `<p class="crml-detail-empty">No additional details recorded.</p>` : "")}</div>
       ${deals}
+      ${det.editable ? `<div class="crml-edit"><h4>Edit</h4><div class="companies-edit-panel" id="crml-editor"></div></div>` : ""}
     </div>`;
   holder.querySelector(".companies-detail-close").addEventListener("click", () => holder.remove());
+
+  // Inline editor (status / assignee / comment → ClickUp) for editable lists.
+  // On save, patch the drawer's status pill + assignees line and refresh the
+  // table row (the write reconciles the mirror via sync_one server-side).
+  if (det.editable) {
+    const panel = holder.querySelector("#crml-editor");
+    const onSaved = (freshTask) => {
+      const pill = holder.querySelector(".crml-detail-sub .companies-status");
+      if (pill && freshTask.status) pill.outerHTML = statusPill(freshTask.status, freshTask.status_color);
+      const names = (freshTask.assignees || []).join(", ");
+      holder.querySelectorAll(".crml-field").forEach(fl => {
+        if (fl.querySelector(".crml-field-label")?.textContent === "Assignees") {
+          const v = fl.querySelector(".crml-field-value");
+          if (v) v.textContent = names || "—";
+        }
+      });
+      loadRows();
+    };
+    renderEditor(panel, t.id, { apiBase: API_BASE, onSaved });
+  }
 }
 
 // ---- Component init -----------------------------------------------

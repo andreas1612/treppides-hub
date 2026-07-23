@@ -167,3 +167,158 @@ export function filterQS(state) {
   }
   return parts.join("&");
 }
+
+// ---- Inline editor (status / assignee / comment → ClickUp) --------
+//
+// Ported from the Deals dashboard's editor, generalized to the unified
+// /api/companies/tasks/{id}/* write routes so it works for ANY editable list.
+// Auth-gated server-side (require_user); we send the TM session cookie via
+// credentials:"include". On save it applies only what changed and calls
+// onSaved(freshTask) so the caller can reflect the reconciled task.
+
+function _loading(msg) {
+  return `<div class="companies-loading" aria-busy="true"><span class="companies-spinner" aria-hidden="true"></span><span>${escapeHtml(msg)}</span></div>`;
+}
+
+function _putJson(url, body) {
+  return fetch(url, { method: "PUT", credentials: "include",
+    headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+}
+function _postJson(url, body) {
+  return fetch(url, { method: "POST", credentials: "include",
+    headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+}
+
+function _editPanelHtml(taskId, opts) {
+  const curStatus = (opts.current_status || "").toLowerCase();
+  const statusOpts = (opts.statuses || []).map(s =>
+    `<option value="${escapeHtml(s.status)}"${s.status.toLowerCase() === curStatus ? " selected" : ""}>${escapeHtml(s.status)}</option>`
+  ).join("");
+
+  const curIds = new Set((opts.current_assignees || []).map(a => String(a.id)));
+  const members = (opts.members || []).slice().sort((a, b) => {
+    const ac = curIds.has(String(a.id)) ? 0 : 1, bc = curIds.has(String(b.id)) ? 0 : 1;
+    if (ac !== bc) return ac - bc;
+    return (a.username || a.email || "").localeCompare(b.username || b.email || "");
+  });
+  const origCsv = [...curIds].sort().join(",");
+  const memberRows = members.length
+    ? members.map(m => {
+        const on = curIds.has(String(m.id));
+        return `<label class="companies-assignee-opt${on ? " on" : ""}">
+          <input type="checkbox" value="${m.id}"${on ? " checked" : ""}>
+          <span>${escapeHtml(m.username || m.email || String(m.id))}</span>
+        </label>`;
+      }).join("")
+    : `<div class="companies-edit-err">No members available.</div>`;
+
+  return `
+    <div class="companies-edit-grid" data-task-id="${escapeHtml(taskId)}">
+      <label class="companies-edit-field">
+        <span>Status</span>
+        <select data-edit-status>${statusOpts}</select>
+      </label>
+      <div class="companies-edit-field companies-edit-assignees">
+        <span>Assignees</span>
+        <div class="companies-assignee-list" data-edit-assignees data-orig="${origCsv}">${memberRows}</div>
+      </div>
+      <label class="companies-edit-field companies-edit-comment">
+        <span>Add comment to ClickUp</span>
+        <textarea data-edit-comment rows="2" placeholder="Write a note — posted to the task's ClickUp comments."></textarea>
+      </label>
+      <div class="companies-edit-actions">
+        <button type="button" class="companies-edit-save" data-edit-save>Save changes</button>
+        <span class="companies-edit-msg" data-edit-msg aria-live="polite"></span>
+      </div>
+    </div>`;
+}
+
+async function _saveEdits(grid, taskId, apiBase, onSaved) {
+  const msg = grid.querySelector("[data-edit-msg]");
+  const statusSel = grid.querySelector("[data-edit-status]");
+  const assigneeList = grid.querySelector("[data-edit-assignees]");
+  const commentBox = grid.querySelector("[data-edit-comment]");
+  const saveBtn = grid.querySelector("[data-edit-save]");
+  const setMsg = (t, kind) => { if (msg) { msg.textContent = t; msg.className = `companies-edit-msg ${kind || ""}`; } };
+
+  saveBtn.disabled = true;
+  setMsg("Saving…", "pending");
+
+  const base = `${apiBase}/tasks/${encodeURIComponent(taskId)}`;
+  const calls = [];
+  const chosenStatus = statusSel?.value;
+  const origStatus = statusSel?.querySelector("option[selected]")?.value;
+  if (chosenStatus && chosenStatus !== origStatus) {
+    calls.push(_putJson(`${base}/status`, { status: chosenStatus }).then(r => ({ kind: "status", r })));
+  }
+  if (assigneeList) {
+    const chosenIds = [...assigneeList.querySelectorAll('input[type="checkbox"]:checked')].map(cb => Number(cb.value));
+    const chosenCsv = chosenIds.slice().sort((a, b) => a - b).join(",");
+    if (chosenCsv !== (assigneeList.dataset.orig || "")) {
+      calls.push(_putJson(`${base}/assignee`, { assignee_ids: chosenIds }).then(r => ({ kind: "assignee", r })));
+    }
+  }
+  const comment = (commentBox?.value || "").trim();
+  if (comment) {
+    calls.push(_postJson(`${base}/comment`, { text: comment }).then(r => ({ kind: "comment", r })));
+  }
+
+  if (!calls.length) { setMsg("Nothing changed.", ""); saveBtn.disabled = false; return; }
+
+  try {
+    const results = await Promise.all(calls);
+    let dryRun = false, freshTask = null;
+    for (const { kind, r } of results) {
+      if (r.status === 401 || r.status === 403) throw new Error("Please sign in (Task Manager) to edit.");
+      if (!r.ok) { const b = await r.json().catch(() => ({})); throw new Error(b.detail || `HTTP ${r.status}`); }
+      const b = await r.json();
+      if (b.dry_run) dryRun = true;
+      if (b.task) freshTask = b.task;
+      if (kind === "comment" && commentBox) commentBox.value = "";
+    }
+    // Reset the editor's own diff baselines so a second save compares correctly.
+    if (statusSel) statusSel.querySelectorAll("option").forEach(o => o.toggleAttribute("selected", o.value === statusSel.value));
+    if (assigneeList) {
+      assigneeList.dataset.orig = [...assigneeList.querySelectorAll('input[type="checkbox"]:checked')]
+        .map(cb => Number(cb.value)).sort((a, b) => a - b).join(",");
+    }
+    setMsg(dryRun ? "Saved (dry run — ClickUp not changed)." : "Saved to ClickUp ✓", "ok");
+    if (freshTask && typeof onSaved === "function") onSaved(freshTask);
+  } catch (err) {
+    console.error("save edits failed:", err);
+    setMsg(err.message || "Save failed.", "err");
+  } finally {
+    saveBtn.disabled = false;
+  }
+}
+
+/**
+ * Fetch edit-options for a task and render the inline editor into `panel`.
+ *   apiBase: "/api/companies" (or the local-dev absolute base)
+ *   onSaved(freshTask): called after a successful save with the reconciled task.
+ */
+export async function renderEditor(panel, taskId, { apiBase = "/api/companies", onSaved } = {}) {
+  panel.innerHTML = `<div class="companies-edit-loading">${_loading("Loading editor…")}</div>`;
+  let res;
+  try {
+    res = await fetch(`${apiBase}/tasks/${encodeURIComponent(taskId)}/edit-options`, { credentials: "include" });
+  } catch {
+    panel.innerHTML = `<div class="companies-edit-err">Couldn't reach the server. Try again.</div>`;
+    return;
+  }
+  if (res.status === 401 || res.status === 403) {
+    panel.innerHTML = `<div class="companies-edit-err">Please sign in (via the Task Manager) to edit.</div>`;
+    return;
+  }
+  if (!res.ok) {
+    panel.innerHTML = `<div class="companies-edit-err">Couldn't load the editor. Try again.</div>`;
+    return;
+  }
+  panel.innerHTML = _editPanelHtml(taskId, await res.json());
+  const grid = panel.querySelector(".companies-edit-grid");
+  grid.querySelector("[data-edit-save]")?.addEventListener("click", () => _saveEdits(grid, taskId, apiBase, onSaved));
+  grid.addEventListener("change", e => {
+    const cb = e.target.closest('.companies-assignee-opt input[type="checkbox"]');
+    if (cb) cb.closest(".companies-assignee-opt")?.classList.toggle("on", cb.checked);
+  });
+}

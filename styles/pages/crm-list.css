@@ -146,3 +146,17 @@
   align-items: center;
   gap: 8px;
 }
+
+.crml-edit {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.crml-edit h4 {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 12px;
+}
+/* The editor panel itself reuses .companies-edit-* styles from companies.css. */
+.crml-edit .companies-edit-panel { display: block; }
