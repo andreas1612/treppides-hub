@@ -365,26 +365,22 @@ function renderRevenue(d) {
     <div class="fin-kpis">
       <div class="fin-kpi"><span class="fin-kpi-label">Net revenue ${currentYear}</span><span class="fin-kpi-value">${eur(d.totalNet)}</span></div>
       <div class="fin-kpi"><span class="fin-kpi-label">Invoiced months</span><span class="fin-kpi-value">${(d.byMonth || []).length}</span></div>
-      <!-- Engagement Leaders count temporarily hidden.
-           To restore: uncomment the KPI below. -->
-      <!--
-      <div class="fin-kpi"><span class="fin-kpi-label">Engagement leaders</span><span class="fin-kpi-value">${(d.byEl || []).length}</span></div>
-      -->
+      <div class="fin-kpi"><span class="fin-kpi-label">Engagement leaders</span><span class="fin-kpi-value">${(d.byEl || []).filter(r => Number(r.net) > 0).length}</span></div>
     </div>
     <div class="fin-grid">
       <div class="fin-card"><h3>Revenue by year</h3><div class="fin-chart-wrap"><canvas id="fin-c-year"></canvas></div></div>
       <div class="fin-card"><h3>Revenue by month — ${currentYear}</h3><div class="fin-chart-wrap"><canvas id="fin-c-month"></canvas></div></div>
-      <div class="fin-card"><h3>Revenue by department</h3><div class="fin-chart-wrap"><canvas id="fin-c-dept"></canvas></div></div>
-      <!-- "Revenue by Engagement Leader" chart temporarily hidden.
-           To restore: uncomment the card below AND the drawChart("fin-c-el", …) call further down. -->
-      <!--
+      <div class="fin-card"><h3>Revenue by department <span class="fin-hint">(click to filter)</span></h3><div class="fin-chart-wrap"><canvas id="fin-c-dept"></canvas></div></div>
       <div class="fin-card"><h3>Revenue by Engagement Leader</h3><div class="fin-chart-wrap"><canvas id="fin-c-el"></canvas></div></div>
-      -->
-      <div class="fin-card">
+      <div class="fin-card fin-card-wide">
         <h3>Top clients — ${currentYear}</h3>
         <table class="fin-table"><thead><tr><th>Client</th><th class="num">Net</th><th class="num">Inv.</th></tr></thead>
           <tbody>${(d.topClients || []).map(c => `<tr><td>${escapeHtml(c.client || "")}</td><td class="num">${eur(c.net)}</td><td class="num">${c.invoices}</td></tr>`).join("")}</tbody>
         </table>
+      </div>
+      <div class="fin-card fin-card-wide">
+        <h3>Invoice details — ${currentYear} <span class="fin-hint">(latest 100)</span></h3>
+        <div id="fin-invoice-list"><div class="fin-loading">Loading invoices…</div></div>
       </div>
     </div>`;
 
@@ -395,12 +391,21 @@ function renderRevenue(d) {
   (d.byMonth || []).forEach(m => { if (m.month >= 1 && m.month <= 12) months[m.month - 1] = Number(m.net); });
   drawChart("fin-c-month", barConfig(MONTHS, months, "Net revenue"));
 
-  const depts = [...(d.byDepartment || [])].slice(0, 8);
-  drawChart("fin-c-dept", doughnutConfig(depts.map(deptName), depts.map(r => Number(r.net))));
+  const depts = [...(d.byDepartment || [])].slice(0, 10);
+  const dCfg = doughnutConfig(depts.map(deptName), depts.map(r => Number(r.net)));
+  dCfg.options.onClick = (evt, els) => {
+    if (els && els.length) {
+      const dep = depts[els[0].index];
+      if (dep) { currentDept = (currentDept === dep.code) ? "" : dep.code; renderTab(); }
+    }
+  };
+  drawChart("fin-c-dept", dCfg);
 
-  // "Revenue by Engagement Leader" chart temporarily hidden — restore together with the card above.
-  // const els = [...(d.byEl || [])].filter(r => Number(r.net) > 0).slice(0, 10);
-  // drawChart("fin-c-el", doughnutConfig(els.map(r => r.name || r.code || "Unmapped"), els.map(r => Number(r.net))));
+  const els2 = [...(d.byEl || [])].filter(r => Number(r.net) > 0).slice(0, 15);
+  drawChart("fin-c-el", doughnutConfig(els2.map(r => r.name || r.code || "Unmapped"), els2.map(r => Number(r.net))));
+
+  // Load invoice detail table
+  loadInvoiceList();
 }
 
 // ---- Render: Budget vs Actual (provisional) -----------------
@@ -471,6 +476,44 @@ function renderDebtors(d) {
         <tbody>${(d.topDebtors || []).map((r, i) => `<tr><td>${i + 1}</td><td>${escapeHtml(r.client || "(" + r.account_seq + ")")}</td><td class="num">${eur2(r.balance)}</td></tr>`).join("")}</tbody>
       </table>
     </div>`;
+}
+
+// ---- Invoice detail list (loaded on demand) -------------------
+
+async function loadInvoiceList() {
+  const container = document.getElementById("fin-invoice-list");
+  if (!container) return;
+  try {
+    const data = await apiFetch(`/api/reports/financials/invoice-list${qs()}&top=100`);
+    const rows = data.invoices || [];
+    if (!rows.length) {
+      container.innerHTML = `<div class="fin-empty">No invoices found.</div>`;
+      return;
+    }
+    container.innerHTML = `
+      <div class="fin-table-scroll">
+      <table class="fin-table fin-table-compact">
+        <thead><tr>
+          <th>Doc #</th><th>Date</th><th>Client</th><th>Department</th>
+          <th>Engagement Leader</th><th>Type</th>
+          <th class="num">Gross</th><th class="num">VAT</th><th class="num">Net</th>
+        </tr></thead>
+        <tbody>${rows.map(r => `<tr>
+          <td class="mono">${escapeHtml(r.docno || "")}</td>
+          <td>${r.docdate ? new Date(r.docdate).toLocaleDateString("en-GB") : ""}</td>
+          <td>${escapeHtml(r.client || "")}</td>
+          <td>${escapeHtml(r.department || r.deptCode || "")}</td>
+          <td>${escapeHtml(r.elName || r.elCode || "")}</td>
+          <td>${escapeHtml(r.doctype || "")}</td>
+          <td class="num">${eur(r.gross)}</td>
+          <td class="num">${eur(r.vat)}</td>
+          <td class="num">${eur(r.net)}</td>
+        </tr>`).join("")}</tbody>
+      </table>
+      </div>`;
+  } catch (e) {
+    container.innerHTML = `<div class="fin-error">Could not load invoices: ${escapeHtml(e.message)}</div>`;
+  }
 }
 
 // ---- Chart config helpers -----------------------------------

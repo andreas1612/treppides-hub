@@ -66,6 +66,14 @@ const TOOL_ICONS = {
                   <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
                   <polyline points="9 22 9 12 15 12 15 22"/>
                 </svg>`,
+  kyc: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+          <polyline points="13 2 13 9 20 9"/>
+          <line x1="10" y1="13" x2="10" y2="17"/>
+          <line x1="14" y1="13" x2="14" y2="17"/>
+          <path d="M10 13a2 2 0 1 1 4 0"/>
+        </svg>`,
   external: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                <line x1="7" y1="17" x2="17" y2="7"/>
@@ -194,6 +202,15 @@ export default async function init(config) {
           <span class="tools-card-badge">External ${TOOL_ICONS.external}</span>
         </div>
 
+        <div class="tools-card" data-tool="kyc">
+          <div class="tools-card-icon green">${TOOL_ICONS.kyc}</div>
+          <div class="tools-card-body">
+            <h3 class="tools-card-title">KYC Management</h3>
+            <p class="tools-card-desc">Track KYC file custody, requests &amp; approvals.</p>
+          </div>
+          <span class="tools-card-badge">External ${TOOL_ICONS.external}</span>
+        </div>
+
       </div>
     </div>`;
 
@@ -239,6 +256,9 @@ export default async function init(config) {
         break;
       case "roombooking":
         window.open("/rooms/", "_blank", "noopener");
+        break;
+      case "kyc":
+        window.open("/kyc/", "_blank", "noopener");
         break;
     }
   });

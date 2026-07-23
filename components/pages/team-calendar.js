@@ -35,11 +35,19 @@ const PERSON_PALETTE = [
   { h: "#f687b3", bg: "rgba(246,135,179,.13)",  tx: "#702459" },  // rose
 ];
 
+// Per-person color overrides — requested by individual staff members.
+const PERSON_COLOR_OVERRIDE = {
+  "aeleftheriou@treppides.com": PERSON_PALETTE[8],  // pink
+};
+
 let _personColorMap = {};
 let _personColorIdx = 0;
 
 function personColor(email) {
   if (_personColorMap[email]) return _personColorMap[email];
+  // Check for a personal override first
+  const override = PERSON_COLOR_OVERRIDE[email.toLowerCase()];
+  if (override) { _personColorMap[email] = override; return override; }
   // Sequential assignment — guarantees maximum color spread within a team
   const c = PERSON_PALETTE[_personColorIdx % PERSON_PALETTE.length];
   _personColorIdx++;

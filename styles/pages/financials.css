@@ -81,6 +81,7 @@
   padding: 16px 18px; margin-bottom: 16px;
 }
 .fin-card h3 { margin: 0 0 12px; font-size: 15px; color: var(--text-primary, #1a1a2e); }
+.fin-card-wide { grid-column: 1 / -1; }
 .fin-chart-wrap { position: relative; height: 260px; }
 .fin-chart-wrap.tall { height: 360px; }
 
@@ -92,6 +93,10 @@
 .fin-table td.pos { color: #16a34a; }
 .fin-table td.neg { color: #dc2626; }
 .fin-table tbody tr:hover { background: #fafafc; }
+.fin-table .mono { font-family: monospace; font-size: 12px; }
+.fin-table-compact td, .fin-table-compact th { padding: 5px 8px; font-size: 12px; }
+.fin-table-scroll { max-height: 420px; overflow-y: auto; border: 1px solid #f0f0f3; border-radius: 6px; }
+.fin-empty { padding: 24px; text-align: center; color: var(--text-secondary, #888); font-size: 13px; }
 
 /* States */
 .fin-loading, .fin-error {
