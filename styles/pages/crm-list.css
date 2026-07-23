@@ -1,0 +1,148 @@
+/* ============================================================
+   crm-list.css — generic CRM list dashboard (Leads / Accounts).
+   Reuses companies.css for the filter bar, table, pager and
+   detail-pop; this file adds the page toggle, KPI tiles, chips
+   and the detail field grid.
+   ============================================================ */
+
+/* Default: hidden, hub content visible */
+#section-crmlist {
+  display: none;
+  padding: var(--page-gutter, 32px);
+}
+.main.crmlist-active .page-content   { display: none !important; }
+.main.crmlist-active .reader-overlay { display: none !important; }
+.main.crmlist-active #section-crmlist { display: block !important; }
+
+/* ---- KPI row ---- */
+.crml-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  margin: 20px 0 24px;
+}
+
+.crml-kpi-total {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 22px;
+  box-shadow: var(--shadow);
+}
+.crml-kpi-total-num {
+  font-size: 34px;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1;
+}
+.crml-kpi-total-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.crml-kpi-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px 12px;
+  box-shadow: var(--shadow);
+  min-width: 0;
+}
+.crml-kpi-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+.crml-kpi-canvas {
+  position: relative;
+  height: 150px;
+}
+
+/* ---- Table cell bits (table itself styled by companies.css) ---- */
+.crml-null { color: var(--text-secondary); opacity: .6; }
+
+.crml-chip {
+  display: inline-block;
+  font-size: 12px;
+  padding: 2px 8px;
+  margin: 1px 2px 1px 0;
+  border-radius: 999px;
+  background: rgba(74, 144, 217, .12);
+  color: #2B6CB0;
+  white-space: nowrap;
+}
+
+/* ---- Detail drawer ---- */
+.crml-detail-pop { margin-bottom: 16px; }
+
+.crml-detail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.crml-detail-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 4px;
+}
+.crml-detail-sub {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0;
+  flex-wrap: wrap;
+}
+.crml-detail-space { font-weight: 600; }
+
+.crml-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px 24px;
+  margin-bottom: 18px;
+}
+.crml-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  min-width: 0;
+}
+.crml-field-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.crml-field-value {
+  font-size: 14px;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+.crml-detail-empty { color: var(--text-secondary); font-size: 14px; }
+
+.crml-deals { margin-top: 8px; }
+.crml-deals h4 {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}

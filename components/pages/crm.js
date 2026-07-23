@@ -35,7 +35,7 @@ const CARDS = [
     title: "Leads Dashboard",
     desc: "Track the sales pipeline — lead source, industry, jurisdiction and status.",
     iconClass: "leads",
-    ready: false,
+    ready: true,
     icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
              <circle cx="9" cy="7" r="4"/>
@@ -47,7 +47,7 @@ const CARDS = [
     title: "Accounts — Companies",
     desc: "Company master records — UBO, client code, industry, country, auditors and risk.",
     iconClass: "accounts-co",
-    ready: false,
+    ready: true,
     icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
              <path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/>
              <line x1="9" y1="9" x2="9" y2="9"/><line x1="9" y1="13" x2="9" y2="13"/><line x1="9" y1="17" x2="9" y2="17"/>
@@ -58,7 +58,7 @@ const CARDS = [
     title: "Accounts — Individuals",
     desc: "Individual client records — client code, country, status and details.",
     iconClass: "accounts-ind",
-    ready: false,
+    ready: true,
     icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
              <circle cx="12" cy="7" r="4"/>
