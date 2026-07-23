@@ -1,9 +1,18 @@
 # Company Finder — Build & Ops Guide
 
-FastAPI backend (port **8003**, service `companies-api`) for the Hub's **Company
-Finder** dashboard. It maintains a persistent SQLite **master database**
-(`companies.db`) mirroring every ClickUp task across the 10 CRM spaces, and serves
-instant company search plus **Deal Value (fee) totals** per company.
+FastAPI backend (port **8003**, service `companies-api`) for the Hub's **CRM**
+tool. It maintains a persistent SQLite **master database** (`companies.db`)
+mirroring every ClickUp task across the 10 CRM spaces, and serves instant company
+search plus **Deal Value (fee) totals** per company.
+
+The frontend Tools card is **CRM** → a landing that picks a per-list dashboard:
+- **Deals Dashboard** — the original bespoke view (search / chart / custom total /
+  inline edit), served by the `/search`, `/companies`, `/chart`, `/deals`,
+  `/ubos`, `/{tid}` routes.
+- **Leads**, **Accounts — Companies**, **Accounts — Individuals** — generic,
+  config-driven table+KPIs+detail dashboards served by the `/lists` +
+  `/list/{key}/*` routes (config in `crm_lists.py`). These need **no extra sync**:
+  the mirror already holds every list, so they're pure query + presentation.
 
 ## Why a database (not a live index)
 
@@ -22,10 +31,12 @@ every cache cycle. This service instead keeps a local mirror, refreshed
   (EUR). The `Fees` field is AML-specific and intentionally NOT used here.
 - A company's headline total = `SUM(Deal Value)` over its **active** deals.
   **Rejected/lost** deals are summed and shown separately — a deal is "lost" when
-  its status is in `COMPANIES_LOST_STATUSES` (env, default
-  `rejected,approved terminated`).
-- The dashboard **detail view shows DEAL tasks only** (Accounts/Contacts/Leads/
-  Forms are excluded); companies with no deals show a `—` indicator.
+  its status is in `COMPANIES_LOST_STATUSES` (env, default `rejected,on hold -
+  stall`; matches `sync.py` and `.env.example`).
+- The **Deals Dashboard** detail view shows DEAL tasks only (companies with no
+  deals show a `—`). The other lists (Leads / Accounts) have their own dashboards
+  now — see the `/list/{key}/*` routes; they read the same mirror, scoped by
+  `lower(trim(list_name))`.
 - **Promoted, indexed columns** on `tasks` for filtering/sorting/display (also kept
   in the `custom_fields` JSON): `service`, `year_of_project`, `business_year`,
   `department`, `dashboard_tid`, plus `ubos` (JSON array of normalized UBO names
@@ -48,9 +59,13 @@ every cache cycle. This service instead keeps a local mirror, refreshed
 
 | File | Purpose |
 |------|---------|
-| `build_database.py` | SQLAlchemy schema (`tasks`, `companies`, `sync_state`) + WAL engine |
+| `build_database.py` | SQLAlchemy schema (`tasks`, `companies`, `sync_state`, `audit_log`) + WAL engine |
 | `sync.py` | sync engine: full / incremental / deletion-reconcile / rollup |
-| `main.py` | FastAPI app + routes |
+| `main.py` | FastAPI app + routes (Deals view, generic CRM list views, write endpoints) |
+| `crm_lists.py` | CRM list-dashboard **registry** (Leads / Accounts Companies / Individuals): columns, filters, detail fields, KPI groups, editable + cross-link flags. Consumed by the `/lists` + `/list/{key}/*` routes |
+| `auth.py` | write-route identity: validates the caller's Task Manager session (`/api/me`) |
+| `clickup_write.py` | the ONLY place this service mutates ClickUp (status / assignee / comment) |
+| `audit.py` | append-only audit trail of every inline edit (→ `audit_log`) |
 | `.env.example` | template for `.env` (gitignored) |
 | `companies.db` | the master DB (gitignored — rebuilt here, not committed) |
 
@@ -113,6 +128,27 @@ services, departments}`.
 | `GET /api/companies/sync` | incremental sync (+ gated reconcile); `?full=true` rebuild, `?wait=true` block |
 | `GET /api/companies/status` | DB counts + per-space last-sync info |
 | `GET /api/companies/health` | `{ok:true}` |
+
+**Generic CRM list dashboards** (Leads / Accounts Companies / Accounts
+Individuals) — shape from `crm_lists.py`; filters/search/KPIs computed in-memory
+over the mirror (lists are ≤ ~3.6k rows). Trailing-space list names (e.g.
+`Accounts (Individuals) `) match via `lower(trim(list_name))`.
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /api/companies/lists` | registry: per-list `{columns, filters, kpi_groups, editable, cross_link_deals}` |
+| `GET /api/companies/list/{key}/rows?q=&sort=&dir=&page=&<filters>` | filtered / searched / sorted / paginated rows (one value per configured column) |
+| `GET /api/companies/list/{key}/filters?<filters>` | cascading option lists for that list's filters |
+| `GET /api/companies/list/{key}/kpis?<filters>` | total + per-group counts (honours filters) |
+| `GET /api/companies/list/{key}/{task_id}` | record detail: curated fields + (Accounts) linked Deals by TID |
+
+**Inline edits** (auth-gated via `require_user`; audited; reconciled with `sync_one`):
+
+| Endpoint | Purpose |
+|----------|---------|
+| `PUT /api/companies/tasks/{id}/status` · `/assignee` · `POST …/comment` | canonical write routes; accept any editable list (Deals + CRM lists) |
+| `GET /api/companies/tasks/{id}/edit-options` | statuses + workspace roster for the editor |
+| `/api/companies/deals/{id}/*` | legacy aliases (same handlers), kept for the Deals dashboard |
 
 ## Manual sync / rebuild
 
