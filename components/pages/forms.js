@@ -32,6 +32,20 @@ const AML_FORM_TO_LIST = {
   disengaged_client: "disengaged",
 };
 
+// Where a form's back button returns, keyed by the `backTo` passed to openForm().
+// Each returns to the dashboard the form was launched from; an unknown/empty
+// backTo falls back to the Forms picker (showLanding).
+const RETURN_TARGETS = {
+  aml:   (key) => { hideFormsPage(); window.__hub_fees?.show(AML_FORM_TO_LIST[key]); },
+  deals: ()    => { hideFormsPage(); window.__hub_companies?.show(); },
+  leads: ()    => { hideFormsPage(); window.__hub_crmlist?.show("leads"); },
+};
+const RETURN_LABELS = {
+  aml:   "Back to AML Dashboard",
+  deals: "Back to Deals Dashboard",
+  leads: "Back to Leads",
+};
+
 // Cache schemas/members/statuses per form key.
 const _cache = {};   // { key: { schema, members, statuses } }
 
@@ -470,7 +484,7 @@ function showLanding(section) {
 // ---- View: a single form -------------------------------------
 
 async function showFormView(section, key, backTo) {
-  const backLabel = backTo === "aml" ? "Back to AML Dashboard" : "Back to Forms";
+  const backLabel = RETURN_LABELS[backTo] || "Back to Forms";
   section.innerHTML = `
     <div class="hub-section">
       <div class="section-header">
@@ -489,16 +503,12 @@ async function showFormView(section, key, backTo) {
       </div>
     </div>`;
 
-  // Back returns to wherever we came from: the AML dashboard (the list this
-  // form feeds) or the generic Forms card grid.
+  // Back returns to wherever the form was launched from (AML/Deals/Leads
+  // dashboard), or the generic Forms card grid if there's no known target.
   section.querySelector(`#${BACK_BTN_ID}`)?.addEventListener("click", () => {
-    if (backTo === "aml") {
-      const listKey = AML_FORM_TO_LIST[key];
-      hideFormsPage();
-      window.__hub_fees?.show(listKey);
-    } else {
-      showLanding(section);
-    }
+    const target = RETURN_TARGETS[backTo];
+    if (target) target(key);
+    else showLanding(section);
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
 

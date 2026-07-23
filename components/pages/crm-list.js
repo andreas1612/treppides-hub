@@ -30,16 +30,20 @@ const EUR = new Intl.NumberFormat("en-IE", { style: "currency", currency: "EUR",
 // KPI chart palette (one hue per bar-chart card, cycled).
 const KPI_COLORS = ["#4A90D9", "#48BB78", "#9F7AEA", "#ED8936", "#38B2AC", "#E53E3E"];
 
+// Which CRM lists have a dedicated ClickUp create-form (opened by the header
+// "Forms" button). Lists not listed here fall back to the Forms picker.
+const FORM_FOR_LIST = { leads: "lead" };
+
 // ---- State --------------------------------------------------------
 let _registry = null;                 // {key: cfg} from /lists
 let _key = null;
 let _cfg = null;
+let _view = "main";                   // "main" (table) | "chart" (breakdowns)
 let _filters = {};                    // {filterKey: [values]}
 let _q = "";
 let _sort = "";
 let _dir = "asc";
 let _page = 1;
-let _total = 0;
 let _charts = [];
 let _debounceTimer = null;
 
@@ -84,7 +88,7 @@ async function show(key) {
   _filters = {};
   _cfg.filters.forEach(f => { _filters[f.key] = []; });
   _q = ""; _sort = ""; _dir = "asc"; _page = 1;
-  renderShell();
+  goMain();
 }
 
 window.__hub_crmlist = { show, hide: hidePage };
@@ -106,33 +110,69 @@ async function ensureRegistry() {
 const BACK_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>`;
 const SEARCH_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`;
 const REFRESH_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`;
+const CHART_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`;
+const FORMS_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>`;
 
-function renderShell() {
-  const section = document.getElementById(SECTION_ID);
-  section.innerHTML = `
-    <div class="hub-section">
-      <div class="section-header">
-        <div class="companies-header-left">
-          <button class="companies-back-btn" id="crml-back" aria-label="Back to CRM">${BACK_SVG}</button>
-          <div>
-            <h2 class="section-title">${escapeHtml(_cfg.title)}</h2>
-            <p class="section-subtitle">${escapeHtml(_cfg.subtitle || "")}</p>
-          </div>
-        </div>
-        <div class="companies-header-right">
-          <button class="companies-refresh-btn" id="crml-refresh" aria-label="Refresh" title="Refresh">${REFRESH_SVG}</button>
+// Shared header. `rightButtons` is the HTML for the header-right action buttons
+// (before the refresh button). `backLabel` is only for the aria-label.
+function headerHtml(title, subtitle, rightButtons, backLabel) {
+  return `
+    <div class="section-header">
+      <div class="companies-header-left">
+        <button class="companies-back-btn" id="crml-back" aria-label="${escapeHtml(backLabel || "Back")}">${BACK_SVG}</button>
+        <div>
+          <h2 class="section-title">${escapeHtml(title)}</h2>
+          <p class="section-subtitle">${escapeHtml(subtitle || "")}</p>
         </div>
       </div>
+      <div class="companies-header-right">
+        ${rightButtons || ""}
+        <button class="companies-refresh-btn" id="crml-refresh" aria-label="Refresh" title="Refresh">${REFRESH_SVG}</button>
+      </div>
+    </div>`;
+}
 
-      <div id="crml-kpis" class="crml-kpis"></div>
+// Mount the cascading filter bar into #crml-filterbar (present on both views).
+function mountFilters(onApply) {
+  mountFilterBar(document.getElementById("crml-filterbar"), {
+    filters: _cfg.filters,
+    state: _filters,
+    fetchOptions: async (state) => {
+      const qs = filterQS(state);
+      const res = await fetch(`${API_BASE}/list/${_key}/filters${qs ? "?" + qs : ""}`);
+      return res.ok ? (await res.json()).filters : {};
+    },
+    onApply,
+  });
+}
 
+// The header "Forms" button: open this list's ClickUp create-form (Leads → Lead
+// form), or the Forms picker for lists without a dedicated form (Accounts).
+function onFormsClick() {
+  const formKey = FORM_FOR_LIST[_key];
+  hidePage();
+  if (formKey) window.__hub_forms?.openForm(formKey, _key);   // backTo = list key
+  else window.__hub_forms?.show();                            // no dedicated form → picker
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+// ---- Main view: table (mirrors the Deals dashboard layout) --------
+
+function goMain() {
+  _view = "main";
+  destroyCharts();   // tear down any charts from the chart view before it unmounts
+  const section = document.getElementById(SECTION_ID);
+  const formsBtn = `<button class="companies-chart-btn" id="crml-forms" title="Open forms">${FORMS_ICON} Forms</button>`;
+  const chartBtn = `<button class="companies-chart-btn" id="crml-chart-btn" title="View charts">${CHART_ICON} Chart</button>`;
+  section.innerHTML = `
+    <div class="hub-section">
+      ${headerHtml(_cfg.title, _cfg.subtitle, formsBtn + chartBtn, "Back to CRM")}
       <div class="companies-searchbar">
         <span class="companies-search-icon">${SEARCH_SVG}</span>
         <input type="search" id="crml-search" class="companies-search-input"
                placeholder="${escapeHtml(_cfg.search_placeholder || "Search…")}"
-               autocomplete="off" spellcheck="false" aria-label="Search">
+               autocomplete="off" spellcheck="false" aria-label="Search" value="${escapeHtml(_q)}">
       </div>
-
       <div id="crml-filterbar"></div>
       <div id="crml-detail-host"></div>
       <div id="crml-table" class="companies-table-wrap"></div>
@@ -143,9 +183,9 @@ function renderShell() {
     window.__hub_crm?.show();
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
-  document.getElementById("crml-refresh")?.addEventListener("click", () => {
-    loadKpis(); loadRows();
-  });
+  document.getElementById("crml-refresh")?.addEventListener("click", () => loadRows());
+  document.getElementById("crml-chart-btn")?.addEventListener("click", () => { goChart(); window.scrollTo({ top: 0, behavior: "smooth" }); });
+  document.getElementById("crml-forms")?.addEventListener("click", onFormsClick);
 
   const input = document.getElementById("crml-search");
   input?.addEventListener("input", e => {
@@ -154,43 +194,52 @@ function renderShell() {
     _debounceTimer = setTimeout(() => { _page = 1; loadRows(); }, SEARCH_DEBOUNCE_MS);
   });
 
-  // Cascading filter bar (options scoped to the active list + other filters).
-  mountFilterBar(document.getElementById("crml-filterbar"), {
-    filters: _cfg.filters,
-    state: _filters,
-    fetchOptions: async (state) => {
-      const qs = filterQS(state);
-      const res = await fetch(`${API_BASE}/list/${_key}/filters${qs ? "?" + qs : ""}`);
-      return res.ok ? (await res.json()).filters : {};
-    },
-    onApply: () => { _page = 1; loadRows(); loadKpis(); },
-  });
-
-  loadKpis();
+  mountFilters(() => { _page = 1; loadRows(); });
   loadRows();
+}
+
+// ---- Chart view: categorical breakdowns for the current filter ----
+
+function goChart() {
+  _view = "chart";
+  const section = document.getElementById(SECTION_ID);
+  section.innerHTML = `
+    <div class="hub-section">
+      ${headerHtml(`${_cfg.title} — Charts`, "Breakdowns reflecting the active filters", "", "Back to list")}
+      <div id="crml-filterbar"></div>
+      <div id="crml-charts" class="crml-kpis"></div>
+    </div>`;
+
+  // On the chart view the back arrow returns to the table (not the CRM landing).
+  document.getElementById("crml-back")?.addEventListener("click", () => { goMain(); window.scrollTo({ top: 0, behavior: "smooth" }); });
+  document.getElementById("crml-refresh")?.addEventListener("click", () => loadCharts());
+
+  mountFilters(() => loadCharts());
+  loadCharts();
 }
 
 function loadingHtml(msg = "Loading…") {
   return `<div class="companies-loading" aria-busy="true"><span class="companies-spinner" aria-hidden="true"></span><span>${escapeHtml(msg)}</span></div>`;
 }
 
-// ---- KPIs ---------------------------------------------------------
+// ---- Charts (categorical breakdowns) ------------------------------
 
-async function loadKpis() {
-  const wrap = document.getElementById("crml-kpis");
+async function loadCharts() {
+  const wrap = document.getElementById("crml-charts");
   if (!wrap) return;
+  wrap.innerHTML = loadingHtml("Building charts…");
   const qs = filterQS(_filters);
   try {
     const res = await fetch(`${API_BASE}/list/${_key}/kpis${qs ? "?" + qs : ""}`);
     if (!res.ok) throw new Error(`kpis ${res.status}`);
-    renderKpis(wrap, await res.json());
+    renderCharts(wrap, await res.json());
   } catch (err) {
-    console.error("[CRM] kpis failed:", err);
-    wrap.innerHTML = "";
+    console.error("[CRM] charts failed:", err);
+    wrap.innerHTML = renderError();
   }
 }
 
-function renderKpis(wrap, data) {
+function renderCharts(wrap, data) {
   destroyCharts();
   const total = data.total || 0;
   const groups = data.groups || [];
@@ -243,7 +292,7 @@ async function loadRows() {
     const res = await fetch(`${API_BASE}/list/${_key}/rows?${params}`);
     if (!res.ok) throw new Error(`rows ${res.status}`);
     const data = await res.json();
-    _total = data.total; _sort = data.sort; _dir = data.dir;
+    _sort = data.sort; _dir = data.dir;
     renderTable(wrap, data);
   } catch (err) {
     console.error("[CRM] rows failed:", err);
@@ -376,6 +425,11 @@ function renderDetail(holder, det) {
     ? `<a class="companies-open" href="${escapeHtml(t.url)}" target="_blank" rel="noopener noreferrer">Open in ClickUp ↗</a>` : "";
   const space = t.space_name ? `<span class="crml-detail-space">${escapeHtml(prettySpace(t.space_name))}</span>` : "";
 
+  // Editing sits behind an "✎ Edit" toggle (lazy-loaded on first open) — same
+  // pattern/styling as the Deals dashboard's task rows, not an always-open form.
+  const editBtn = det.editable
+    ? `<button class="companies-edit-toggle" id="crml-edit-toggle" aria-expanded="false">✎ Edit</button>` : "";
+
   holder.innerHTML = `
     <button class="companies-detail-close" aria-label="Close">✕ Close</button>
     <div class="crml-detail">
@@ -384,18 +438,19 @@ function renderDetail(holder, det) {
           <h3 class="crml-detail-title">${escapeHtml(t.name || "(untitled)")}</h3>
           <p class="crml-detail-sub">${escapeHtml(t.tid || "")} ${space} ${statusPill(t.status, t.status_color)}</p>
         </div>
-        ${openLink}
+        <div class="crml-detail-actions">${editBtn}${openLink}</div>
       </div>
+      ${det.editable ? `<div class="companies-edit-panel" id="crml-editor" hidden></div>` : ""}
       <div class="crml-fields">${assignees}${ubos}${fieldRows || (fieldRows === "" && !assignees && !ubos ? `<p class="crml-detail-empty">No additional details recorded.</p>` : "")}</div>
       ${deals}
-      ${det.editable ? `<div class="crml-edit"><h4>Edit</h4><div class="companies-edit-panel" id="crml-editor"></div></div>` : ""}
     </div>`;
   holder.querySelector(".companies-detail-close").addEventListener("click", () => holder.remove());
 
-  // Inline editor (status / assignee / comment → ClickUp) for editable lists.
-  // On save, patch the drawer's status pill + assignees line and refresh the
-  // table row (the write reconciles the mirror via sync_one server-side).
+  // Inline editor (status / assignee / comment → ClickUp), lazy-loaded when the
+  // ✎ Edit button is first clicked. On save, patch the drawer's status pill +
+  // assignees line and refresh the table row (server reconciles via sync_one).
   if (det.editable) {
+    const toggle = holder.querySelector("#crml-edit-toggle");
     const panel = holder.querySelector("#crml-editor");
     const onSaved = (freshTask) => {
       const pill = holder.querySelector(".crml-detail-sub .companies-status");
@@ -409,7 +464,16 @@ function renderDetail(holder, det) {
       });
       loadRows();
     };
-    renderEditor(panel, t.id, { apiBase: API_BASE, onSaved });
+    toggle?.addEventListener("click", () => {
+      const opening = panel.hidden;
+      panel.hidden = !opening;
+      toggle.setAttribute("aria-expanded", String(opening));
+      toggle.classList.toggle("open", opening);
+      if (opening && panel.dataset.loaded !== "1") {
+        panel.dataset.loaded = "1";
+        renderEditor(panel, t.id, { apiBase: API_BASE, onSaved });
+      }
+    });
   }
 }
 

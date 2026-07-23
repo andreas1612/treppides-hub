@@ -688,9 +688,11 @@ async function goMain() {
       <div id="companies-table-wrap" class="companies-table-wrap"></div>
     </div>`;
   wireHeader();
+  // Forms button → the Deal form directly (the Lead form now lives on the Leads
+  // dashboard). Back from the form returns here.
   document.getElementById("companies-forms-btn")?.addEventListener("click", () => {
     hidePage();
-    window.__hub_forms?.show();
+    window.__hub_forms?.openForm("deal", "deals");
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
   document.getElementById("companies-chart-btn")?.addEventListener("click", goChart);

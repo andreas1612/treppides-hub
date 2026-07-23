@@ -147,16 +147,17 @@
   gap: 8px;
 }
 
-.crml-edit {
-  margin-top: 20px;
-  padding-top: 16px;
+/* Detail-head actions (✎ Edit + Open in ClickUp), mirrors the Deals task row. */
+.crml-detail-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+/* Editor panel toggled by ✎ Edit; reuses .companies-edit-* from companies.css. */
+#crml-editor:not([hidden]) {
+  display: block;
+  margin: 4px 0 18px;
+  padding-top: 14px;
   border-top: 1px solid var(--border);
 }
-.crml-edit h4 {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0 0 12px;
-}
-/* The editor panel itself reuses .companies-edit-* styles from companies.css. */
-.crml-edit .companies-edit-panel { display: block; }

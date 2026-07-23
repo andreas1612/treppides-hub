@@ -168,6 +168,14 @@ const ICONS = {
              <line x1="8" y1="13" x2="16" y2="13"/>
              <line x1="8" y1="17" x2="13" y2="17"/>
            </svg>`,
+
+  crm: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 21h18"/>
+          <path d="M6 21V8l6-4 6 4v13"/>
+          <line x1="10" y1="12" x2="10" y2="12"/><line x1="14" y1="12" x2="14" y2="12"/>
+          <line x1="10" y1="16" x2="10" y2="16"/><line x1="14" y1="16" x2="14" y2="16"/>
+        </svg>`,
 };
 
 // ---- Component ------------------------------------------------
@@ -191,6 +199,9 @@ export default async function init(config) {
   const _label = (_tier === "FULL" || _tier === "SUPER") ? "Admin" : "My Reports";
   const adminItems = (p) => {
     const btns = [
+      // CRM — SUPER-tier only. Moved here from the Tools grid; exposes the
+      // Deals / Leads / Accounts dashboards (company & deal financial data).
+      _tier === "SUPER"   ? `<button class="nav-item nav-btn" id="${p}-crm">${ICONS.crm} CRM</button>` : "",
       _has("performance") ? `<button class="nav-item nav-btn" id="${p}-performance">${ICONS.trendUp} Performance</button>` : "",
       _has("budgetkpi")   ? `<button class="nav-item nav-btn" id="${p}-budgetkpi">${ICONS.dollar} Budget KPI</button>` : "",
       // Financials — SUPER-tier only (feature "financials" is granted only to SUPER users).
@@ -316,6 +327,27 @@ export default async function init(config) {
       if (window.__hub_forms)           window.__hub_forms.hide();
       if (window.__hub_teamcalendar)  window.__hub_teamcalendar.hide();
       if (window.__hub_projects)      window.__hub_projects.show();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+
+    // CRM (SUPER-only) — opens the CRM landing (Deals / Leads / Accounts)
+    document.getElementById("sb-crm")?.addEventListener("click", () => {
+      if (window.__hub_reader)       window.__hub_reader.goHome();
+      if (window.__hub_fees)         window.__hub_fees.hide();
+      if (window.__hub_aml)          window.__hub_aml.hide();
+      if (window.__hub_staff)        window.__hub_staff.hide();
+      if (window.__hub_kb)           window.__hub_kb.hide();
+      if (window.__hub_valuation)    window.__hub_valuation.hide();
+      if (window.__hub_companies)    window.__hub_companies.hide();
+      if (window.__hub_crmlist)      window.__hub_crmlist.hide();
+      if (window.__hub_tbratio)      window.__hub_tbratio.hide();
+      if (window.__hub_performance)  window.__hub_performance.hide();
+      if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
+      if (window.__hub_forms)        window.__hub_forms.hide();
+      if (window.__hub_teamcalendar) window.__hub_teamcalendar.hide();
+      if (window.__hub_financials)   window.__hub_financials.hide();
+      if (window.__hub_projects)     window.__hub_projects.hide();
+      if (window.__hub_crm)          window.__hub_crm.show();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
@@ -480,6 +512,28 @@ export default async function init(config) {
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
+    // Mobile CRM link (SUPER-only)
+    document.getElementById("mb-crm")?.addEventListener("click", () => {
+      document.getElementById("mobile-nav")?.classList.remove("open");
+      if (window.__hub_reader)       window.__hub_reader.goHome();
+      if (window.__hub_fees)         window.__hub_fees.hide();
+      if (window.__hub_aml)          window.__hub_aml.hide();
+      if (window.__hub_staff)        window.__hub_staff.hide();
+      if (window.__hub_kb)           window.__hub_kb.hide();
+      if (window.__hub_valuation)    window.__hub_valuation.hide();
+      if (window.__hub_companies)    window.__hub_companies.hide();
+      if (window.__hub_crmlist)      window.__hub_crmlist.hide();
+      if (window.__hub_tbratio)      window.__hub_tbratio.hide();
+      if (window.__hub_performance)  window.__hub_performance.hide();
+      if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
+      if (window.__hub_forms)        window.__hub_forms.hide();
+      if (window.__hub_teamcalendar) window.__hub_teamcalendar.hide();
+      if (window.__hub_financials)   window.__hub_financials.hide();
+      if (window.__hub_projects)     window.__hub_projects.hide();
+      if (window.__hub_crm)          window.__hub_crm.show();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+
     // Mobile Performance Report link
     document.getElementById("mb-performance")?.addEventListener("click", () => {
       document.getElementById("mobile-nav")?.classList.remove("open");
@@ -546,20 +600,20 @@ export default async function init(config) {
       aml:         ["sb-tools",       "mb-tools"],     // tool sub-page → highlight Tools
       fees:        ["sb-tools",       "mb-tools"],
       valuation:   ["sb-tools",       "mb-tools"],
-      companies:   ["sb-tools",       "mb-tools"],
-      crm:         ["sb-tools",       "mb-tools"],
-      crmlist:     ["sb-tools",       "mb-tools"],
+      companies:   ["sb-crm",         "mb-crm"],       // Deals dashboard (under CRM)
+      crm:         ["sb-crm",         "mb-crm"],       // CRM landing
+      crmlist:     ["sb-crm",         "mb-crm"],       // Leads / Accounts dashboards
       tbratio:     ["sb-tools",       "mb-tools"],
-      forms:        ["sb-tools",       "mb-tools"],
+      forms:        ["sb-crm",         "mb-crm"],       // Lead/Deal forms live under CRM
       teamcalendar: ["sb-tools",       "mb-tools"],     // tool sub-page → highlight Tools
       performance:  ["sb-performance", "mb-performance"],
       budgetkpi:   ["sb-budgetkpi",   "mb-budgetkpi"],
       financials:  ["sb-financials",  "mb-financials"],
     };
     [
-      "sb-home","sb-kb","sb-staff","sb-tools",
+      "sb-home","sb-kb","sb-staff","sb-tools","sb-crm",
       "sb-performance","sb-budgetkpi","sb-financials",
-      "mb-home","mb-kb","mb-staff","mb-tools",
+      "mb-home","mb-kb","mb-staff","mb-tools","mb-crm",
       "mb-performance","mb-budgetkpi","mb-financials",
     ].forEach(id => {
       document.getElementById(id)?.classList.remove("active");

@@ -114,7 +114,7 @@ export default async function init(_config) {
     <div class="hub-section">
       <div class="section-header">
         <div class="crm-header-left">
-          <button class="crm-back-btn" id="${BACK_BTN_ID}" aria-label="Back to Tools">
+          <button class="crm-back-btn" id="${BACK_BTN_ID}" aria-label="Back to Home">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
                  stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
@@ -129,9 +129,10 @@ export default async function init(_config) {
       <div class="crm-cards">${cardsHtml}</div>
     </div>`;
 
+  // CRM is a top-level sidebar item (SUPER-only), no longer under Tools — its
+  // back button returns to the hub home, not the Tools grid.
   document.getElementById(BACK_BTN_ID)?.addEventListener("click", () => {
     hideCrmPage();
-    window.__hub_projects?.show();
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
 

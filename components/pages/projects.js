@@ -160,14 +160,6 @@ export default async function init(config) {
           </div>
         </div>
 
-        <div class="tools-card" data-tool="crm">
-          <div class="tools-card-icon green">${TOOL_ICONS.companies}</div>
-          <div class="tools-card-body">
-            <h3 class="tools-card-title">CRM</h3>
-            <p class="tools-card-desc">Explore Deals, Leads &amp; Accounts from ClickUp — search, filter and drill in.</p>
-          </div>
-        </div>
-
         <div class="tools-card" data-tool="tbratio">
           <div class="tools-card-icon teal">${TOOL_ICONS.tbratio}</div>
           <div class="tools-card-body">
@@ -230,11 +222,6 @@ export default async function init(config) {
       case "valuation":
         hideAllPages();
         window.__hub_valuation?.show();
-        window.scrollTo({ top: 0, behavior: "smooth" });
-        break;
-      case "crm":
-        hideAllPages();
-        window.__hub_crm?.show();
         window.scrollTo({ top: 0, behavior: "smooth" });
         break;
       case "tbratio":
