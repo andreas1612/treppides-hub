@@ -17,7 +17,7 @@ import json
 import logging
 import threading
 
-from fastapi import FastAPI, HTTPException, Depends, APIRouter, Query
+from fastapi import FastAPI, HTTPException, Depends, APIRouter, Query, Request
 from pydantic import BaseModel
 from sqlalchemy import select, func, or_, and_, case
 from sqlalchemy.orm import Session
@@ -27,6 +27,7 @@ import sync as sync_engine
 import clickup_write
 import audit
 from auth import require_user
+import crm_lists
 
 app = FastAPI(title="Company Finder API", version="2.0.0")
 
@@ -736,6 +737,265 @@ def trigger_sync(full: bool = Query(False, description="Full rebuild instead of 
     return {"ok": True, "started": True, "background": True}
 
 
+# ======================================================================
+# CRM list dashboards (Leads / Accounts Companies / Accounts Individuals).
+#
+# Generic, config-driven endpoints serving the SAME mirror the Deals dashboard
+# uses — the sync already stores every task from every list, so this needs no
+# new sync. Each list's shape comes from crm_lists.CRM_LISTS. Deals keeps its
+# own bespoke endpoints above; these serve the simpler table+detail lists.
+#
+# Registered BEFORE the /{tid} catch-all so "/lists" and "/list/..." aren't
+# captured as tid values (same reason /sync is above /{tid}).
+# ======================================================================
+
+_CLEAN_EMPTIES = {"", "null", "none", "—"}
+
+
+def _clean(v):
+    """Normalize a field value: treat blank / literal 'null' as None. Non-strings
+    (numbers) pass through; lists pass through."""
+    if v is None or isinstance(v, list):
+        return v
+    if isinstance(v, str) and v.strip().lower() in _CLEAN_EMPTIES:
+        return None
+    return v
+
+
+def _crm_list_scope(cfg):
+    """SQL predicate: task belongs to this list. TRIM+lower so the trailing-space
+    'Accounts (Individuals) ' list matches its normalized key."""
+    return func.lower(func.trim(Task.list_name)) == cfg["list_match"]
+
+
+def _row_value(t: Task, cf: dict, source: str):
+    """Resolve a config field 'source' to a value on a mirrored task row.
+    `cf` is the already-parsed custom_fields dict (parsed once per row)."""
+    if source == "name":       return t.name
+    if source == "status":     return t.status
+    if source == "space":      return t.space_name
+    if source == "tid":        return t.tid
+    if source == "assignees":  return json.loads(t.assignees) if t.assignees else []
+    if source == "ubos":       return json.loads(t.ubos) if t.ubos else []
+    if source in crm_lists.PROMOTED_COLUMNS:
+        return getattr(t, source)
+    return _clean(cf.get(source))
+
+
+def _load_list_rows(db, cfg):
+    """Fetch + parse every mirrored task for a CRM list. Returns [(Task, cf_dict)].
+    These lists are small (≤ ~3.6k rows) so an in-memory pass per request keeps
+    filtering/search/aggregation simple and avoids json_extract path quoting."""
+    rows = db.execute(select(Task).where(_crm_list_scope(cfg))).scalars().all()
+    out = []
+    for t in rows:
+        try:
+            cf = json.loads(t.custom_fields) if t.custom_fields else {}
+        except (ValueError, TypeError):
+            cf = {}
+        out.append((t, cf))
+    return out
+
+
+def _row_matches_filters(t, cf, cfg, params, exclude=None):
+    """Apply the list's active filters (ANY within a field, AND across fields).
+    `exclude` skips one field (used by /filters cascade so a multi-select keeps
+    offering its own sibling values)."""
+    for f in cfg["filters"]:
+        if f["key"] == exclude:
+            continue
+        vals = _multi(params.get(f["key"]))
+        if not vals:
+            continue
+        if f["source"] == "assignees":
+            names = json.loads(t.assignees) if t.assignees else []
+            if not any(v in names for v in vals):
+                return False
+        else:
+            val = _row_value(t, cf, f["source"])
+            if val is None or str(val) not in vals:
+                return False
+    return True
+
+
+def _resolve_crm_list(key: str) -> dict:
+    cfg = crm_lists.get_list(key)
+    if not cfg:
+        raise HTTPException(status_code=404,
+                            detail=f"Unknown list '{key}'. Valid: {sorted(crm_lists.CRM_LISTS)}")
+    return cfg
+
+
+@router.get("/lists")
+def crm_registry():
+    """The CRM dashboard registry (drives the generic frontend rendering)."""
+    return {"lists": crm_lists.public_registry()}
+
+
+@router.get("/list/{key}/filters")
+def crm_list_filters(key: str, request: Request, db: Session = Depends(get_db)):
+    """Cascading option lists for one list's filters — each field scoped to the
+    OTHER active filters (its own value excluded), same behaviour as /filters."""
+    cfg = _resolve_crm_list(key)
+    params = request.query_params
+    rows = _load_list_rows(db, cfg)
+    out = {}
+    for f in cfg["filters"]:
+        vals = set()
+        for t, cf in rows:
+            if not _row_matches_filters(t, cf, cfg, params, exclude=f["key"]):
+                continue
+            if f["source"] == "assignees":
+                for a in (json.loads(t.assignees) if t.assignees else []):
+                    if a and a != "?":
+                        vals.add(a)
+            else:
+                v = _row_value(t, cf, f["source"])
+                if v is not None and not isinstance(v, list):
+                    vals.add(str(v))
+        out[f["key"]] = sorted(vals, key=str.lower)
+    return {"filters": out}
+
+
+@router.get("/list/{key}/kpis")
+def crm_list_kpis(key: str, request: Request, db: Session = Depends(get_db)):
+    """Summary tiles/charts for a list: total + per-group counts (honours filters
+    so the KPIs reflect the current view)."""
+    cfg = _resolve_crm_list(key)
+    params = request.query_params
+    rows = [(t, cf) for t, cf in _load_list_rows(db, cfg)
+            if _row_matches_filters(t, cf, cfg, params)]
+    groups = []
+    for g in cfg.get("kpis", {}).get("groups", []):
+        counts = {}
+        for t, cf in rows:
+            v = _row_value(t, cf, g["source"])
+            if v is None or isinstance(v, list):
+                continue
+            label = str(v)
+            counts[label] = counts.get(label, 0) + 1
+        items = sorted(counts.items(), key=lambda kv: kv[1], reverse=True)[:g.get("top", 12)]
+        groups.append({"key": g["key"], "label": g["label"], "chart": g.get("chart", "bar"),
+                       "items": [{"label": k, "count": c} for k, c in items]})
+    return {"total": len(rows), "groups": groups}
+
+
+@router.get("/list/{key}/rows")
+def crm_list_rows(key: str, request: Request,
+                  q: str = Query(""), sort: str = Query(""), dir: str = Query("asc"),
+                  page: int = Query(1, ge=1),
+                  page_size: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
+                  db: Session = Depends(get_db)):
+    """Filtered / searched / sorted / paginated rows for one CRM list. Each row
+    carries id/url/tid/status(+color) plus one value per configured column."""
+    cfg = _resolve_crm_list(key)
+    params = request.query_params
+    col_sources = {c["key"]: c["source"] for c in cfg["columns"]}
+
+    rows = [(t, cf) for t, cf in _load_list_rows(db, cfg)
+            if _row_matches_filters(t, cf, cfg, params)]
+
+    # Whole-word search across the list's search_fields (title + a few fields),
+    # or exact TID match. Same semantics as the Deals search.
+    query = (q or "").strip()
+    if query:
+        if TID_RE.match(query):
+            wanted = query.upper()
+            rows = [(t, cf) for t, cf in rows if (t.tid or "").upper() == wanted]
+        else:
+            matchers = _word_matchers(query)
+            def haystack(t, cf):
+                parts = []
+                for s in cfg.get("search_fields", ["name"]):
+                    v = _row_value(t, cf, s)
+                    if isinstance(v, list):
+                        parts.extend(str(x) for x in v)
+                    elif v is not None:
+                        parts.append(str(v))
+                return " ".join(parts)
+            rows = [(t, cf) for t, cf in rows if _title_matches(haystack(t, cf), matchers)]
+
+    # Build serialized rows.
+    def serialize(t, cf):
+        out = {"id": t.id, "url": t.url, "tid": t.tid,
+               "status": t.status, "status_color": t.status_color}
+        for ckey, src in col_sources.items():
+            out[ckey] = _row_value(t, cf, src)
+        return out
+    serialized = [serialize(t, cf) for t, cf in rows]
+
+    # Sort: by a column key (scalar columns only); default = first column asc.
+    sort_key = sort if sort in col_sources else cfg["columns"][0]["key"]
+    descending = dir == "desc"
+    def sortval(r):
+        v = r.get(sort_key)
+        if isinstance(v, list):
+            v = ", ".join(str(x) for x in v)
+        return (v is None, str(v).lower() if v is not None else "")
+    serialized.sort(key=sortval, reverse=descending)
+
+    total = len(serialized)
+    start = (page - 1) * page_size
+    return {
+        "key": key, "total": total, "page": page, "page_size": page_size,
+        "sort": sort_key, "dir": "desc" if descending else "asc",
+        "rows": serialized[start:start + page_size],
+    }
+
+
+@router.get("/list/{key}/{task_id}")
+def crm_list_detail(key: str, task_id: str, db: Session = Depends(get_db)):
+    """Full detail for one record: curated fields + native info + (for company/
+    individual accounts) the linked Deals for the same TID."""
+    cfg = _resolve_crm_list(key)
+    t = db.get(Task, task_id)
+    if not t or func_lower_trim(t.list_name) != cfg["list_match"]:
+        raise HTTPException(status_code=404, detail="Record not found in this list.")
+    try:
+        cf = json.loads(t.custom_fields) if t.custom_fields else {}
+    except (ValueError, TypeError):
+        cf = {}
+
+    fields = []
+    for f in cfg["detail_fields"]:
+        val = _clean(cf.get(f["key"]))
+        if val is not None:
+            fields.append({"key": f["key"], "label": f["label"], "value": val})
+
+    # Cross-link: this account's Deals (by TID), reusing the Deals mirror.
+    linked_deals = []
+    if cfg.get("cross_link_deals") and t.tid:
+        deals = db.execute(
+            select(Task).where(Task.tid == t.tid, Task.is_deal.is_(True))
+        ).scalars().all()
+        for d in sorted(deals, key=lambda x: (x.deal_value or 0.0), reverse=True):
+            linked_deals.append({
+                "id": d.id, "task_name": d.name, "url": d.url,
+                "deal_value": d.deal_value, "status": d.status,
+                "status_color": d.status_color, "is_lost": bool(d.is_lost),
+                "service": d.service,
+            })
+
+    return {
+        "key": key,
+        "editable": cfg["editable"],
+        "task": {
+            "id": t.id, "tid": t.tid, "name": t.name, "url": t.url,
+            "status": t.status, "status_color": t.status_color,
+            "space_name": t.space_name, "list_name": t.list_name,
+            "assignees": json.loads(t.assignees) if t.assignees else [],
+            "ubos": json.loads(t.ubos) if t.ubos else [],
+        },
+        "fields": fields,
+        "linked_deals": linked_deals,
+    }
+
+
+def func_lower_trim(s: str | None) -> str:
+    """Python mirror of the SQL lower(trim(list_name)) normalization."""
+    return (s or "").strip().lower()
+
+
 # ---- Company detail -------------------------------------------------
 
 @router.get("/{tid}")
@@ -814,23 +1074,30 @@ class CommentBody(BaseModel):
     text: str
 
 
-def _deal_or_404(db: Session, task_id: str) -> Task:
-    """Fetch the mirrored task row, 404 if unknown, 400 if it isn't a deal."""
+def _editable_task_or_404(db: Session, task_id: str) -> Task:
+    """Fetch the mirrored task row, 404 if unknown, 400 if its list isn't editable.
+    Editable = Deals plus any CRM list flagged editable in crm_lists (Leads,
+    Accounts Companies/Individuals). List name is normalized (trim+lower) so the
+    trailing-space 'Accounts (Individuals) ' list still matches."""
     t = db.get(Task, task_id)
     if not t:
         raise HTTPException(status_code=404, detail="Task not found in the dashboard.")
-    if not t.is_deal:
-        raise HTTPException(status_code=400, detail="Only deal tasks are editable here.")
+    if func_lower_trim(t.list_name) not in crm_lists.EDITABLE_LIST_MATCHES:
+        raise HTTPException(status_code=400, detail="This task's list is not editable here.")
     return t
 
 
+@app.get("/api/companies/tasks/{task_id}/edit-options")
 @app.get("/api/companies/deals/{task_id}/edit-options")
 def edit_options(task_id: str, db: Session = Depends(get_db),
                  user: dict = Depends(require_user)):
     """Dropdown sources for the inline editor: the task's list statuses + the
     workspace roster. Auth-gated (same as the writes) so the picker isn't a
-    public roster dump. Resolves the list from the live task."""
-    _deal_or_404(db, task_id)
+    public roster dump. Resolves the list from the live task.
+
+    Exposed at both /tasks/{id}/* (canonical, any editable list) and the legacy
+    /deals/{id}/* (kept so the live Deals dashboard keeps working)."""
+    _editable_task_or_404(db, task_id)
     raw = sync_engine.fetch_task(task_id)
     if raw is None:
         raise HTTPException(status_code=404, detail="Task no longer exists in ClickUp.")
@@ -847,10 +1114,11 @@ def edit_options(task_id: str, db: Session = Depends(get_db),
     }
 
 
+@app.put("/api/companies/tasks/{task_id}/status")
 @app.put("/api/companies/deals/{task_id}/status")
 def edit_status(task_id: str, body: StatusBody, db: Session = Depends(get_db),
                 user: dict = Depends(require_user)):
-    t = _deal_or_404(db, task_id)
+    t = _editable_task_or_404(db, task_id)
     new_status = (body.status or "").strip()
     if not new_status:
         raise HTTPException(status_code=400, detail="A status is required.")
@@ -880,10 +1148,11 @@ def edit_status(task_id: str, body: StatusBody, db: Session = Depends(get_db),
     return _reconcile_and_return(task_id)
 
 
+@app.put("/api/companies/tasks/{task_id}/assignee")
 @app.put("/api/companies/deals/{task_id}/assignee")
 def edit_assignee(task_id: str, body: AssigneeBody, db: Session = Depends(get_db),
                   user: dict = Depends(require_user)):
-    t = _deal_or_404(db, task_id)
+    t = _editable_task_or_404(db, task_id)
 
     # Need current assignee IDs from the live task to compute the removal set
     # (the DB only stores display names, not ids).
@@ -924,10 +1193,11 @@ def edit_assignee(task_id: str, body: AssigneeBody, db: Session = Depends(get_db
     return _reconcile_and_return(task_id)
 
 
+@app.post("/api/companies/tasks/{task_id}/comment")
 @app.post("/api/companies/deals/{task_id}/comment")
 def add_comment(task_id: str, body: CommentBody, db: Session = Depends(get_db),
                 user: dict = Depends(require_user)):
-    t = _deal_or_404(db, task_id)
+    t = _editable_task_or_404(db, task_id)
     text = (body.text or "").strip()
     if not text:
         raise HTTPException(status_code=400, detail="A comment is required.")
