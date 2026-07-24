@@ -30,15 +30,10 @@ const EUR = new Intl.NumberFormat("en-IE", { style: "currency", currency: "EUR",
 // KPI chart palette (one hue per bar-chart card, cycled).
 const KPI_COLORS = ["#4A90D9", "#48BB78", "#9F7AEA", "#ED8936", "#38B2AC", "#E53E3E"];
 
-// Which CRM lists have a dedicated ClickUp create-form (opened by the header
-// "Forms" button). Lists not listed here fall back to the Forms picker.
-const FORM_FOR_LIST = { leads: "lead" };
-
 // ---- State --------------------------------------------------------
 let _registry = null;                 // {key: cfg} from /lists
 let _key = null;
 let _cfg = null;
-let _view = "main";                   // "main" (table) | "chart" (breakdowns)
 let _filters = {};                    // {filterKey: [values]}
 let _q = "";
 let _sort = "";
@@ -146,20 +141,17 @@ function mountFilters(onApply) {
   });
 }
 
-// The header "Forms" button: open this list's ClickUp create-form (Leads → Lead
-// form), or the Forms picker for lists without a dedicated form (Accounts).
+// The header "Forms" button: every dashboard opens the shared Forms page (both
+// the Lead and Deal forms available) — not individualized per dashboard.
 function onFormsClick() {
-  const formKey = FORM_FOR_LIST[_key];
   hidePage();
-  if (formKey) window.__hub_forms?.openForm(formKey, _key);   // backTo = list key
-  else window.__hub_forms?.show();                            // no dedicated form → picker
+  window.__hub_forms?.show();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 // ---- Main view: table (mirrors the Deals dashboard layout) --------
 
 function goMain() {
-  _view = "main";
   destroyCharts();   // tear down any charts from the chart view before it unmounts
   const section = document.getElementById(SECTION_ID);
   const formsBtn = `<button class="companies-chart-btn" id="crml-forms" title="Open forms">${FORMS_ICON} Forms</button>`;
@@ -201,7 +193,6 @@ function goMain() {
 // ---- Chart view: categorical breakdowns for the current filter ----
 
 function goChart() {
-  _view = "chart";
   const section = document.getElementById(SECTION_ID);
   section.innerHTML = `
     <div class="hub-section">
@@ -311,7 +302,10 @@ function renderCell(col, row) {
   if (col.type === "chips") {
     const arr = Array.isArray(val) ? val : [];
     if (!arr.length) return `<span class="crml-null">—</span>`;
-    return arr.map(x => `<span class="crml-chip">${escapeHtml(String(x))}</span>`).join(" ");
+    const MAX = 3;
+    const shown = arr.slice(0, MAX).map(x => `<span class="crml-chip">${escapeHtml(String(x))}</span>`).join(" ");
+    const more = arr.length > MAX ? `<span class="crml-chip-more">+${arr.length - MAX}</span>` : "";
+    return shown + more;
   }
   if (val === null || val === undefined || val === "") return `<span class="crml-null">—</span>`;
   return escapeHtml(String(val));
@@ -391,17 +385,22 @@ async function openDetail(id) {
 
 function renderDetail(holder, det) {
   const t = det.task || {};
+
+  // Full field grid (below the task-row header), plus assignees / UBOs.
   const fieldRows = (det.fields || []).map(f =>
     `<div class="crml-field"><span class="crml-field-label">${escapeHtml(f.label)}</span><span class="crml-field-value">${escapeHtml(String(f.value))}</span></div>`
   ).join("");
-
   const ubos = (t.ubos || []).length
     ? `<div class="crml-field"><span class="crml-field-label">UBO(s)</span><span class="crml-field-value">${(t.ubos).map(u => escapeHtml(String(u))).join(", ")}</span></div>`
     : "";
   const assignees = (t.assignees || []).length
     ? `<div class="crml-field"><span class="crml-field-label">Assignees</span><span class="crml-field-value">${(t.assignees).map(a => escapeHtml(String(a))).join(", ")}</span></div>`
     : "";
+  const fieldsBody = (assignees || ubos || fieldRows)
+    ? `<div class="crml-fields">${assignees}${ubos}${fieldRows}</div>`
+    : `<p class="crml-detail-empty">No additional details recorded.</p>`;
 
+  // Linked deals (Accounts) — grouped/presented exactly like the Deals dashboard.
   const deals = (det.linked_deals || []).length ? `
     <div class="crml-deals">
       <h4>Linked deals <span class="companies-space-count">${det.linked_deals.length}</span></h4>
@@ -423,25 +422,35 @@ function renderDetail(holder, det) {
 
   const openLink = t.url
     ? `<a class="companies-open" href="${escapeHtml(t.url)}" target="_blank" rel="noopener noreferrer">Open in ClickUp ↗</a>` : "";
-  const space = t.space_name ? `<span class="crml-detail-space">${escapeHtml(prettySpace(t.space_name))}</span>` : "";
-
-  // Editing sits behind an "✎ Edit" toggle (lazy-loaded on first open) — same
-  // pattern/styling as the Deals dashboard's task rows, not an always-open form.
+  // Editing behind an "✎ Edit" toggle in the task-row meta (lazy-loaded on first
+  // open) — same pattern/styling as a Deals task row.
   const editBtn = det.editable
     ? `<button class="companies-edit-toggle" id="crml-edit-toggle" aria-expanded="false">✎ Edit</button>` : "";
+  const spaceName = t.space_name ? prettySpace(t.space_name) : _cfg.title;
 
+  // Presented like a Deals record card: a space header + a single task row
+  // (name + status pill, meta with Open/Edit), with the editor toggling inline.
   holder.innerHTML = `
     <button class="companies-detail-close" aria-label="Close">✕ Close</button>
-    <div class="crml-detail">
-      <div class="crml-detail-head">
-        <div>
-          <h3 class="crml-detail-title">${escapeHtml(t.name || "(untitled)")}</h3>
-          <p class="crml-detail-sub">${escapeHtml(t.tid || "")} ${space} ${statusPill(t.status, t.status_color)}</p>
-        </div>
-        <div class="crml-detail-actions">${editBtn}${openLink}</div>
-      </div>
-      ${det.editable ? `<div class="companies-edit-panel" id="crml-editor" hidden></div>` : ""}
-      <div class="crml-fields">${assignees}${ubos}${fieldRows || (fieldRows === "" && !assignees && !ubos ? `<p class="crml-detail-empty">No additional details recorded.</p>` : "")}</div>
+    <div class="companies-space crml-record">
+      <div class="companies-space-header"><span class="companies-space-name">${escapeHtml(spaceName)}</span></div>
+      <ul class="companies-task-list">
+        <li class="companies-task">
+          <div class="companies-task-main">
+            <span class="companies-task-name">${escapeHtml(t.name || "(untitled)")}</span>
+            ${statusPill(t.status, t.status_color)}
+            ${t.tid ? `<span class="companies-meta-item">${escapeHtml(t.tid)}</span>` : ""}
+          </div>
+          <div class="companies-task-meta">
+            ${openLink}
+            ${editBtn}
+          </div>
+          ${det.editable ? `<div class="companies-edit-panel" id="crml-editor" hidden></div>` : ""}
+        </li>
+      </ul>
+    </div>
+    <div class="crml-detail-body">
+      ${fieldsBody}
       ${deals}
     </div>`;
   holder.querySelector(".companies-detail-close").addEventListener("click", () => holder.remove());
@@ -453,7 +462,7 @@ function renderDetail(holder, det) {
     const toggle = holder.querySelector("#crml-edit-toggle");
     const panel = holder.querySelector("#crml-editor");
     const onSaved = (freshTask) => {
-      const pill = holder.querySelector(".crml-detail-sub .companies-status");
+      const pill = holder.querySelector(".companies-task-main .companies-status");
       if (pill && freshTask.status) pill.outerHTML = statusPill(freshTask.status, freshTask.status_color);
       const names = (freshTask.assignees || []).join(", ");
       holder.querySelectorAll(".crml-field").forEach(fl => {

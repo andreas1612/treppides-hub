@@ -14,12 +14,16 @@
 .main.crmlist-active .reader-overlay { display: none !important; }
 .main.crmlist-active #section-crmlist { display: block !important; }
 
-/* ---- KPI row ---- */
+/* ---- Chart view: breakdown cards ---- */
 .crml-kpis {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 20px;
   margin: 20px 0 24px;
+}
+/* Narrow screens: one card per row so charts stay readable, never overflow. */
+@media (max-width: 560px) {
+  .crml-kpis { grid-template-columns: 1fr; }
 }
 
 .crml-kpi-total {
@@ -63,7 +67,7 @@
 }
 .crml-kpi-canvas {
   position: relative;
-  height: 150px;
+  height: 320px;
 }
 
 /* ---- Table cell bits (table itself styled by companies.css) ---- */
@@ -80,33 +84,18 @@
   white-space: nowrap;
 }
 
-/* ---- Detail drawer ---- */
-.crml-detail-pop { margin-bottom: 16px; }
-
-.crml-detail-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
+/* ---- Detail drawer (presented like a Deals record card) ---- */
+.crml-detail-pop {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 14px 20px 20px;
   margin-bottom: 16px;
-  flex-wrap: wrap;
+  overflow-x: hidden;   /* never let a wide record card scroll the page */
 }
-.crml-detail-title {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0 0 4px;
-}
-.crml-detail-sub {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 13px;
-  color: var(--text-secondary);
-  margin: 0;
-  flex-wrap: wrap;
-}
-.crml-detail-space { font-weight: 600; }
+.crml-record { margin-top: 4px; }
+.crml-detail-body { margin-top: 16px; }
 
 .crml-fields {
   display: grid;
@@ -147,17 +136,32 @@
   gap: 8px;
 }
 
-/* Detail-head actions (✎ Edit + Open in ClickUp), mirrors the Deals task row. */
-.crml-detail-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
-}
-/* Editor panel toggled by ✎ Edit; reuses .companies-edit-* from companies.css. */
+/* Editor panel toggled by ✎ Edit (inside the record's task row); reuses the
+   .companies-edit-* styles from companies.css. */
 #crml-editor:not([hidden]) {
   display: block;
-  margin: 4px 0 18px;
+  margin: 10px 0 4px;
   padding-top: 14px;
   border-top: 1px solid var(--border);
+}
+
+/* ---- Table density / overflow ---- */
+/* The table scrolls inside its own wrap (never the page). Slightly tighter
+   cells + capped chip columns keep wide lists (e.g. Accounts) from needing a
+   scroll at all on normal widths. */
+#crml-table { overflow-x: auto; }
+#crml-table .companies-table th,
+#crml-table .companies-table td {
+  padding: 9px 12px;
+  vertical-align: top;
+}
+/* Chip cells (UBO/Service) wrap and cap their width so one row can't blow the
+   table out horizontally. */
+#crml-table .companies-table td .crml-chip { margin-bottom: 3px; }
+.crml-chip-more {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  padding: 2px 6px;
 }

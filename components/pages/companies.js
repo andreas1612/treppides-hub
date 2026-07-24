@@ -568,7 +568,7 @@ function filterBarHtml() {
 // Rebuild the filter bar in place (re-rendered with current options + selections)
 // and re-wire it. Used after the cascaded options change.
 function rebuildFilterBar(apply) {
-  const bar = document.querySelector(".companies-filterbar");
+  const bar = document.querySelector("#section-companies .companies-filterbar");
   if (bar) { bar.outerHTML = filterBarHtml(); bindFilters(apply); }
 }
 
@@ -582,12 +582,15 @@ function bindFilters(apply) {
     loadFilterOptions().then(() => { rebuildFilterBar(apply); apply(); });
   };
 
-  // Only the filter-bar popovers — NOT other .companies-multi like the chart
-  // picker (which has no data-filter; treating it as a filter threw and aborted
-  // the chart render).
-  document.querySelectorAll(".companies-filterbar .companies-multi").forEach(d => {
+  // Scope to THIS dashboard's filter bar. The CRM list dashboards reuse the
+  // .companies-filterbar / .companies-multi classes, and their (hidden but
+  // still-in-DOM) popovers carry data-filter keys that aren't in the Deals
+  // _filters — a document-wide selector would hit them and throw on
+  // _filters[key].join(), aborting goMain before loadBrowse (blank table until
+  // refresh). Also skip any popover without data-filter (e.g. the chart picker).
+  document.querySelectorAll("#section-companies .companies-filterbar .companies-multi").forEach(d => {
     const key = d.dataset.filter;
-    if (!key) return;                        // safety: skip any non-filter popover
+    if (!key || !(key in _filters)) return;  // skip non-filter / foreign-list popovers
     let snapshot = _filters[key].join("|");  // selection when the popover opened
 
     d.querySelectorAll('input[type="checkbox"]').forEach(cb => {
@@ -688,11 +691,10 @@ async function goMain() {
       <div id="companies-table-wrap" class="companies-table-wrap"></div>
     </div>`;
   wireHeader();
-  // Forms button → the Deal form directly (the Lead form now lives on the Leads
-  // dashboard). Back from the form returns here.
+  // Forms button → the shared Forms page (Lead + Deal both available).
   document.getElementById("companies-forms-btn")?.addEventListener("click", () => {
     hidePage();
-    window.__hub_forms?.openForm("deal", "deals");
+    window.__hub_forms?.show();
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
   document.getElementById("companies-chart-btn")?.addEventListener("click", goChart);
@@ -1191,7 +1193,7 @@ async function onRefresh() {
 // Add/remove the "Clear filters" button in place — WITHOUT rebuilding the bar,
 // so an open multi-select popover stays open while picking several values.
 function syncClearButton(onClear) {
-  const bar = document.querySelector(".companies-filterbar");
+  const bar = document.querySelector("#section-companies .companies-filterbar");
   if (!bar) return;
   const existing = document.getElementById("companies-filter-clear");
   if (anyFilters() && !existing) {

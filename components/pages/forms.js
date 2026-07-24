@@ -33,17 +33,14 @@ const AML_FORM_TO_LIST = {
 };
 
 // Where a form's back button returns, keyed by the `backTo` passed to openForm().
-// Each returns to the dashboard the form was launched from; an unknown/empty
-// backTo falls back to the Forms picker (showLanding).
+// Only the AML "Add Client" forms use a direct return target (→ the AML fees
+// dashboard). The Lead/Deal forms are reached via the shared Forms picker and
+// have no backTo, so their back falls through to showLanding().
 const RETURN_TARGETS = {
-  aml:   (key) => { hideFormsPage(); window.__hub_fees?.show(AML_FORM_TO_LIST[key]); },
-  deals: ()    => { hideFormsPage(); window.__hub_companies?.show(); },
-  leads: ()    => { hideFormsPage(); window.__hub_crmlist?.show("leads"); },
+  aml: (key) => { hideFormsPage(); window.__hub_fees?.show(AML_FORM_TO_LIST[key]); },
 };
 const RETURN_LABELS = {
-  aml:   "Back to AML Dashboard",
-  deals: "Back to Deals Dashboard",
-  leads: "Back to Leads",
+  aml: "Back to AML Dashboard",
 };
 
 // Cache schemas/members/statuses per form key.
@@ -454,7 +451,7 @@ function renderLanding(forms) {
     <div class="hub-section">
       <div class="section-header">
         <div class="forms-header-left">
-          <button class="forms-back-btn" id="${BACK_BTN_ID}" aria-label="Back to Tools">
+          <button class="forms-back-btn" id="${BACK_BTN_ID}" aria-label="Back to CRM">
             ${BACK_TO_HUB_SVG}
           </button>
           <div>
@@ -470,9 +467,11 @@ function renderLanding(forms) {
 function showLanding(section) {
   section.innerHTML = renderLanding(_availableForms);
 
+  // The Forms page is reached from the CRM dashboards (SUPER-only) — back
+  // returns to the CRM landing, not the Tools grid.
   section.querySelector(`#${BACK_BTN_ID}`)?.addEventListener("click", () => {
     hideFormsPage();
-    window.__hub_projects?.show();
+    window.__hub_crm?.show();
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
 
