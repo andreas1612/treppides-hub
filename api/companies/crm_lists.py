@@ -59,7 +59,7 @@ CRM_LISTS = {
             {"key": "lead_source",  "label": "Lead Source",  "source": "lead_source"},
             {"key": "industry",     "label": "Industry",     "source": "industry"},
             {"key": "jurisdiction", "label": "Jurisdiction", "source": "jurisdiction"},
-            {"key": "space",        "label": "Space",        "source": "space"},
+            {"key": "space",        "label": "Companies",        "source": "space"},
             {"key": "assignee",     "label": "Assignee",     "source": "assignees"},
         ],
         "detail_fields": [
@@ -103,13 +103,12 @@ CRM_LISTS = {
             {"key": "group_name",  "label": "Group",       "source": "group_name",  "type": "text"},
         ],
         "filters": [
-            {"key": "status",       "label": "Status",       "source": "status"},
-            {"key": "industry",     "label": "Industry",     "source": "industry"},
-            {"key": "country",      "label": "Country",      "source": "country"},
-            {"key": "jurisdiction", "label": "Jurisdiction", "source": "jurisdiction"},
-            {"key": "risk_scoring", "label": "Risk Scoring", "source": "risk_scoring"},
-            {"key": "space",        "label": "Space",        "source": "space"},
-            {"key": "assignee",     "label": "Assignee",     "source": "assignees"},
+            {"key": "status",     "label": "Status",    "source": "status"},
+            {"key": "industry",   "label": "Industry",  "source": "industry"},
+            {"key": "country",    "label": "Country",   "source": "country"},
+            {"key": "group_name", "label": "Group",     "source": "group_name"},
+            {"key": "space",      "label": "Companies", "source": "space"},
+            {"key": "assignee",   "label": "Assignee",  "source": "assignees"},
         ],
         "detail_fields": [
             {"key": "client_code",         "label": "Client Code"},
@@ -160,7 +159,7 @@ CRM_LISTS = {
         "filters": [
             {"key": "status",  "label": "Status",  "source": "status"},
             {"key": "country", "label": "Country", "source": "country"},
-            {"key": "space",   "label": "Space",   "source": "space"},
+            {"key": "space",   "label": "Companies",   "source": "space"},
             {"key": "assignee", "label": "Assignee", "source": "assignees"},
         ],
         "detail_fields": [
@@ -176,6 +175,49 @@ CRM_LISTS = {
             "groups": [
                 {"key": "status",  "label": "By Status",  "source": "status",  "chart": "bar", "top": 8},
                 {"key": "country", "label": "By Country", "source": "country", "chart": "bar", "top": 10},
+            ],
+        },
+    },
+
+    # ----------------------------------------------------------------
+    "contacts": {
+        "title": "Contacts",
+        "subtitle": "People across the CRM — with their linked company.",
+        "list_match": "contacts",
+        "editable": True,
+        "value_field": None,
+        "cross_link_deals": False,
+        "search_fields": ["name", "email"],
+        "search_placeholder": "Search contact name, email or TID-XXXXX…",
+        # `company` is a ClickUp list_relationship — rendered as clickable links
+        # (type "links"); the backend parses it from the mirror (JSON or legacy).
+        "columns": [
+            {"key": "name",       "label": "Name",       "source": "name",          "type": "text"},
+            {"key": "company",    "label": "Company",    "source": "company",       "type": "links"},
+            {"key": "job_title",  "label": "Job Title",  "source": "job_title",     "type": "text"},
+            {"key": "email",      "label": "Email",      "source": "email",         "type": "text"},
+            {"key": "phone",      "label": "Phone",      "source": "phone",         "type": "text"},
+            {"key": "crm_item_type", "label": "Type",    "source": "crm_item_type", "type": "text"},
+        ],
+        "filters": [
+            {"key": "crm_item_type", "label": "Type",     "source": "crm_item_type"},
+            {"key": "space",         "label": "Companies", "source": "space"},
+            {"key": "assignee",      "label": "Assignee", "source": "assignees"},
+        ],
+        "detail_fields": [
+            {"key": "company",       "label": "Company",   "type": "links"},
+            {"key": "job_title",     "label": "Job Title"},
+            {"key": "email",         "label": "Email"},
+            {"key": "phone",         "label": "Phone"},
+            {"key": "phone_2",       "label": "Phone 2"},
+            {"key": "raw_phone",     "label": "Raw Phone"},
+            {"key": "address",       "label": "Address"},
+            {"key": "crm_item_type", "label": "CRM Item Type"},
+        ],
+        "kpis": {
+            "groups": [
+                {"key": "crm_item_type", "label": "By Type",      "source": "crm_item_type", "chart": "bar", "top": 10},
+                {"key": "job_title",     "label": "Top Job Titles", "source": "job_title",   "chart": "bar", "top": 10},
             ],
         },
     },

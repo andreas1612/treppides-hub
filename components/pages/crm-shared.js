@@ -52,11 +52,10 @@ function summaryLabel(sel) {
   return `${sel.length} selected`;
 }
 
-function filterBarHtml(filters, state, options) {
-  const multi = (f) => {
-    const vals = options[f.key] || [];
-    const sel = state[f.key] || [];
-    return `
+function multiHtml(f, state, options) {
+  const vals = options[f.key] || [];
+  const sel = state[f.key] || [];
+  return `
       <div class="companies-filter">
         <span>${escapeHtml(f.label)}</span>
         <details class="companies-multi" data-filter="${escapeHtml(f.key)}">
@@ -66,10 +65,20 @@ function filterBarHtml(filters, state, options) {
           </div>
         </details>
       </div>`;
-  };
+}
+
+// Render the filter bar. If `primaryKey` is given, that filter is rendered in
+// its own bar ABOVE the rest (e.g. "Companies"/space sitting apart). Both bars
+// live in the same host and re-render together, so cascading still works.
+function filterBarHtml(filters, state, options, primaryKey) {
+  const primary = primaryKey ? filters.filter(f => f.key === primaryKey) : [];
+  const rest = filters.filter(f => !primaryKey || f.key !== primaryKey);
   const has = filters.some(f => (state[f.key] || []).length);
   const clear = has ? `<button class="companies-filter-clear" data-filter-clear>Clear filters ✕</button>` : "";
-  return `<div class="companies-filterbar">${filters.map(multi).join("")}${clear}</div>`;
+  const primaryBar = primary.length
+    ? `<div class="companies-filterbar crm-filterbar-primary">${primary.map(f => multiHtml(f, state, options)).join("")}</div>`
+    : "";
+  return `${primaryBar}<div class="companies-filterbar">${rest.map(f => multiHtml(f, state, options)).join("")}${clear}</div>`;
 }
 
 /**
@@ -80,7 +89,7 @@ function filterBarHtml(filters, state, options) {
  *   onApply:      () => void — re-run the view's query after a change
  * Returns a Promise that resolves once the initial options are loaded/rendered.
  */
-export function mountFilterBar(host, { filters, state, fetchOptions, onApply }) {
+export function mountFilterBar(host, { filters, state, fetchOptions, onApply, primaryKey }) {
   let options = {};
 
   async function refreshOptions() {
@@ -90,7 +99,9 @@ export function mountFilterBar(host, { filters, state, fetchOptions, onApply }) 
 
   function syncClear() {
     const has = filters.some(f => (state[f.key] || []).length);
-    const bar = host.querySelector(".companies-filterbar");
+    // Clear button lives in the main (non-primary) bar.
+    const bars = host.querySelectorAll(".companies-filterbar");
+    const bar = bars[bars.length - 1];
     if (!bar) return;
     let btn = bar.querySelector("[data-filter-clear]");
     if (has && !btn) {
@@ -142,7 +153,7 @@ export function mountFilterBar(host, { filters, state, fetchOptions, onApply }) 
   }
 
   function render() {
-    host.innerHTML = filterBarHtml(filters, state, options);
+    host.innerHTML = filterBarHtml(filters, state, options, primaryKey);
     wire();
   }
 

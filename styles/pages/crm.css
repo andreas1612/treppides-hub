@@ -110,6 +110,7 @@
 .crm-card-icon.leads        { background: rgba(74, 144, 217, .12); color: #2B6CB0; }
 .crm-card-icon.accounts-co  { background: rgba(159, 122, 234, .12); color: #6B46C1; }
 .crm-card-icon.accounts-ind { background: rgba(237, 137, 54, .12); color: #B7791F; }
+.crm-card-icon.contacts     { background: rgba(56, 178, 172, .12); color: #2C7A7B; }
 
 .crm-card-title {
   font-size: 18px;

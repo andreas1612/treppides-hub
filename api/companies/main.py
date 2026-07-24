@@ -782,6 +782,35 @@ def _row_value(t: Task, cf: dict, source: str):
     return _clean(cf.get(source))
 
 
+def _parse_links(raw) -> list[dict]:
+    """Parse a ClickUp relationship field (e.g. a Contact's linked Company) into
+    a clean [{id, name, url}] list. Accepts either the new clean JSON the sync
+    now writes, OR the legacy Python-repr string older rows still hold (so this
+    works before a full re-sync). Returns [] for anything unparseable/empty."""
+    if not raw:
+        return []
+    val = raw
+    if isinstance(val, str):
+        s = val.strip()
+        if not s or s.lower() == "null":
+            return []
+        try:
+            val = json.loads(s)                 # clean JSON (post-sync-change)
+        except (ValueError, TypeError):
+            try:
+                import ast
+                val = ast.literal_eval(s)        # legacy Python-repr (pre-re-sync)
+            except (ValueError, SyntaxError):
+                return []
+    if not isinstance(val, list):
+        return []
+    out = []
+    for x in val:
+        if isinstance(x, dict) and x.get("name"):
+            out.append({"id": x.get("id"), "name": x.get("name"), "url": x.get("url")})
+    return out
+
+
 def _load_list_rows(db, cfg):
     """Fetch + parse every mirrored task for a CRM list. Returns [(Task, cf_dict)].
     These lists are small (≤ ~3.6k rows) so an in-memory pass per request keeps
@@ -915,12 +944,14 @@ def crm_list_rows(key: str, request: Request,
                 return " ".join(parts)
             rows = [(t, cf) for t, cf in rows if _title_matches(haystack(t, cf), matchers)]
 
-    # Build serialized rows.
+    # Build serialized rows. "links" columns (e.g. a Contact's linked Company)
+    # are parsed into a [{id,name,url}] list for the frontend to render.
     def serialize(t, cf):
         out = {"id": t.id, "url": t.url, "tid": t.tid,
                "status": t.status, "status_color": t.status_color}
-        for ckey, src in col_sources.items():
-            out[ckey] = _row_value(t, cf, src)
+        for c in cfg["columns"]:
+            v = _row_value(t, cf, c["source"])
+            out[c["key"]] = _parse_links(v) if c.get("type") == "links" else v
         return out
     serialized = [serialize(t, cf) for t, cf in rows]
 
@@ -958,6 +989,11 @@ def crm_list_detail(key: str, task_id: str, db: Session = Depends(get_db)):
 
     fields = []
     for f in cfg["detail_fields"]:
+        if f.get("type") == "links":
+            links = _parse_links(cf.get(f["key"]))
+            if links:
+                fields.append({"key": f["key"], "label": f["label"], "type": "links", "value": links})
+            continue
         val = _clean(cf.get(f["key"]))
         if val is not None:
             fields.append({"key": f["key"], "label": f["label"], "value": val})

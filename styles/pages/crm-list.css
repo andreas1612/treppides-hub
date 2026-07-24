@@ -84,6 +84,17 @@
   white-space: nowrap;
 }
 
+/* Linked-task links (e.g. a Contact's linked Company). */
+.crml-link {
+  color: #2B6CB0;
+  font-weight: 600;
+  text-decoration: none;
+}
+.crml-link:hover { text-decoration: underline; }
+
+/* The separated "Companies" (space) filter bar sits tight above the rest. */
+.crm-filterbar-primary { margin-bottom: 10px; }
+
 /* ---- Detail drawer (presented like a Deals record card) ---- */
 .crml-detail-pop {
   background: var(--card-bg);

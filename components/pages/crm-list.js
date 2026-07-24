@@ -132,6 +132,8 @@ function mountFilters(onApply) {
   mountFilterBar(document.getElementById("crml-filterbar"), {
     filters: _cfg.filters,
     state: _filters,
+    // "Companies" (space) sits in its own bar above the rest.
+    primaryKey: "space",
     fetchOptions: async (state) => {
       const qs = filterQS(state);
       const res = await fetch(`${API_BASE}/list/${_key}/filters${qs ? "?" + qs : ""}`);
@@ -299,6 +301,14 @@ function sortIndicator(key) {
 function renderCell(col, row) {
   if (col.type === "status") return statusPill(row.status, row.status_color);
   const val = row[col.key];
+  if (col.type === "links") {
+    // Linked tasks (e.g. a Contact's linked Company): [{id,name,url}].
+    const arr = Array.isArray(val) ? val : [];
+    if (!arr.length) return `<span class="crml-null">—</span>`;
+    return arr.map(l => l.url
+      ? `<a class="crml-link" href="${escapeHtml(l.url)}" target="_blank" rel="noopener noreferrer" title="Open in ClickUp">${escapeHtml(l.name)}</a>`
+      : `<span class="crml-chip">${escapeHtml(l.name)}</span>`).join(" ");
+  }
   if (col.type === "chips") {
     const arr = Array.isArray(val) ? val : [];
     if (!arr.length) return `<span class="crml-null">—</span>`;
@@ -348,7 +358,10 @@ function renderTable(wrap, data) {
     _page = 1; loadRows();
   }));
   wrap.querySelectorAll("tbody tr").forEach(tr =>
-    tr.addEventListener("click", () => openDetail(tr.dataset.id)));
+    tr.addEventListener("click", (e) => {
+      if (e.target.closest("a")) return;   // let linked-company links open normally
+      openDetail(tr.dataset.id);
+    }));
   document.getElementById("crml-prev")?.addEventListener("click", () => { if (_page > 1) { _page--; loadRows(); } });
   document.getElementById("crml-next")?.addEventListener("click", () => { _page++; loadRows(); });
 }
@@ -387,9 +400,20 @@ function renderDetail(holder, det) {
   const t = det.task || {};
 
   // Full field grid (below the task-row header), plus assignees / UBOs.
-  const fieldRows = (det.fields || []).map(f =>
-    `<div class="crml-field"><span class="crml-field-label">${escapeHtml(f.label)}</span><span class="crml-field-value">${escapeHtml(String(f.value))}</span></div>`
-  ).join("");
+  const fieldRows = (det.fields || []).map(f => {
+    let valHtml;
+    if (f.type === "links") {
+      const arr = Array.isArray(f.value) ? f.value : [];
+      valHtml = arr.length
+        ? arr.map(l => l.url
+            ? `<a class="crml-link" href="${escapeHtml(l.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(l.name)}</a>`
+            : escapeHtml(l.name)).join(", ")
+        : "—";
+    } else {
+      valHtml = escapeHtml(String(f.value));
+    }
+    return `<div class="crml-field"><span class="crml-field-label">${escapeHtml(f.label)}</span><span class="crml-field-value">${valHtml}</span></div>`;
+  }).join("");
   const ubos = (t.ubos || []).length
     ? `<div class="crml-field"><span class="crml-field-label">UBO(s)</span><span class="crml-field-value">${(t.ubos).map(u => escapeHtml(String(u))).join(", ")}</span></div>`
     : "";

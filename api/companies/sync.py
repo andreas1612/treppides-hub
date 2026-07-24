@@ -138,6 +138,19 @@ def _flatten_custom_fields(task: dict) -> dict:
             out[key] = _resolve_labels(cf)
         elif ftype == "date":
             out[key] = _resolve_date(cf)
+        elif ftype in ("list_relationship", "tasks"):
+            # Task relationship (e.g. a Contact's linked Company): the value is a
+            # list of linked task objects. Store a clean [{id,name,url}] JSON so
+            # the dashboards can show/link them (was an unparseable str() repr).
+            val = cf.get("value")
+            if isinstance(val, list):
+                out[key] = json.dumps(
+                    [{"id": x.get("id"), "name": x.get("name"), "url": x.get("url")}
+                     for x in val if isinstance(x, dict) and x.get("name")],
+                    ensure_ascii=False,
+                )
+            else:
+                out[key] = None
         else:
             v = cf.get("value")
             out[key] = str(v) if v is not None else None

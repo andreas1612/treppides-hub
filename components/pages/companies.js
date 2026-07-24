@@ -71,7 +71,7 @@ function serviceColor(service) {
 // Filter keys, in display order. Space first (it scopes the rest); years next.
 const FILTER_KEYS = ["space", "year", "business_year", "service", "assignee", "department"];
 const FILTER_LABELS = {
-  space: "Space", year: "Project Year", business_year: "Business Year",
+  space: "Companies", year: "Project Year", business_year: "Business Year",
   service: "Service", assignee: "Assignee", department: "Department",
 };
 const emptyFilters = () => ({ space: [], year: [], business_year: [], service: [], assignee: [], department: [] });
@@ -562,14 +562,20 @@ function filterBarHtml() {
 
   const active = anyFilters()
     ? `<button class="companies-filter-clear" id="companies-filter-clear">Clear filters ✕</button>` : "";
-  return `<div class="companies-filterbar">${FILTER_KEYS.map(multi).join("")}${active}</div>`;
+  // "Companies" (space) sits in its own bar above the rest of the filters.
+  const restKeys = FILTER_KEYS.filter(k => k !== "space");
+  const primaryBar = FILTER_KEYS.includes("space")
+    ? `<div class="companies-filterbar crm-filterbar-primary">${multi("space")}</div>` : "";
+  return `${primaryBar}<div class="companies-filterbar">${restKeys.map(multi).join("")}${active}</div>`;
 }
 
 // Rebuild the filter bar in place (re-rendered with current options + selections)
 // and re-wire it. Used after the cascaded options change.
 function rebuildFilterBar(apply) {
-  const bar = document.querySelector("#section-companies .companies-filterbar");
-  if (bar) { bar.outerHTML = filterBarHtml(); bindFilters(apply); }
+  // Rebuild the whole filter-wrap (both the "Companies" primary bar and the
+  // rest) so cascading options re-render together.
+  const wrap = document.getElementById("companies-filterwrap");
+  if (wrap) { wrap.innerHTML = filterBarHtml(); bindFilters(apply); }
 }
 
 // Wire the filter bar. `apply` re-runs the active view's query. You tick as many
@@ -686,7 +692,7 @@ async function goMain() {
         <span class="companies-search-icon">${SEARCH_SVG}</span>
         <input type="search" id="companies-search-input" class="companies-search-input" placeholder="Search company name or TID-XXXXX…" autocomplete="off" spellcheck="false" aria-label="Search company" value="${escapeHtml(_lastQuery)}">
       </div>
-      ${filterBarHtml()}
+      <div id="companies-filterwrap">${filterBarHtml()}</div>
       <label class="companies-nodeal-toggle"><input type="checkbox" id="companies-nodeal-cb"> Include companies with no deals</label>
       <div id="companies-table-wrap" class="companies-table-wrap"></div>
     </div>`;
@@ -1193,7 +1199,8 @@ async function onRefresh() {
 // Add/remove the "Clear filters" button in place — WITHOUT rebuilding the bar,
 // so an open multi-select popover stays open while picking several values.
 function syncClearButton(onClear) {
-  const bar = document.querySelector("#section-companies .companies-filterbar");
+  // Clear button lives in the main (non-primary) filter bar.
+  const bar = document.querySelector("#section-companies .companies-filterbar:not(.crm-filterbar-primary)");
   if (!bar) return;
   const existing = document.getElementById("companies-filter-clear");
   if (anyFilters() && !existing) {
