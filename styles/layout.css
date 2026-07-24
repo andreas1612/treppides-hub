@@ -477,12 +477,26 @@
 .kpi-select:focus { border-color: var(--accent); }
 
 /* Tools landing page — card grid */
+/* Tools page is grouped into labelled sections (Admin / Work / Learning). */
+.tools-section { margin-top: 30px; }
+.tools-section:first-of-type { margin-top: 24px; }
+.tools-section-label {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
 .tools-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 20px;
   margin-top: 24px;
 }
+/* Inside a labelled section the grid sits tight under its heading. */
+.tools-section .tools-grid { margin-top: 14px; }
 
 .tools-card {
   position: relative;

@@ -81,6 +81,51 @@ const TOOL_ICONS = {
              </svg>`,
 };
 
+// ---- Card registry + section layout -------------------------
+// The Tools page is grouped into labelled sections. To add/move a tool, edit
+// CARDS (presentation) and SECTIONS (grouping/order) — the click handler in
+// init() keys off data-tool, so no wiring change is needed for a re-group.
+
+const CARDS = {
+  tasks:        { icon: "tasks",       color: "blue",   title: "Task Manager",    desc: "Assign tasks, track progress and manage workload.", external: true },
+  roombooking:  { icon: "roombooking", color: "rose",   title: "Room Booking",    desc: "Reserve meeting rooms and check availability.", external: true },
+  teamcalendar: { icon: "calendar",    color: "teal",   title: "Team Calendar",   desc: "Log leave, meetings &amp; deadlines. View your team&#x2019;s schedule." },
+  kyc:          { icon: "kyc",         color: "green",  title: "KYC Management",  desc: "Track KYC file custody, requests &amp; approvals.", external: true },
+  valuation:    { icon: "valuation",   color: "purple", title: "Valuation Tool",  desc: "Build auditor-facing valuation reports." },
+  tbratio:      { icon: "tbratio",     color: "teal",   title: "TB Ratio Tool",   desc: "Upload a trial balance for P&amp;L, Balance Sheet &amp; ratios." },
+  aml:          { icon: "aml",         color: "amber",  title: "AML Dashboard",   desc: "New, rejected &amp; disengaged client fee tracking." },
+  training:     { icon: "training",    color: "indigo", title: "Training Portal", desc: "Induction courses, SCORM modules &amp; completion tracking.", external: true },
+};
+
+const SECTIONS = [
+  { label: "Admin",    cards: ["tasks", "roombooking", "teamcalendar", "kyc"] },
+  { label: "Work",     cards: ["valuation", "tbratio", "aml"] },
+  { label: "Learning", cards: ["training"] },
+];
+
+function cardHtml(id) {
+  const c = CARDS[id];
+  if (!c) return "";
+  const badge = c.external ? `<span class="tools-card-badge">External ${TOOL_ICONS.external}</span>` : "";
+  return `
+        <div class="tools-card" data-tool="${id}">
+          <div class="tools-card-icon ${c.color}">${TOOL_ICONS[c.icon]}</div>
+          <div class="tools-card-body">
+            <h3 class="tools-card-title">${c.title}</h3>
+            <p class="tools-card-desc">${c.desc}</p>
+          </div>
+          ${badge}
+        </div>`;
+}
+
+function sectionsHtml() {
+  return SECTIONS.map(s => `
+      <div class="tools-section">
+        <h3 class="tools-section-label">${s.label}</h3>
+        <div class="tools-grid">${s.cards.map(cardHtml).join("")}</div>
+      </div>`).join("");
+}
+
 // ---- Page visibility ----------------------------------------
 
 function showToolsPage() {
@@ -141,77 +186,7 @@ export default async function init(config) {
         </div>
       </div>
 
-      <div class="tools-grid">
-
-        <div class="tools-card" data-tool="tasks">
-          <div class="tools-card-icon blue">${TOOL_ICONS.tasks}</div>
-          <div class="tools-card-body">
-            <h3 class="tools-card-title">Task Manager</h3>
-            <p class="tools-card-desc">Assign tasks, track progress and manage workload.</p>
-          </div>
-          <span class="tools-card-badge">External ${TOOL_ICONS.external}</span>
-        </div>
-
-        <div class="tools-card" data-tool="aml">
-          <div class="tools-card-icon amber">${TOOL_ICONS.aml}</div>
-          <div class="tools-card-body">
-            <h3 class="tools-card-title">AML Dashboard</h3>
-            <p class="tools-card-desc">New, rejected &amp; disengaged client fee tracking.</p>
-          </div>
-        </div>
-
-        <div class="tools-card" data-tool="valuation">
-          <div class="tools-card-icon purple">${TOOL_ICONS.valuation}</div>
-          <div class="tools-card-body">
-            <h3 class="tools-card-title">Valuation Tool</h3>
-            <p class="tools-card-desc">Build auditor-facing valuation reports.</p>
-          </div>
-        </div>
-
-        <div class="tools-card" data-tool="tbratio">
-          <div class="tools-card-icon teal">${TOOL_ICONS.tbratio}</div>
-          <div class="tools-card-body">
-            <h3 class="tools-card-title">TB Ratio Tool</h3>
-            <p class="tools-card-desc">Upload a trial balance for P&amp;L, Balance Sheet &amp; ratios.</p>
-          </div>
-        </div>
-
-        <div class="tools-card" data-tool="teamcalendar">
-          <div class="tools-card-icon teal">${TOOL_ICONS.calendar}</div>
-          <div class="tools-card-body">
-            <h3 class="tools-card-title">Team Calendar</h3>
-            <p class="tools-card-desc">Log leave, meetings &amp; deadlines. View your team&#x2019;s schedule.</p>
-          </div>
-        </div>
-
-        <div class="tools-card" data-tool="training">
-          <div class="tools-card-icon indigo">${TOOL_ICONS.training}</div>
-          <div class="tools-card-body">
-            <h3 class="tools-card-title">Training Portal</h3>
-            <p class="tools-card-desc">Induction courses, SCORM modules &amp; completion tracking.</p>
-          </div>
-          <span class="tools-card-badge">External ${TOOL_ICONS.external}</span>
-        </div>
-
-        <div class="tools-card" data-tool="roombooking">
-          <div class="tools-card-icon rose">${TOOL_ICONS.roombooking}</div>
-          <div class="tools-card-body">
-            <h3 class="tools-card-title">Room Booking</h3>
-            <p class="tools-card-desc">Reserve meeting rooms and check availability.</p>
-          </div>
-          <span class="tools-card-badge">External ${TOOL_ICONS.external}</span>
-        </div>
-
-        <div class="tools-card" data-tool="kyc">
-          <div class="tools-card-icon green">${TOOL_ICONS.kyc}</div>
-          <div class="tools-card-body">
-            <h3 class="tools-card-title">KYC Management</h3>
-            <p class="tools-card-desc">Track KYC file custody, requests &amp; approvals.</p>
-          </div>
-          <span class="tools-card-badge">External ${TOOL_ICONS.external}</span>
-        </div>
-
-      </div>
+      ${sectionsHtml()}
     </div>`;
 
   // ---- Back button ----
