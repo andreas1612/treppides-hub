@@ -73,6 +73,28 @@ def set_assignee(task_id: str, add_ids: list[int], rem_ids: list[int]) -> None:
     _put_task(task_id, {"assignees": {"add": add_ids, "rem": rem_ids}})
 
 
+def set_custom_field(task_id: str, field_id: str, value) -> None:
+    """Set a custom field value on a task. `value` is type-dependent:
+    - text/short_text/email/phone/url: string
+    - dropdown: orderindex (integer)
+    Pass None to clear the field."""
+    if DRY_RUN:
+        logging.info("[DRY_RUN] would POST /task/%s/field/%s value=%s", task_id, field_id, value)
+        return
+    url = f"{_API}/task/{task_id}/field/{field_id}"
+    try:
+        resp = requests.post(url, headers={**_headers(), "Content-Type": "application/json"},
+                             json={"value": value}, timeout=_TIMEOUT)
+    except requests.RequestException as e:
+        logging.error("ClickUp set-field request failed (task %s field %s): %s", task_id, field_id, e)
+        raise HTTPException(status_code=502, detail="Unable to reach ClickUp. Please try again.")
+    if resp.status_code not in (200, 201):
+        logging.error("ClickUp set-field error (task %s field %s): HTTP %s — %s",
+                      task_id, field_id, resp.status_code, resp.text[:500])
+        raise HTTPException(status_code=502,
+                            detail="ClickUp rejected the field update. Please try again or contact IT.")
+
+
 def add_comment(task_id: str, text: str) -> None:
     """Append a comment to the task's thread (non-destructive)."""
     if DRY_RUN:

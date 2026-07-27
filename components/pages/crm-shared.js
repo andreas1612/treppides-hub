@@ -223,6 +223,35 @@ function _editPanelHtml(taskId, opts) {
       }).join("")
     : `<div class="companies-edit-err">No members available.</div>`;
 
+  // Extended edit: custom-field inputs (Contacts and any list with extended_edit).
+  const editableFields = opts.editable_fields || [];
+  const fieldsHtml = editableFields.length ? `
+      <div class="companies-edit-fields-section">
+        <span class="companies-edit-section-label">Fields</span>
+        ${editableFields.map(f => {
+          if (f.type === "drop_down") {
+            const cur = f.value || "";
+            return `<label class="companies-edit-field">
+              <span>${escapeHtml(f.label)}</span>
+              <select data-field-key="${escapeHtml(f.key)}" data-field-id="${escapeHtml(f.field_id)}"
+                      data-field-type="drop_down" data-orig="${escapeHtml(cur)}">
+                <option value="">—</option>
+                ${(f.options || []).map(o =>
+                  `<option value="${escapeHtml(o.name)}"${cur === o.name ? " selected" : ""}>${escapeHtml(o.name)}</option>`
+                ).join("")}
+              </select>
+            </label>`;
+          }
+          const inputType = f.type === "email" ? "email" : f.type === "phone" ? "tel" : "text";
+          return `<label class="companies-edit-field">
+            <span>${escapeHtml(f.label)}</span>
+            <input type="${inputType}" data-field-key="${escapeHtml(f.key)}" data-field-id="${escapeHtml(f.field_id)}"
+                   data-field-type="${escapeHtml(f.type)}" data-orig="${escapeHtml(f.value || "")}"
+                   value="${escapeHtml(f.value || "")}">
+          </label>`;
+        }).join("")}
+      </div>` : "";
+
   return `
     <div class="companies-edit-grid" data-task-id="${escapeHtml(taskId)}">
       <label class="companies-edit-field">
@@ -233,6 +262,7 @@ function _editPanelHtml(taskId, opts) {
         <span>Assignees</span>
         <div class="companies-assignee-list" data-edit-assignees data-orig="${origCsv}">${memberRows}</div>
       </div>
+      ${fieldsHtml}
       <label class="companies-edit-field companies-edit-comment">
         <span>Add comment to ClickUp</span>
         <textarea data-edit-comment rows="2" placeholder="Write a note — posted to the task's ClickUp comments."></textarea>
@@ -274,6 +304,24 @@ async function _saveEdits(grid, taskId, apiBase, onSaved) {
     calls.push(_postJson(`${base}/comment`, { text: comment }).then(r => ({ kind: "comment", r })));
   }
 
+  // Custom-field changes (extended edit — Contacts etc.)
+  const fieldChanges = [];
+  grid.querySelectorAll("[data-field-key]").forEach(el => {
+    const val = (el.value || "").trim();
+    const orig = (el.dataset.orig || "").trim();
+    if (val !== orig) {
+      fieldChanges.push({
+        key: el.dataset.fieldKey,
+        field_id: el.dataset.fieldId,
+        value: val || null,
+        type: el.dataset.fieldType || "short_text",
+      });
+    }
+  });
+  if (fieldChanges.length) {
+    calls.push(_putJson(`${base}/fields`, { fields: fieldChanges }).then(r => ({ kind: "fields", r })));
+  }
+
   if (!calls.length) { setMsg("Nothing changed.", ""); saveBtn.disabled = false; return; }
 
   try {
@@ -293,6 +341,10 @@ async function _saveEdits(grid, taskId, apiBase, onSaved) {
       assigneeList.dataset.orig = [...assigneeList.querySelectorAll('input[type="checkbox"]:checked')]
         .map(cb => Number(cb.value)).sort((a, b) => a - b).join(",");
     }
+    // Reset custom-field baselines.
+    grid.querySelectorAll("[data-field-key]").forEach(el => {
+      el.dataset.orig = (el.value || "").trim();
+    });
     setMsg(dryRun ? "Saved (dry run — ClickUp not changed)." : "Saved to ClickUp ✓", "ok");
     if (freshTask && typeof onSaved === "function") onSaved(freshTask);
   } catch (err) {

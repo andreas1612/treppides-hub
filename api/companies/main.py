@@ -896,9 +896,49 @@ def crm_list_kpis(key: str, request: Request, db: Session = Depends(get_db)):
             if _row_matches_filters(t, cf, cfg, params)]
     groups = []
     for g in cfg.get("kpis", {}).get("groups", []):
+        src = g["source"]
+
+        # ---- Special computed KPI: field completeness ----
+        if src == "field_completeness":
+            detail_keys = [f["key"] for f in cfg.get("detail_fields", [])
+                           if f.get("type") != "links"]
+            bins = {"No data": 0, "1 field": 0, "2 fields": 0, "3+ fields": 0}
+            for t, cf in rows:
+                filled = sum(1 for k in detail_keys if _clean(cf.get(k)) is not None)
+                if filled == 0:
+                    bins["No data"] += 1
+                elif filled == 1:
+                    bins["1 field"] += 1
+                elif filled == 2:
+                    bins["2 fields"] += 1
+                else:
+                    bins["3+ fields"] += 1
+            items = [{"label": k, "count": v} for k, v in bins.items() if v > 0]
+            groups.append({"key": g["key"], "label": g["label"],
+                           "chart": g.get("chart", "bar"), "items": items})
+            continue
+
+        # ---- Special computed KPI: linked companies ----
+        if src == "linked_companies":
+            counts = {}
+            for t, cf in rows:
+                links = _parse_links(cf.get("company"))
+                if links:
+                    for link in links:
+                        name = link.get("name", "Unknown")
+                        counts[name] = counts.get(name, 0) + 1
+                else:
+                    counts["(No company)"] = counts.get("(No company)", 0) + 1
+            items = sorted(counts.items(), key=lambda kv: kv[1], reverse=True)[:g.get("top", 15)]
+            groups.append({"key": g["key"], "label": g["label"],
+                           "chart": g.get("chart", "bar"),
+                           "items": [{"label": k, "count": c} for k, c in items]})
+            continue
+
+        # ---- Standard group-by KPI ----
         counts = {}
         for t, cf in rows:
-            v = _row_value(t, cf, g["source"])
+            v = _row_value(t, cf, src)
             if v is None or isinstance(v, list):
                 continue
             label = str(v)
@@ -1110,6 +1150,17 @@ class CommentBody(BaseModel):
     text: str
 
 
+class FieldUpdate(BaseModel):
+    key: str
+    field_id: str
+    value: str | None = None
+    type: str = "short_text"
+
+
+class FieldsBody(BaseModel):
+    fields: list[FieldUpdate]
+
+
 def _editable_task_or_404(db: Session, task_id: str) -> Task:
     """Fetch the mirrored task row, 404 if unknown, 400 if its list isn't editable.
     Editable = Deals plus any CRM list flagged editable in crm_lists (Leads,
@@ -1131,15 +1182,19 @@ def edit_options(task_id: str, db: Session = Depends(get_db),
     workspace roster. Auth-gated (same as the writes) so the picker isn't a
     public roster dump. Resolves the list from the live task.
 
+    For lists with `extended_edit` (currently Contacts), also returns
+    `editable_fields` — the custom-field inputs with IDs, current values,
+    and dropdown options so the frontend can render inline field editors.
+
     Exposed at both /tasks/{id}/* (canonical, any editable list) and the legacy
     /deals/{id}/* (kept so the live Deals dashboard keeps working)."""
-    _editable_task_or_404(db, task_id)
+    t = _editable_task_or_404(db, task_id)
     raw = sync_engine.fetch_task(task_id)
     if raw is None:
         raise HTTPException(status_code=404, detail="Task no longer exists in ClickUp.")
     list_id = (raw.get("list") or {}).get("id")
     statuses = clickup_write.list_statuses(list_id) if list_id else []
-    return {
+    result = {
         "statuses": statuses,
         "members": clickup_write.list_members(),
         "current_status": (raw.get("status") or {}).get("status"),
@@ -1148,6 +1203,51 @@ def edit_options(task_id: str, db: Session = Depends(get_db),
             for a in raw.get("assignees", [])
         ],
     }
+
+    # Extended edit: include editable custom fields for lists that support it.
+    list_name_norm = func_lower_trim(t.list_name)
+    for _lkey, list_cfg in crm_lists.CRM_LISTS.items():
+        if not list_cfg.get("extended_edit") or list_cfg["list_match"] != list_name_norm:
+            continue
+        # Build a map: snake_case key → raw ClickUp custom field
+        raw_cf_map = {}
+        for cf in raw.get("custom_fields", []):
+            cf_key = cf.get("name", "").lower().replace(" ", "_").replace("/", "_").replace("?", "")
+            raw_cf_map[cf_key] = cf
+        editable = []
+        for df in list_cfg.get("detail_fields", []):
+            if not df.get("editable"):
+                continue
+            rcf = raw_cf_map.get(df["key"])
+            if not rcf:
+                continue
+            ftype = rcf.get("type", "")
+            field_info = {
+                "key": df["key"],
+                "label": df["label"],
+                "field_id": rcf.get("id"),
+                "type": ftype,
+            }
+            if ftype == "drop_down":
+                raw_val = rcf.get("value")
+                current = None
+                options = []
+                for opt in rcf.get("type_config", {}).get("options", []):
+                    options.append({"name": opt.get("name"), "orderindex": opt.get("orderindex")})
+                    if str(opt.get("orderindex")) == str(raw_val):
+                        current = opt.get("name")
+                field_info["value"] = current
+                field_info["options"] = options
+            elif ftype in ("short_text", "text", "email", "phone", "url"):
+                field_info["value"] = (rcf.get("value") or "").strip() or None
+            else:
+                v = rcf.get("value")
+                field_info["value"] = str(v) if v is not None else None
+            editable.append(field_info)
+        result["editable_fields"] = editable
+        break
+
+    return result
 
 
 @app.put("/api/companies/tasks/{task_id}/status")
@@ -1258,6 +1358,52 @@ def add_comment(task_id: str, body: CommentBody, db: Session = Depends(get_db),
                  dry_run=clickup_write.DRY_RUN, result="ok")
     # A comment doesn't change the mirrored row; no reconcile needed.
     return {"ok": True, "dry_run": clickup_write.DRY_RUN}
+
+
+@app.put("/api/companies/tasks/{task_id}/fields")
+def edit_fields(task_id: str, body: FieldsBody, db: Session = Depends(get_db),
+                user: dict = Depends(require_user)):
+    """Update one or more custom fields on an editable task. For dropdown fields
+    the value is the option *name* (resolved to orderindex server-side). For text/
+    email/phone fields the value is the plain string. Pass null to clear."""
+    t = _editable_task_or_404(db, task_id)
+    if not body.fields:
+        return _reconcile_and_return(task_id)
+
+    raw = sync_engine.fetch_task(task_id)
+    if raw is None:
+        raise HTTPException(status_code=404, detail="Task no longer exists in ClickUp.")
+
+    # Build raw field map for dropdown option resolution.
+    raw_cf_map = {}
+    for cf in raw.get("custom_fields", []):
+        raw_cf_map[cf.get("id")] = cf
+
+    for f in body.fields:
+        write_value = f.value
+        if f.type == "drop_down" and f.value:
+            rcf = raw_cf_map.get(f.field_id)
+            if rcf:
+                for opt in rcf.get("type_config", {}).get("options", []):
+                    if opt.get("name") == f.value:
+                        write_value = opt.get("orderindex")
+                        break
+
+        try:
+            clickup_write.set_custom_field(task_id, f.field_id, write_value)
+        except HTTPException:
+            audit.record(who=user, task_id=task_id, tid=t.tid,
+                         field=f.key, old_value=None,
+                         new_value=str(f.value) if f.value else "",
+                         dry_run=clickup_write.DRY_RUN, result="clickup_error")
+            raise
+
+        audit.record(who=user, task_id=task_id, tid=t.tid,
+                     field=f.key, old_value=None,
+                     new_value=str(f.value) if f.value else "",
+                     dry_run=clickup_write.DRY_RUN, result="ok")
+
+    return _reconcile_and_return(task_id)
 
 
 def _reconcile_and_return(task_id: str) -> dict:
