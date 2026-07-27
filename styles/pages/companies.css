@@ -273,6 +273,19 @@
 }
 .companies-open:hover { text-decoration: underline; }
 
+/* Linked company / individual on deal rows */
+.companies-task-linked {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+.companies-task-linked-label { font-weight: 600; }
+.companies-task-linked-name {
+  color: var(--text-primary);
+  text-decoration: none;
+}
+a.companies-task-linked-name:hover { text-decoration: underline; }
+
 /* ---- Prompt / loading states ---- */
 .companies-prompt {
   text-align: center;

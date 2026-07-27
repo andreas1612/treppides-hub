@@ -280,7 +280,7 @@ def get_db():
 # ---- Serialization helpers ------------------------------------------
 
 def _task_dict(t: Task) -> dict:
-    return {
+    d = {
         "id": t.id,
         "tid": t.tid,
         "task_name": t.name,
@@ -305,6 +305,15 @@ def _task_dict(t: Task) -> dict:
         "date_due": t.date_due,
         "date_created": t.date_created,
     }
+    # For deal tasks, include linked company/individual from relationships.
+    if t.is_deal:
+        try:
+            cf = json.loads(t.custom_fields) if t.custom_fields else {}
+        except (ValueError, TypeError):
+            cf = {}
+        d["linked_companies"] = _parse_links(cf.get("deals_companies"))
+        d["linked_individuals"] = _parse_links(cf.get("deals_individuals"))
+    return d
 
 
 def _company_summary(c: Company, totals: dict | None = None) -> dict:

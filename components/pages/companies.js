@@ -190,6 +190,17 @@ function taskRow(task) {
   const sub = task.parent_name
     ? `<span class="companies-subtask" title="Subtask of ${escapeHtml(task.parent_name)}">↳ subtask of ${escapeHtml(task.parent_name)}</span>` : "";
 
+  // Linked company / individual from the deals_companies / deals_individuals relationship.
+  const linkedCo = (task.linked_companies || []);
+  const linkedIn = (task.linked_individuals || []);
+  const linkedAll = [...linkedCo, ...linkedIn];
+  const linked = linkedAll.length
+    ? `<div class="companies-task-linked"><span class="companies-task-linked-label">Linked:</span> ${linkedAll.map(l =>
+        l.url ? `<a class="companies-task-linked-name" href="${escapeHtml(l.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(l.name)}</a>`
+              : `<span class="companies-task-linked-name">${escapeHtml(l.name)}</span>`
+      ).join(", ")}</div>`
+    : "";
+
   // Deal tasks get an inline editor (status / assignee / comment → ClickUp).
   const edit = task.is_deal
     ? `<button type="button" class="companies-edit-toggle" data-edit-toggle data-task-id="${escapeHtml(task.id)}" aria-expanded="false">✎ Edit</button>`
@@ -211,6 +222,7 @@ function taskRow(task) {
         ${open}
         ${edit}
       </div>
+      ${linked}
       ${task.is_deal ? `<div class="companies-edit-panel" data-edit-panel hidden></div>` : ""}
     </li>`;
 }
