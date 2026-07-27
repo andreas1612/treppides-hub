@@ -986,12 +986,18 @@ def crm_list_rows(key: str, request: Request,
 
     # Build serialized rows. "links" columns (e.g. a Contact's linked Company)
     # are parsed into a [{id,name,url}] list for the frontend to render.
+    # When the stored value is a plain-text string (not a relationship JSON),
+    # pass it through as-is so the frontend can render it as text.
     def serialize(t, cf):
         out = {"id": t.id, "url": t.url, "tid": t.tid,
                "status": t.status, "status_color": t.status_color}
         for c in cfg["columns"]:
             v = _row_value(t, cf, c["source"])
-            out[c["key"]] = _parse_links(v) if c.get("type") == "links" else v
+            if c.get("type") == "links":
+                links = _parse_links(v)
+                out[c["key"]] = links if links else (v if isinstance(v, str) and v.strip() else [])
+            else:
+                out[c["key"]] = v
         return out
     serialized = [serialize(t, cf) for t, cf in rows]
 
@@ -1033,6 +1039,11 @@ def crm_list_detail(key: str, task_id: str, db: Session = Depends(get_db)):
             links = _parse_links(cf.get(f["key"]))
             if links:
                 fields.append({"key": f["key"], "label": f["label"], "type": "links", "value": links})
+            else:
+                # Fallback: plain-text company name (not a relationship JSON).
+                raw_val = _clean(cf.get(f["key"]))
+                if raw_val:
+                    fields.append({"key": f["key"], "label": f["label"], "value": raw_val})
             continue
         val = _clean(cf.get(f["key"]))
         if val is not None:

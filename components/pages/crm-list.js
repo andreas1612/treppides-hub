@@ -302,7 +302,8 @@ function renderCell(col, row) {
   if (col.type === "status") return statusPill(row.status, row.status_color);
   const val = row[col.key];
   if (col.type === "links") {
-    // Linked tasks (e.g. a Contact's linked Company): [{id,name,url}].
+    // Linked tasks (e.g. a Contact's linked Company): [{id,name,url}] or plain text.
+    if (typeof val === "string" && val.trim()) return escapeHtml(val);
     const arr = Array.isArray(val) ? val : [];
     if (!arr.length) return `<span class="crml-null">—</span>`;
     return arr.map(l => l.url
