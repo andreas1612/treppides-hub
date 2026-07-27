@@ -1259,6 +1259,18 @@ def edit_options(task_id: str, db: Session = Depends(get_db),
                         current = opt.get("name")
                 field_info["value"] = current
                 field_info["options"] = options
+            elif ftype == "labels":
+                # Multi-label field (e.g. Country): value is a list of option
+                # UUIDs; resolve to human labels for the editor dropdown.
+                sel_ids = set(rcf.get("value") or [])
+                options = []
+                current = None
+                for opt in rcf.get("type_config", {}).get("options", []):
+                    options.append({"id": opt.get("id"), "name": opt.get("label")})
+                    if opt.get("id") in sel_ids:
+                        current = opt.get("label")
+                field_info["value"] = current
+                field_info["options"] = options
             elif ftype in ("short_text", "text", "email", "phone", "url"):
                 field_info["value"] = (rcf.get("value") or "").strip() or None
             else:
@@ -1420,6 +1432,18 @@ def edit_fields(task_id: str, body: FieldsBody, db: Session = Depends(get_db),
                         write_value = opt.get("orderindex")
                         break
             audit_value = str(f.value)
+        elif f.type == "labels":
+            # Labels field (e.g. Country): value is a label name; resolve to
+            # the option UUID and send as a single-element list.
+            rcf = raw_cf_map.get(f.field_id)
+            label_id = None
+            if rcf and f.value:
+                for opt in rcf.get("type_config", {}).get("options", []):
+                    if opt.get("label") == f.value:
+                        label_id = opt.get("id")
+                        break
+            write_value = [label_id] if label_id else []
+            audit_value = str(f.value) if f.value else ""
         else:
             write_value = f.value
             audit_value = str(f.value) if f.value else ""

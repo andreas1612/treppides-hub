@@ -89,6 +89,7 @@ CRM_LISTS = {
         "subtitle": "Company master records — UBO, client code, industry, country and risk.",
         "list_match": "accounts (companies)",
         "editable": True,
+        "extended_edit": True,
         "value_field": None,
         "cross_link_deals": True,       # detail shows this company's Deals (by TID)
         "search_fields": ["name", "client_code"],
@@ -113,8 +114,11 @@ CRM_LISTS = {
         "detail_fields": [
             {"key": "client_code",         "label": "Client Code"},
             {"key": "group_name",          "label": "Group Name"},
-            {"key": "industry",            "label": "Industry"},
-            {"key": "country",             "label": "Country"},
+            {"key": "industry",            "label": "Industry",    "editable": True},
+            {"key": "country",             "label": "Country",     "editable": True},
+            {"key": "ubo",                 "label": "UBO",         "editable": True},
+            {"key": "ubo_2",              "label": "UBO 2",       "editable": True},
+            {"key": "ubo_3",              "label": "UBO 3",       "editable": True},
             {"key": "jurisdiction",        "label": "Jurisdiction"},
             {"key": "date_of_inc",         "label": "Date of Incorporation"},
             {"key": "registration_number", "label": "Registration Number"},

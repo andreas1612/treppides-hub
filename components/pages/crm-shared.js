@@ -253,14 +253,14 @@ function _editPanelHtml(taskId, opts) {
       </div>`;
   }).join("");
 
-  // Scalar fields (text / dropdown).
+  // Scalar fields (text / dropdown / labels).
   const scalarHtml = scalarFields.length ? scalarFields.map(f => {
-    if (f.type === "drop_down") {
+    if (f.type === "drop_down" || f.type === "labels") {
       const cur = f.value || "";
       return `<label class="companies-edit-field">
         <span>${escapeHtml(f.label)}</span>
         <select data-field-key="${escapeHtml(f.key)}" data-field-id="${escapeHtml(f.field_id)}"
-                data-field-type="drop_down" data-orig="${escapeHtml(cur)}">
+                data-field-type="${escapeHtml(f.type)}" data-orig="${escapeHtml(cur)}">
           <option value="">—</option>
           ${(f.options || []).map(o =>
             `<option value="${escapeHtml(o.name)}"${cur === o.name ? " selected" : ""}>${escapeHtml(o.name)}</option>`
