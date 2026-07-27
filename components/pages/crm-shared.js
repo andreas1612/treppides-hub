@@ -225,31 +225,64 @@ function _editPanelHtml(taskId, opts) {
 
   // Extended edit: custom-field inputs (Contacts and any list with extended_edit).
   const editableFields = opts.editable_fields || [];
-  const fieldsHtml = editableFields.length ? `
+  const linkFields = editableFields.filter(f => f.type === "list_relationship" || f.type === "tasks");
+  const scalarFields = editableFields.filter(f => f.type !== "list_relationship" && f.type !== "tasks");
+
+  // Relationship fields (e.g. Company) — rendered as tag picker with search.
+  const linksHtml = linkFields.map(f => {
+    const links = Array.isArray(f.value) ? f.value : [];
+    const origIds = links.map(l => l.id).sort().join(",");
+    const tags = links.length
+      ? links.map(l =>
+          `<span class="ce-link-tag" data-link-id="${escapeHtml(String(l.id))}">${escapeHtml(l.name)}
+            <button type="button" class="ce-link-rm" aria-label="Remove">✕</button></span>`
+        ).join("")
+      : '<span class="ce-link-empty">None linked</span>';
+    return `
+      <div class="companies-edit-field ce-link-field"
+           data-field-key="${escapeHtml(f.key)}" data-field-id="${escapeHtml(f.field_id)}"
+           data-field-type="list_relationship" data-orig-ids="${escapeHtml(origIds)}">
+        <span>${escapeHtml(f.label)}</span>
+        <div class="ce-links-wrap">
+          <div class="ce-link-tags">${tags}</div>
+          <div class="ce-link-search-wrap">
+            <input type="text" class="ce-link-input" placeholder="Search to link…" autocomplete="off">
+            <div class="ce-link-results"></div>
+          </div>
+        </div>
+      </div>`;
+  }).join("");
+
+  // Scalar fields (text / dropdown).
+  const scalarHtml = scalarFields.length ? scalarFields.map(f => {
+    if (f.type === "drop_down") {
+      const cur = f.value || "";
+      return `<label class="companies-edit-field">
+        <span>${escapeHtml(f.label)}</span>
+        <select data-field-key="${escapeHtml(f.key)}" data-field-id="${escapeHtml(f.field_id)}"
+                data-field-type="drop_down" data-orig="${escapeHtml(cur)}">
+          <option value="">—</option>
+          ${(f.options || []).map(o =>
+            `<option value="${escapeHtml(o.name)}"${cur === o.name ? " selected" : ""}>${escapeHtml(o.name)}</option>`
+          ).join("")}
+        </select>
+      </label>`;
+    }
+    const inputType = f.type === "email" ? "email" : f.type === "phone" ? "tel" : "text";
+    return `<label class="companies-edit-field">
+      <span>${escapeHtml(f.label)}</span>
+      <input type="${inputType}" data-field-key="${escapeHtml(f.key)}" data-field-id="${escapeHtml(f.field_id)}"
+             data-field-type="${escapeHtml(f.type)}" data-orig="${escapeHtml(f.value || "")}"
+             value="${escapeHtml(f.value || "")}">
+    </label>`;
+  }).join("") : "";
+
+  const hasExtended = linksHtml || scalarHtml;
+  const fieldsHtml = hasExtended ? `
       <div class="companies-edit-fields-section">
         <span class="companies-edit-section-label">Fields</span>
-        ${editableFields.map(f => {
-          if (f.type === "drop_down") {
-            const cur = f.value || "";
-            return `<label class="companies-edit-field">
-              <span>${escapeHtml(f.label)}</span>
-              <select data-field-key="${escapeHtml(f.key)}" data-field-id="${escapeHtml(f.field_id)}"
-                      data-field-type="drop_down" data-orig="${escapeHtml(cur)}">
-                <option value="">—</option>
-                ${(f.options || []).map(o =>
-                  `<option value="${escapeHtml(o.name)}"${cur === o.name ? " selected" : ""}>${escapeHtml(o.name)}</option>`
-                ).join("")}
-              </select>
-            </label>`;
-          }
-          const inputType = f.type === "email" ? "email" : f.type === "phone" ? "tel" : "text";
-          return `<label class="companies-edit-field">
-            <span>${escapeHtml(f.label)}</span>
-            <input type="${inputType}" data-field-key="${escapeHtml(f.key)}" data-field-id="${escapeHtml(f.field_id)}"
-                   data-field-type="${escapeHtml(f.type)}" data-orig="${escapeHtml(f.value || "")}"
-                   value="${escapeHtml(f.value || "")}">
-          </label>`;
-        }).join("")}
+        ${linksHtml}
+        ${scalarHtml}
       </div>` : "";
 
   return `
@@ -306,7 +339,8 @@ async function _saveEdits(grid, taskId, apiBase, onSaved) {
 
   // Custom-field changes (extended edit — Contacts etc.)
   const fieldChanges = [];
-  grid.querySelectorAll("[data-field-key]").forEach(el => {
+  // Scalar fields (text / dropdown)
+  grid.querySelectorAll("[data-field-key]:not([data-field-type='list_relationship'])").forEach(el => {
     const val = (el.value || "").trim();
     const orig = (el.dataset.orig || "").trim();
     if (val !== orig) {
@@ -315,6 +349,21 @@ async function _saveEdits(grid, taskId, apiBase, onSaved) {
         field_id: el.dataset.fieldId,
         value: val || null,
         type: el.dataset.fieldType || "short_text",
+      });
+    }
+  });
+  // Relationship / link fields (company picker)
+  grid.querySelectorAll("[data-field-type='list_relationship']").forEach(el => {
+    const origIds = (el.dataset.origIds || "").split(",").filter(Boolean);
+    const curIds = [...el.querySelectorAll(".ce-link-tag[data-link-id]")].map(t => t.dataset.linkId);
+    const add_ids = curIds.filter(id => !origIds.includes(id));
+    const rem_ids = origIds.filter(id => !curIds.includes(id));
+    if (add_ids.length || rem_ids.length) {
+      fieldChanges.push({
+        key: el.dataset.fieldKey,
+        field_id: el.dataset.fieldId,
+        type: "list_relationship",
+        add_ids, rem_ids,
       });
     }
   });
@@ -341,9 +390,12 @@ async function _saveEdits(grid, taskId, apiBase, onSaved) {
       assigneeList.dataset.orig = [...assigneeList.querySelectorAll('input[type="checkbox"]:checked')]
         .map(cb => Number(cb.value)).sort((a, b) => a - b).join(",");
     }
-    // Reset custom-field baselines.
-    grid.querySelectorAll("[data-field-key]").forEach(el => {
+    // Reset custom-field baselines (scalar + link fields).
+    grid.querySelectorAll("[data-field-key]:not([data-field-type='list_relationship'])").forEach(el => {
       el.dataset.orig = (el.value || "").trim();
+    });
+    grid.querySelectorAll("[data-field-type='list_relationship']").forEach(el => {
+      el.dataset.origIds = [...el.querySelectorAll(".ce-link-tag[data-link-id]")].map(t => t.dataset.linkId).sort().join(",");
     });
     setMsg(dryRun ? "Saved (dry run — ClickUp not changed)." : "Saved to ClickUp ✓", "ok");
     if (freshTask && typeof onSaved === "function") onSaved(freshTask);
@@ -383,5 +435,67 @@ export async function renderEditor(panel, taskId, { apiBase = "/api/companies", 
   grid.addEventListener("change", e => {
     const cb = e.target.closest('.companies-assignee-opt input[type="checkbox"]');
     if (cb) cb.closest(".companies-assignee-opt")?.classList.toggle("on", cb.checked);
+  });
+
+  // ---- Wire relationship / link pickers (company search) ----
+  grid.querySelectorAll(".ce-link-field").forEach(field => {
+    const tagsEl   = field.querySelector(".ce-link-tags");
+    const input    = field.querySelector(".ce-link-input");
+    const resultsEl = field.querySelector(".ce-link-results");
+    let timer = null;
+
+    function removeTag(tag) {
+      tag.remove();
+      if (!tagsEl.querySelector(".ce-link-tag"))
+        tagsEl.innerHTML = '<span class="ce-link-empty">None linked</span>';
+    }
+
+    // Wire existing remove buttons.
+    tagsEl.querySelectorAll(".ce-link-rm").forEach(btn =>
+      btn.addEventListener("click", () => removeTag(btn.closest(".ce-link-tag"))));
+
+    // Debounced search.
+    input.addEventListener("input", () => {
+      clearTimeout(timer);
+      const q = input.value.trim();
+      if (q.length < 2) { resultsEl.innerHTML = ""; return; }
+      timer = setTimeout(async () => {
+        try {
+          const r = await fetch(`${apiBase}/list/accounts_companies/rows?q=${encodeURIComponent(q)}&page_size=8`);
+          if (!r.ok) throw 0;
+          const d = await r.json();
+          const have = new Set([...tagsEl.querySelectorAll("[data-link-id]")].map(t => t.dataset.linkId));
+          const hits = (d.rows || []).filter(row => !have.has(row.id));
+          resultsEl.innerHTML = hits.length
+            ? hits.map(row =>
+                `<button type="button" class="ce-link-result" data-add-id="${escapeHtml(row.id)}"
+                         data-add-name="${escapeHtml(row.name || row.id)}">${escapeHtml(row.name || row.id)}</button>`
+              ).join("")
+            : '<div class="ce-link-no-match">No matches</div>';
+        } catch {
+          resultsEl.innerHTML = '<div class="ce-link-no-match">Search failed</div>';
+        }
+      }, 300);
+    });
+
+    // Click a result to add it.
+    resultsEl.addEventListener("click", e => {
+      const btn = e.target.closest("[data-add-id]");
+      if (!btn) return;
+      tagsEl.querySelector(".ce-link-empty")?.remove();
+      const tag = document.createElement("span");
+      tag.className = "ce-link-tag";
+      tag.dataset.linkId = btn.dataset.addId;
+      tag.innerHTML = `${escapeHtml(btn.dataset.addName)} <button type="button" class="ce-link-rm" aria-label="Remove">✕</button>`;
+      tagsEl.appendChild(tag);
+      tag.querySelector(".ce-link-rm").addEventListener("click", () => removeTag(tag));
+      input.value = "";
+      resultsEl.innerHTML = "";
+    });
+
+    // Close results when clicking outside.
+    document.addEventListener("click", e => {
+      if (!field.contains(e.target)) resultsEl.innerHTML = "";
+    });
   });
 }

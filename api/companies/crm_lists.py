@@ -206,7 +206,7 @@ CRM_LISTS = {
             {"key": "assignee",  "label": "Assignee",  "source": "assignees"},
         ],
         "detail_fields": [
-            {"key": "company",       "label": "Company",       "type": "links"},
+            {"key": "company",       "label": "Company",       "type": "links", "editable": True},
             {"key": "job_title",     "label": "Job Title",     "editable": True},
             {"key": "email",         "label": "Email",         "editable": True},
             {"key": "phone",         "label": "Phone",         "editable": True},

@@ -734,7 +734,10 @@
   color: var(--text-secondary);
 }
 .companies-edit-field select,
-.companies-edit-field textarea {
+.companies-edit-field textarea,
+.companies-edit-field input[type="text"],
+.companies-edit-field input[type="email"],
+.companies-edit-field input[type="tel"] {
   font-family: inherit;
   font-size: 13px;
   font-weight: 400;
@@ -743,6 +746,14 @@
   border: 1px solid var(--border, #d7dee7);
   border-radius: 6px;
   background: var(--surface, #fff);
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+.companies-edit-field select:focus,
+.companies-edit-field textarea:focus,
+.companies-edit-field input:focus {
+  border-color: var(--accent, #c8d400);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent, #c8d400) 18%, transparent);
 }
 .companies-edit-field textarea { resize: vertical; min-height: 40px; }
 .companies-edit-comment { grid-column: 1 / -1; }
@@ -782,15 +793,16 @@
 .companies-edit-save {
   font-family: inherit;
   font-size: 13px;
-  font-weight: 600;
-  color: #fff;
-  background: var(--accent, #2b6cb0);
+  font-weight: 700;
+  color: var(--sidebar-bg, #1a1f2e);
+  background: var(--accent, #c8d400);
   border: none;
   border-radius: 6px;
-  padding: 7px 16px;
+  padding: 7px 18px;
   cursor: pointer;
+  transition: background .15s;
 }
-.companies-edit-save:hover { background: var(--accent-hover, #245a91); }
+.companies-edit-save:hover { background: var(--accent-hover, #a8b300); }
 .companies-edit-save:disabled { opacity: .6; cursor: default; }
 
 .companies-edit-msg { font-size: 12px; font-weight: 600; }
@@ -802,6 +814,116 @@
 .companies-edit-loading { font-size: 13px; color: var(--text-secondary); }
 .companies-edit-err { color: #c53030; }
 
+/* ---- Extended edit: section label + fields grid ---- */
+.companies-edit-fields-section {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+}
+.companies-edit-section-label {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--text-secondary);
+  border-top: 1px solid var(--border, #e2e8f0);
+  padding-top: 10px;
+  margin-top: 2px;
+}
+
+/* ---- Company / relationship link picker ---- */
+.ce-link-field { grid-column: 1 / -1; }
+
+.ce-links-wrap {
+  border: 1px solid var(--border, #d7dee7);
+  border-radius: 6px;
+  background: var(--surface, #fff);
+  padding: 6px 8px;
+}
+.ce-link-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  min-height: 22px;
+}
+.ce-link-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+  background: var(--page-bg, #f5f5f5);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+.ce-link-rm {
+  font-size: 10px;
+  line-height: 1;
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0 1px;
+}
+.ce-link-rm:hover { color: #c53030; }
+.ce-link-empty {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-style: italic;
+  padding: 1px 0;
+}
+
+.ce-link-search-wrap { position: relative; margin-top: 4px; }
+.ce-link-input {
+  width: 100%;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--text-primary);
+  border: none;
+  background: transparent;
+  padding: 3px 0;
+  outline: none;
+}
+.ce-link-input::placeholder { color: var(--text-secondary); opacity: .6; }
+.ce-link-results {
+  position: absolute;
+  left: 0; right: 0; top: 100%;
+  max-height: 200px;
+  overflow-y: auto;
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 6px;
+  box-shadow: var(--shadow, 0 2px 8px rgba(0,0,0,.12));
+  z-index: 20;
+}
+.ce-link-results:empty { display: none; }
+.ce-link-result {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--text-primary);
+  padding: 6px 8px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+  cursor: pointer;
+}
+.ce-link-result:last-child { border-bottom: none; }
+.ce-link-result:hover { background: color-mix(in srgb, var(--accent, #c8d400) 10%, transparent); }
+.ce-link-no-match {
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding: 8px;
+  text-align: center;
+}
+
 @media (max-width: 560px) {
   .companies-edit-grid { grid-template-columns: 1fr; }
+  .companies-edit-fields-section { grid-template-columns: 1fr; }
 }

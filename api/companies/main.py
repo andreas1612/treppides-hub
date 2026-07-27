@@ -1155,6 +1155,8 @@ class FieldUpdate(BaseModel):
     field_id: str
     value: str | None = None
     type: str = "short_text"
+    add_ids: list[str] = []       # relationship fields: task IDs to link
+    rem_ids: list[str] = []       # relationship fields: task IDs to unlink
 
 
 class FieldsBody(BaseModel):
@@ -1228,7 +1230,15 @@ def edit_options(task_id: str, db: Session = Depends(get_db),
                 "field_id": rcf.get("id"),
                 "type": ftype,
             }
-            if ftype == "drop_down":
+            if ftype in ("list_relationship", "tasks"):
+                raw_val = rcf.get("value")
+                links = []
+                if isinstance(raw_val, list):
+                    for x in raw_val:
+                        if isinstance(x, dict) and x.get("name"):
+                            links.append({"id": str(x.get("id", "")), "name": x["name"]})
+                field_info["value"] = links
+            elif ftype == "drop_down":
                 raw_val = rcf.get("value")
                 current = None
                 options = []
@@ -1380,27 +1390,39 @@ def edit_fields(task_id: str, body: FieldsBody, db: Session = Depends(get_db),
         raw_cf_map[cf.get("id")] = cf
 
     for f in body.fields:
-        write_value = f.value
-        if f.type == "drop_down" and f.value:
+        # Determine write value + audit label based on field type.
+        if f.type == "list_relationship":
+            write_value = {}
+            if f.add_ids:
+                write_value["add"] = f.add_ids
+            if f.rem_ids:
+                write_value["rem"] = f.rem_ids
+            if not write_value:
+                continue
+            audit_value = f"+{len(f.add_ids)} / -{len(f.rem_ids)}"
+        elif f.type == "drop_down" and f.value:
+            write_value = f.value
             rcf = raw_cf_map.get(f.field_id)
             if rcf:
                 for opt in rcf.get("type_config", {}).get("options", []):
                     if opt.get("name") == f.value:
                         write_value = opt.get("orderindex")
                         break
+            audit_value = str(f.value)
+        else:
+            write_value = f.value
+            audit_value = str(f.value) if f.value else ""
 
         try:
             clickup_write.set_custom_field(task_id, f.field_id, write_value)
         except HTTPException:
             audit.record(who=user, task_id=task_id, tid=t.tid,
-                         field=f.key, old_value=None,
-                         new_value=str(f.value) if f.value else "",
+                         field=f.key, old_value=None, new_value=audit_value,
                          dry_run=clickup_write.DRY_RUN, result="clickup_error")
             raise
 
         audit.record(who=user, task_id=task_id, tid=t.tid,
-                     field=f.key, old_value=None,
-                     new_value=str(f.value) if f.value else "",
+                     field=f.key, old_value=None, new_value=audit_value,
                      dry_run=clickup_write.DRY_RUN, result="ok")
 
     return _reconcile_and_return(task_id)
