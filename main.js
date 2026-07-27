@@ -10,8 +10,7 @@ import initSimulator     from "./components/shell/simulator.js";
 import initTopbar        from "./components/shell/topbar.js";
 import initAnnouncements from "./components/widgets/announcements.js";
 import initKnowledgeBase from "./components/pages/knowledgebase.js";
-import initPolicies      from "./components/widgets/policies.js";
-import initTraining      from "./components/widgets/training.js";
+import initNewsletter    from "./components/widgets/newsletter.js";
 import initQuicklinks    from "./components/widgets/quicklinks.js";
 import initReader        from "./components/pages/reader.js";
 import initFees          from "./components/pages/fees.js";
@@ -109,8 +108,7 @@ async function boot() {
   await Promise.allSettled([
     initAnnouncements(CONFIG),
     initStaff(CONFIG),
-    initPolicies(CONFIG),
-    initTraining(CONFIG),
+    initNewsletter(CONFIG),
     initQuicklinks(CONFIG),
     initFees(CONFIG),
   ]);

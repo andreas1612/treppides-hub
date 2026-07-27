@@ -249,6 +249,10 @@ export default async function init(config) {
         <button class="nav-item nav-btn" id="sb-support">
           ${ICONS.phone} Tech Support
         </button>
+
+        ${_tier === "SUPER" ? `<button class="nav-item nav-btn" id="sb-itsupport">
+          ${ICONS.phone} IT Support
+        </button>` : ""}
       </nav>
 
       <!-- Sidebar footer -->
@@ -431,6 +435,9 @@ export default async function init(config) {
         <button class="nav-item nav-btn" id="mb-support">
           ${ICONS.phone} Tech Support
         </button>
+        ${_tier === "SUPER" ? `<button class="nav-item nav-btn" id="mb-itsupport">
+          ${ICONS.phone} IT Support
+        </button>` : ""}
       </div>`;
 
     document.getElementById("burger-btn")?.addEventListener("click", () => {
@@ -583,11 +590,19 @@ export default async function init(config) {
       document.getElementById("mobile-nav")?.classList.remove("open");
       window.__hub_support?.open();
     });
+
+    document.getElementById("mb-itsupport")?.addEventListener("click", () => {
+      document.getElementById("mobile-nav")?.classList.remove("open");
+      window.__hub_itsupport?.open();
+    });
   }
 
-  // Desktop IT Support button
+  // Desktop support buttons
   document.getElementById("sb-support")?.addEventListener("click", () => {
     window.__hub_support?.open();
+  });
+  document.getElementById("sb-itsupport")?.addEventListener("click", () => {
+    window.__hub_itsupport?.open();
   });
 
   // ---- Active nav state ----

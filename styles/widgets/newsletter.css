@@ -1,0 +1,188 @@
+/* ============================================================
+   newsletter.css — Regulatory & Industry Intelligence widget
+   ============================================================ */
+
+.nl-section { margin-bottom: 32px; }
+
+/* ── Header row ───────────────────────────────────────────── */
+.nl-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 12px; margin-bottom: 16px; flex-wrap: wrap;
+}
+.nl-header-left { flex: 1; min-width: 0; }
+.nl-heading {
+  font-size: 17px; font-weight: 700; color: var(--text-primary);
+  margin: 0 0 2px; letter-spacing: -.01em;
+}
+.nl-scope {
+  font-size: 12px; color: var(--text-secondary); font-weight: 500;
+}
+
+/* ── View toggle ──────────────────────────────────────────── */
+.nl-view-toggle { display: flex; gap: 4px; flex-shrink: 0; }
+.nl-view-btn {
+  padding: 5px 12px; font-size: 11px; font-weight: 600; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--card-bg);
+  color: var(--text-secondary); cursor: pointer; transition: all .15s;
+  white-space: nowrap;
+}
+.nl-view-btn:hover { border-color: #c8d400; color: var(--text-primary); }
+.nl-view-btn.active {
+  background: #c8d400; color: #1a1f2e; border-color: #c8d400; font-weight: 700;
+}
+
+/* ── Filter bar ───────────────────────────────────────────── */
+.nl-filters {
+  display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap;
+  align-items: center;
+}
+.nl-search-wrap {
+  position: relative; flex: 1 1 180px; min-width: 120px;
+}
+.nl-search-icon {
+  position: absolute; left: 9px; top: 50%; transform: translateY(-50%);
+  color: var(--text-secondary); pointer-events: none; opacity: .6;
+}
+.nl-search {
+  width: 100%; padding: 7px 10px 7px 28px; font-size: 12px;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--card-bg); color: var(--text-primary);
+  outline: none; transition: border-color .15s;
+}
+.nl-search:focus { border-color: #c8d400; }
+.nl-search::placeholder { color: var(--text-secondary); opacity: .7; }
+
+.nl-filter-select {
+  padding: 7px 24px 7px 10px; font-size: 12px; font-weight: 500;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--card-bg); color: var(--text-primary);
+  cursor: pointer; outline: none; transition: border-color .15s;
+  -webkit-appearance: none; -moz-appearance: none; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23718096'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+}
+.nl-filter-select:focus { border-color: #c8d400; }
+
+/* ── Tabs ─────────────────────────────────────────────────── */
+.nl-tabs {
+  display: flex; gap: 0; margin-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+.nl-tab {
+  background: none; border: none; padding: 8px 16px; font-size: 13px; font-weight: 600;
+  color: var(--text-secondary); cursor: pointer;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+  transition: color .15s;
+}
+.nl-tab:hover { color: var(--text-primary); }
+.nl-tab.active { color: #1a1f2e; border-bottom-color: #c8d400; }
+.nl-tab-count {
+  display: inline-block; background: var(--border); color: var(--text-secondary);
+  font-size: 10px; font-weight: 700; border-radius: 10px; padding: 1px 6px; margin-left: 4px;
+  vertical-align: middle;
+}
+.nl-tab.active .nl-tab-count { background: #c8d400; color: #1a1f2e; }
+
+/* ── Cards list ───────────────────────────────────────────── */
+.nl-items { display: flex; flex-direction: column; gap: 0; }
+
+/* ── Card ─────────────────────────────────────────────────── */
+.nl-card {
+  display: flex; gap: 12px; padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+  transition: background .15s;
+}
+.nl-card:last-child { border-bottom: none; }
+.nl-card:hover { background: rgba(200, 212, 0, .03); }
+
+/* Left: priority indicator */
+.nl-card-left {
+  flex-shrink: 0; padding-top: 1px;
+}
+.nl-level {
+  display: inline-block; font-size: 9px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .05em; padding: 3px 7px; border-radius: 4px;
+  white-space: nowrap; min-width: 56px; text-align: center;
+}
+.nl-lvl-urgent  { background: #fee2e2; color: #b91c1c; }
+.nl-lvl-high    { background: #fef3c7; color: #92400e; }
+.nl-lvl-standard { background: #e0f2fe; color: #0369a1; }
+.nl-lvl-low     { background: #f3f4f6; color: #6b7280; }
+
+/* Right: content */
+.nl-card-body { flex: 1; min-width: 0; }
+
+.nl-card-header {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;
+}
+.nl-source { font-weight: 600; color: var(--text-primary); }
+.nl-jur {
+  font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  padding: 1px 5px; border-radius: 4px; background: #f0f0f3; color: #555;
+}
+.nl-jur-cyprus { background: #dbeafe; color: #1e40af; }
+.nl-jur-eu { background: #ede9fe; color: #5b21b6; }
+.nl-jur-international { background: #ecfdf5; color: #065f46; }
+.nl-doctype {
+  font-size: 10px; color: var(--text-secondary); font-style: italic;
+}
+.nl-date { margin-left: auto; color: var(--text-secondary); font-size: 11px; white-space: nowrap; }
+
+.nl-title {
+  font-size: 14px; font-weight: 600; color: var(--text-primary);
+  line-height: 1.4; margin: 0 0 3px;
+}
+.nl-title a { color: inherit; text-decoration: none; }
+.nl-title a:hover { color: #c8d400; }
+
+.nl-summary {
+  font-size: 12.5px; color: var(--text-secondary); line-height: 1.55; margin: 0 0 4px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+.nl-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 2px; }
+.nl-tag {
+  font-size: 10px; font-weight: 500; padding: 1px 7px; border-radius: 4px;
+  background: #f0fdf4; color: #166534; border: 1px solid #dcfce7;
+}
+
+/* ── Show more / less ─────────────────────────────────────── */
+.nl-more-btn {
+  display: block; width: 100%; padding: 10px; margin-top: 8px;
+  font-size: 13px; font-weight: 600; text-align: center;
+  color: var(--text-secondary); cursor: pointer;
+  background: none; border: 1px dashed var(--border);
+  border-radius: 6px; transition: all .15s;
+}
+.nl-more-btn:hover { color: var(--text-primary); border-color: #c8d400; background: rgba(200,212,0,.04); }
+.nl-more-arrow { font-size: 11px; margin-left: 4px; }
+
+/* ── Loading / empty ──────────────────────────────────────── */
+.nl-loading {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 40px; color: var(--text-secondary); font-size: 13px;
+}
+.nl-loading .spinner {
+  width: 20px; height: 20px; border: 2px solid var(--border);
+  border-top-color: #c8d400;
+  border-radius: 50%; animation: nl-spin .7s linear infinite;
+}
+@keyframes nl-spin { to { transform: rotate(360deg); } }
+
+.nl-empty {
+  padding: 40px 20px; text-align: center; color: var(--text-secondary);
+  font-size: 13px;
+}
+
+/* ── Responsive ───────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .nl-header { flex-direction: column; }
+  .nl-filters { flex-direction: column; }
+  .nl-search-wrap { flex: 1 1 100%; }
+  .nl-filter-select { width: 100%; }
+  .nl-card-left { display: none; }
+  .nl-title { font-size: 13px; }
+  .nl-summary { font-size: 12px; }
+}

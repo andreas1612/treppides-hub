@@ -94,7 +94,7 @@ const CARDS = {
   valuation:    { icon: "valuation",   color: "purple", title: "Valuation Tool",  desc: "Build auditor-facing valuation reports." },
   tbratio:      { icon: "tbratio",     color: "teal",   title: "TB Ratio Tool",   desc: "Upload a trial balance for P&amp;L, Balance Sheet &amp; ratios." },
   aml:          { icon: "aml",         color: "amber",  title: "AML Dashboard",   desc: "New, rejected &amp; disengaged client fee tracking." },
-  training:     { icon: "training",    color: "indigo", title: "Training Portal", desc: "Induction courses, SCORM modules &amp; completion tracking.", external: true },
+  training:     { icon: "training",    color: "indigo", title: "Training Portal (coming soon)", desc: "Induction courses, SCORM modules &amp; completion tracking.", external: true },
 };
 
 const SECTIONS = [

@@ -3,3 +3,55 @@
    Knowledge Base page-specific styles.
    Global KB shell styles (kb-active, kb-back-btn, etc.) live in layout.css.
    ============================================================ */
+
+/* ---- Folder landing grid ---- */
+.kb-folder-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.kb-folder-card {
+  cursor: pointer;
+  border: 2px solid var(--border, #e5e7eb) !important;
+  text-align: center;
+  padding: 2.5rem 2rem !important;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.kb-folder-card:hover,
+.kb-folder-card:focus-visible {
+  border-color: var(--accent, #2563eb) !important;
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.10);
+}
+
+.kb-folder-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.25rem;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: var(--accent-light, #eff6ff);
+}
+
+.kb-folder-icon svg {
+  width: 28px;
+  height: 28px;
+  color: var(--accent, #2563eb);
+}
+
+.kb-folder-card .card-title {
+  font-size: 1.15rem;
+  margin-bottom: 0.5rem;
+}
+
+.kb-folder-card .card-excerpt {
+  font-size: 0.88rem;
+  color: var(--text-muted, #6b7280);
+}
+
+.kb-folder-card .card-footer {
+  margin-top: 1.25rem;
+}
