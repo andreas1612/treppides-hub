@@ -1,6 +1,6 @@
 # STATUS --- Treppides Hub
 
-**Last updated: 2026-06-17**
+**Last updated: 2026-07-29**
 **Long-term capacity plan:** detailed in former `SESSION_15.md` (consolidated away 2026-06-03, commit 358efa1); session summaries now inline in [NEXT_SESSION.md](NEXT_SESSION.md).
 
 ---
@@ -15,7 +15,12 @@
 | **ClickUp Fees + Upload API** | Active | systemd `clickup-fees` (port 8001) | 2 workers, 512 MB cap, sandboxed. AML fees + media upload |
 | **Valuation Reference API** | Active | systemd `valuation-api` (port 8002) | 2 workers, 384 MB cap, sandboxed, SQLite WAL |
 | **Company Finder API** | Active | systemd `companies-api` (port 8003) | 2 workers, 384 MB cap, sandboxed, SQLite WAL. Master DB of all ClickUp tasks; 3-min incremental sync via cron |
-| **Task Manager** | Active | systemd `taskmanager` (port 8080) | Spring Boot Java, SQL Server backend (KTDEV:1433), Azure AD OAuth2. Proxied at `/projects` on hub, direct at tasks.treppides.com |
+| **Team Calendar API** | Active | systemd `team-calendar` (port 8004) | Leave, meetings & deadlines |
+| **Newsletter Intelligence API** | Active | systemd `newsletter` (port 8005) | Regulatory & industry intelligence feed |
+| **Staff Directory API** | Active | systemd `staff-directory` (port 8010) | Employee directory with department/role data |
+| **Room Booking API** | Active | systemd `roombooking` (port 8090) | Meeting room reservations |
+| **KYC Management API** | Active | systemd `kyc` (port 8091) | KYC client management |
+| **Task Manager** | Active | systemd `taskmanager` (port 8080) | Spring Boot Java, SQL Server backend (KTDEV:1433), Azure AD OAuth2 + Chamilo OAuth2 Authorization Server. Proxied at `/projects` on hub, direct at tasks.treppides.com |
 | **UFW Firewall** | Active | ufw | Deny all except 22/80/443 |
 | **fail2ban** | Active | systemd | SSH (5 tries/1hr) + nginx rate-limit jail |
 
@@ -25,22 +30,30 @@
 
 | Section | Status | Source | Notes |
 |---|---|---|---|
-| Announcements | Live | BookStack book 58 | Social post feed, 10 posts, inline images/video |
+| Announcements | Live | BookStack book 58 | Social post feed, 10 posts, inline images/video. Paginated carousel (prev/next arrows + dot indicators) |
 | Knowledge Base | Live | BookStack shelf 57 | 12 dept books, dedicated full-page view |
-| Policies & Procedures | Live | BookStack book 3 | Card feed |
-| Training & Development | Live | BookStack book 59 | Card feed |
+| Regulatory & Industry Intelligence | Live | Newsletter API (port 8005) | Dept-scoped regulatory/industry feed with search, filters, tabs (authority/journal), priority badges |
 | Quick Links | Live | --- | KB / Projects / IT Support |
 | In-app Reader | Live | BookStack API | PDF preview, chapters, pushState routing |
-| AML Dashboard | Live | ClickUp -> FastAPI | 3 lists; per-list breakdown by status/rejection/disengagement reason |
+| CRM Landing | Live | --- | Card grid: Deals, Leads, Accounts (Companies/Individuals), Contacts, AML. SUPERVISOR+ tier |
+| Deals Dashboard | Live | ClickUp -> FastAPI + SQLite | Unified searchable/filterable company list, Chart view (by company/UBO), Custom Total, cascading filters, color-coded services. Editable status/assignee/comment fields. Linked company on deal tasks |
+| Leads Dashboard | Live | ClickUp -> FastAPI | Pipeline tracking with source, industry, jurisdiction, status filters. Charts + forms |
+| Accounts Dashboards | Live | ClickUp -> FastAPI | Companies + Individuals — UBO, client code, industry, country, auditors, risk. Editable fields |
+| Contacts Dashboard | Live | ClickUp -> FastAPI | People with linked company, job title, email, phone. Status filter, field-completeness charts, editable fields |
+| AML Dashboard | Live | ClickUp -> FastAPI | 3 lists (new/rejected/disengaged); per-list breakdown by status/rejection/disengagement reason |
 | Fees Dashboard | Live | ClickUp -> FastAPI | Chart, drilldown with reason badges, CSV export |
-| Staff Directory | Live | /staff.json | Accordion, search, dept filter |
+| Forms Tool | Live | ClickUp -> FastAPI | Lead + Deal creation forms with schema from backend |
+| Staff Directory | Live | Staff Directory API (port 8010) | Accordion, search, dept filter |
 | Admin Panel | Live | BookStack API + upload API | PIN-protected, photo/video/YouTube media composer |
 | IT Support Modal | Live | FormSubmit -> email | -> apieri@treppides.com |
 | Search | Live | BookStack full-text | Topbar, 400ms debounce |
-| Valuation Tool | Live | FastAPI + SQLite (Damodaran) | DCF builder; historical archive 2008-2026 with edition picker; country/industry/currency reference auto-fill; historical FX (2015-2025); draft auto-save + JSON export/import; PDF report. **On-site guided tour** (2026-06-17): coachmark/spotlight walkthrough (17 steps) launched from a **Tutorial** button in the header, auto-offered to first-time users (localStorage flag). Zero-dep, no-build — `valuation-tour.js` + `valuation-tour.css`. Pure frontend, no new API calls |
-| TB Ratio Tool | **In progress** | Client-side (vendored xlsx) | Trial-balance importer (`tbratio.js`, vendored `vendor/xlsx.full.min.js`). Nav wired (sidebar + mobile); not yet feature-complete as of 2026-06-17 |
-| Group Dashboard | Live | ClickUp -> FastAPI + SQLite | Sidebar "Group Dashboard" --- one unified **searchable + filterable** company list (sortable, paginated; row opens that company's deals) + a **Chart** view comparing Deal Value **by company or by UBO** (bar chart via vendored Chart.js; defaults to top 15, or pick specific ones). 'By company' groups on the **Dashboard TID (GID)** field --- a higher-level group key that rolls several companies into one bar, labelled with a synthesized supername (shared core of the group's company names) + a **Custom Total** view (tick individual deals -> combined sum, selection persists across filters). Per-company **total Deal Value (fees)** (active vs rejected/lost; no-deal `---`) + **filtered grand-total** banner. Detail lists **deal tasks only**, color-coded Service, with "subtask of {parent}" on subtask deals. **Cascading multi-select filters**: Space, Project Year, Business Year, Service, Assignee, Department --- options narrow to the selection; fee totals recompute to the filter. Space names prettified (`_CRM` dropped, `KT` -> `K. Treppides`). Master DB (`companies-api`, port 8003, ~9.8k tasks; indexed service/year/business_year/department + UBO columns) synced every 3 min via `date_updated_gt` (reconcile gated 15 min); manual Refresh. Instant SQL |
-| Task Manager | Live | Spring Boot + SQL Server | Full task/project management. Dashboard, my tasks, team tasks, create task, task details. Azure AD SSO auth. Proxied at `/projects` on hub; also accessible directly at `tasks.treppides.com` |
+| Valuation Tool | Live | FastAPI + SQLite (Damodaran) | DCF builder; historical archive 2008-2026 with edition picker; auto-fill; FX rates; draft auto-save + JSON export/import; PDF report. On-site guided tour (17 steps) |
+| TB Ratio Tool | Live | Client-side (vendored xlsx) | Trial-balance importer with P&L, Balance Sheet, ratios. Mapping panel, comparative years, .xlsx export. On-site guided tour |
+| Team Calendar | Live | Team Calendar API (port 8004) | Leave, meetings & deadlines calendar view |
+| Performance Report | Live | TM backend | Employee chargeability viewer. STANDARD tier: self only. FULL/SUPER: browse any employee/manager |
+| Budget KPI | Live | TM backend | Manager budget vs invoiced. Monthly breakdown, fee adjustments CRUD. STANDARD tier: self only. FULL/SUPER: browse any manager |
+| Financials | Live | TM backend | Revenue, budget, recoverability, debtors reporting. **SUPER tier only** |
+| Task Manager | Live | Spring Boot + SQL Server | Full project/task management. Azure AD SSO + Chamilo OAuth2 provider. Proxied at `/projects` on hub; also at `tasks.treppides.com` |
 
 ---
 
@@ -65,11 +78,24 @@
 | Method | Azure AD SSO via Spring Boot OAuth2 (Task Manager) |
 | Azure AD client ID | `dc4895f7-ea14-4387-a368-cbccacee7270` |
 | Azure AD tenant | `6e5d13a9-1138-4013-913d-f32a1be7dced` |
-| Hub auth flow | `auth.js` checks `/projects/api/me` -> if 401, redirect to `/login.html` -> Azure SSO -> callback -> session cookie set -> hub loads. **Fail-closed**: auth service unreachable halts boot (no silent fallback) |
-| Admin gate | **Admin-only** (Batch C, pulled 2026-06-17): `auth.js` blocks non-admin users (`isAdmin !== true`) with an "Access Restricted" page. Performance + Budget KPI are admin sections |
+| Hub auth flow | `auth.js` checks `/projects/api/me` → if 401, redirect to `/login.html` → Azure SSO → callback → session cookie set → hub loads. **Fail-closed**: auth service unreachable halts boot (no silent fallback) |
+| Admin gate | 37 admin emails in `application.properties` (`app.admin.emails`). Non-admins see "Access Restricted" page |
 | Session type | Server-side session cookie (Spring Boot), set on hub.treppides.com |
 | TM direct access | `tasks.treppides.com` has its own session (same Azure AD app, separate cookie) |
 | Redirect URI | Auto-generated from request Host header (never hardcoded) |
+| Chamilo OAuth2 | TM acts as OIDC Authorization Server for `learn.treppides.com`. Endpoints under `/oauth2/chamilo/*`. SUPER + HR → admin role; others → student |
+
+### Access Tiers
+
+Controlled by `RoleService.java`. Resolution order: SUPER → SUPERVISOR → FULL → STANDARD → NONE.
+
+| Tier | Count | Features | Scope |
+|---|---|---|---|
+| **SUPER** | 4 | All sections incl. Financials, CRM, simulator | Browse any employee/manager |
+| **SUPERVISOR** | 10 | STANDARD + CRM | Self-scoped Performance/Budget KPI |
+| **FULL** | 14 | All sections except Financials | Browse any employee/manager |
+| **STANDARD** | Remaining admins | Home, KB, Staff, Tools, Support, Performance, Budget KPI | Self-scoped Performance/Budget KPI |
+| **NONE** | Non-admins | Access Restricted page | — |
 
 ---
 
@@ -135,7 +161,7 @@ Full ops details in **[SERVER-OPS.md](SERVER-OPS.md)**.
 | 12 | Low | Switching editions doesn't clear stale dropdown selection |
 | 13 | Info | Monitoring is log-only --- no active notifications (email/Slack/push) |
 
-| 15 | Info | Auth is session-based (Azure AD SSO) --- no per-user LDAP integration yet (no user-level rate limiting or audit log) |
+| 15 | Info | Auth is session-based (Azure AD SSO) with 5-tier RBAC --- no per-user rate limiting or audit log yet |
 
 ---
 
