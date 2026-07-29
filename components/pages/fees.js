@@ -1010,9 +1010,7 @@ export default async function init(_config) {
 
   // Back button — return to AML landing (its own back button returns home)
   document.getElementById(BACK_ID)?.addEventListener("click", () => {
-    hideFeesPage();
-    if (window.__hub_aml) window.__hub_aml.show();
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.__hub_router?.navigate("/crm/aml");
   });
 
   // Export CSV button

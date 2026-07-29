@@ -68,15 +68,7 @@ export default async function init(config) {
   // KB widget: open Knowledge Base full-page view
   const qlKb = document.getElementById("ql-kb");
   if (qlKb) {
-    const openKb = () => {
-      if (window.__hub_reader)   window.__hub_reader.goHome();
-      if (window.__hub_fees)     window.__hub_fees.hide();
-      if (window.__hub_aml)      window.__hub_aml.hide();
-      if (window.__hub_staff)    window.__hub_staff.hide();
-      if (window.__hub_projects) window.__hub_projects.hide();
-      window.__hub_kb?.show();
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    };
+    const openKb = () => window.__hub_router?.navigate("/kb");
     qlKb.addEventListener("click",   openKb);
     qlKb.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") openKb(); });
   }
@@ -84,15 +76,7 @@ export default async function init(config) {
   // Projects widget: open Projects full-page view (under development)
   const qlProj = document.getElementById("ql-proj");
   if (qlProj) {
-    const openProj = () => {
-      if (window.__hub_reader)   window.__hub_reader.goHome();
-      if (window.__hub_fees)     window.__hub_fees.hide();
-      if (window.__hub_aml)      window.__hub_aml.hide();
-      if (window.__hub_staff)    window.__hub_staff.hide();
-      if (window.__hub_kb)       window.__hub_kb.hide();
-      window.__hub_projects?.show();
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    };
+    const openProj = () => window.__hub_router?.navigate("/tools");
     qlProj.addEventListener("click",   openProj);
     qlProj.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") openProj(); });
   }

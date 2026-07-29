@@ -470,9 +470,7 @@ function showLanding(section) {
   // The Forms page is reached from the CRM dashboards (SUPER-only) — back
   // returns to the CRM landing, not the Tools grid.
   section.querySelector(`#${BACK_BTN_ID}`)?.addEventListener("click", () => {
-    hideFormsPage();
-    window.__hub_crm?.show();
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.__hub_router?.navigate("/crm");
   });
 
   section.querySelectorAll(".forms-card").forEach(card => {

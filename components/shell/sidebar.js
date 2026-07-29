@@ -6,6 +6,7 @@
 
 import CONFIG from "../../config.js";
 import { getCurrentUser } from "../../js/auth.js";
+import { navigate } from "../../js/router.js";
 
 // ---- Coming Soon modal ----------------------------------------
 // Guard: quicklinks.js may have already injected the modal.
@@ -199,9 +200,8 @@ export default async function init(config) {
   const _label = (_tier === "FULL" || _tier === "SUPER") ? "Admin" : "My Reports";
   const adminItems = (p) => {
     const btns = [
-      // CRM — SUPER-tier only. Moved here from the Tools grid; exposes the
-      // Deals / Leads / Accounts dashboards (company & deal financial data).
-      _tier === "SUPER"   ? `<button class="nav-item nav-btn" id="${p}-crm">${ICONS.crm} CRM</button>` : "",
+      // CRM — gated by "crm" feature (SUPERVISOR + SUPER tiers).
+      _has("crm")         ? `<button class="nav-item nav-btn" id="${p}-crm">${ICONS.crm} CRM</button>` : "",
       _has("performance") ? `<button class="nav-item nav-btn" id="${p}-performance">${ICONS.trendUp} Performance</button>` : "",
       _has("budgetkpi")   ? `<button class="nav-item nav-btn" id="${p}-budgetkpi">${ICONS.dollar} Budget KPI</button>` : "",
       // Financials — SUPER-tier only (feature "financials" is granted only to SUPER users).
@@ -251,7 +251,7 @@ export default async function init(config) {
         </button>
 
         ${_tier === "SUPER" ? `<button class="nav-item nav-btn" id="sb-itsupport">
-          ${ICONS.phone} IT Support
+          ${ICONS.phone} IT Support (Not Operational)
         </button>` : ""}
       </nav>
 
@@ -261,141 +261,15 @@ export default async function init(config) {
         <span class="version">v0.1.0</span> &nbsp;·&nbsp; Internal use only
       </div>`;
 
-    // Home link: return to hub, hide all overlay pages
-    document.getElementById("sb-home")?.addEventListener("click", e => {
-      e.preventDefault();
-      if (window.__hub_fees)      window.__hub_fees.hide();
-      if (window.__hub_aml)       window.__hub_aml.hide();
-      if (window.__hub_staff)     window.__hub_staff.hide();
-      if (window.__hub_kb)        window.__hub_kb.hide();
-      if (window.__hub_projects)  window.__hub_projects.hide();
-      if (window.__hub_valuation) window.__hub_valuation.hide();
-      if (window.__hub_companies)    window.__hub_companies.hide();
-      if (window.__hub_tbratio)      window.__hub_tbratio.hide();
-      if (window.__hub_performance)  window.__hub_performance.hide();
-      if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
-      if (window.__hub_forms)           window.__hub_forms.hide();
-      if (window.__hub_teamcalendar)  window.__hub_teamcalendar.hide();
-      if (window.__hub_reader)        window.__hub_reader.goHome();
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    });
-
-    // KB link: open dedicated Knowledge Base page view
-    document.getElementById("sb-kb")?.addEventListener("click", () => {
-      if (window.__hub_reader)    window.__hub_reader.goHome();
-      if (window.__hub_fees)      window.__hub_fees.hide();
-      if (window.__hub_aml)       window.__hub_aml.hide();
-      if (window.__hub_staff)     window.__hub_staff.hide();
-      if (window.__hub_projects)  window.__hub_projects.hide();
-      if (window.__hub_valuation) window.__hub_valuation.hide();
-      if (window.__hub_companies)    window.__hub_companies.hide();
-      if (window.__hub_tbratio)      window.__hub_tbratio.hide();
-      if (window.__hub_performance)  window.__hub_performance.hide();
-      if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
-      if (window.__hub_forms)           window.__hub_forms.hide();
-      if (window.__hub_teamcalendar)  window.__hub_teamcalendar.hide();
-      if (window.__hub_kb)            window.__hub_kb.show();
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    });
-
-    // Staff Directory link: open dedicated staff page view
-    document.getElementById("sb-staff")?.addEventListener("click", () => {
-      if (window.__hub_reader)    window.__hub_reader.goHome();
-      if (window.__hub_fees)      window.__hub_fees.hide();
-      if (window.__hub_aml)       window.__hub_aml.hide();
-      if (window.__hub_kb)        window.__hub_kb.hide();
-      if (window.__hub_projects)  window.__hub_projects.hide();
-      if (window.__hub_valuation) window.__hub_valuation.hide();
-      if (window.__hub_companies)    window.__hub_companies.hide();
-      if (window.__hub_tbratio)      window.__hub_tbratio.hide();
-      if (window.__hub_performance)  window.__hub_performance.hide();
-      if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
-      if (window.__hub_forms)           window.__hub_forms.hide();
-      if (window.__hub_teamcalendar)  window.__hub_teamcalendar.hide();
-      if (window.__hub_staff)         window.__hub_staff.show();
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    });
-
-    // Tools: open the Tools landing page (card grid for all tools)
-    document.getElementById("sb-tools")?.addEventListener("click", () => {
-      if (window.__hub_reader)       window.__hub_reader.goHome();
-      if (window.__hub_fees)         window.__hub_fees.hide();
-      if (window.__hub_aml)          window.__hub_aml.hide();
-      if (window.__hub_staff)        window.__hub_staff.hide();
-      if (window.__hub_kb)           window.__hub_kb.hide();
-      if (window.__hub_valuation)    window.__hub_valuation.hide();
-      if (window.__hub_companies)    window.__hub_companies.hide();
-      if (window.__hub_tbratio)      window.__hub_tbratio.hide();
-      if (window.__hub_performance)  window.__hub_performance.hide();
-      if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
-      if (window.__hub_forms)           window.__hub_forms.hide();
-      if (window.__hub_teamcalendar)  window.__hub_teamcalendar.hide();
-      if (window.__hub_projects)      window.__hub_projects.show();
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    });
-
-    // CRM (SUPER-only) — opens the CRM landing (Deals / Leads / Accounts)
-    document.getElementById("sb-crm")?.addEventListener("click", () => {
-      if (window.__hub_reader)       window.__hub_reader.goHome();
-      if (window.__hub_fees)         window.__hub_fees.hide();
-      if (window.__hub_aml)          window.__hub_aml.hide();
-      if (window.__hub_staff)        window.__hub_staff.hide();
-      if (window.__hub_kb)           window.__hub_kb.hide();
-      if (window.__hub_valuation)    window.__hub_valuation.hide();
-      if (window.__hub_companies)    window.__hub_companies.hide();
-      if (window.__hub_crmlist)      window.__hub_crmlist.hide();
-      if (window.__hub_tbratio)      window.__hub_tbratio.hide();
-      if (window.__hub_performance)  window.__hub_performance.hide();
-      if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
-      if (window.__hub_forms)        window.__hub_forms.hide();
-      if (window.__hub_teamcalendar) window.__hub_teamcalendar.hide();
-      if (window.__hub_financials)   window.__hub_financials.hide();
-      if (window.__hub_projects)     window.__hub_projects.hide();
-      if (window.__hub_crm)          window.__hub_crm.show();
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    });
-
-    // Performance Report
-    document.getElementById("sb-performance")?.addEventListener("click", () => {
-      if (window.__hub_reader)       window.__hub_reader.goHome();
-      if (window.__hub_fees)         window.__hub_fees.hide();
-      if (window.__hub_aml)          window.__hub_aml.hide();
-      if (window.__hub_staff)        window.__hub_staff.hide();
-      if (window.__hub_kb)           window.__hub_kb.hide();
-      if (window.__hub_projects)     window.__hub_projects.hide();
-      if (window.__hub_valuation)    window.__hub_valuation.hide();
-      if (window.__hub_companies)    window.__hub_companies.hide();
-      if (window.__hub_tbratio)      window.__hub_tbratio.hide();
-      if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
-      if (window.__hub_forms)           window.__hub_forms.hide();
-      if (window.__hub_teamcalendar)  window.__hub_teamcalendar.hide();
-      if (window.__hub_performance)   window.__hub_performance.show();
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    });
-
-    // Budget KPI
-    document.getElementById("sb-budgetkpi")?.addEventListener("click", () => {
-      if (window.__hub_reader)       window.__hub_reader.goHome();
-      if (window.__hub_fees)         window.__hub_fees.hide();
-      if (window.__hub_aml)          window.__hub_aml.hide();
-      if (window.__hub_staff)        window.__hub_staff.hide();
-      if (window.__hub_kb)           window.__hub_kb.hide();
-      if (window.__hub_projects)     window.__hub_projects.hide();
-      if (window.__hub_valuation)    window.__hub_valuation.hide();
-      if (window.__hub_companies)    window.__hub_companies.hide();
-      if (window.__hub_tbratio)      window.__hub_tbratio.hide();
-      if (window.__hub_performance)  window.__hub_performance.hide();
-      if (window.__hub_forms)           window.__hub_forms.hide();
-      if (window.__hub_teamcalendar)  window.__hub_teamcalendar.hide();
-      if (window.__hub_budgetkpi)     window.__hub_budgetkpi.show();
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    });
-
-    // Financials (board/admin) — show() hides the other overlays itself
-    document.getElementById("sb-financials")?.addEventListener("click", () => {
-      window.__hub_financials?.show();
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    });
+    // Desktop nav — all use the router
+    document.getElementById("sb-home")?.addEventListener("click", e => { e.preventDefault(); navigate("/"); });
+    document.getElementById("sb-kb")?.addEventListener("click",          () => navigate("/kb"));
+    document.getElementById("sb-staff")?.addEventListener("click",       () => navigate("/staff"));
+    document.getElementById("sb-tools")?.addEventListener("click",       () => navigate("/tools"));
+    document.getElementById("sb-crm")?.addEventListener("click",         () => navigate("/crm"));
+    document.getElementById("sb-performance")?.addEventListener("click", () => navigate("/performance"));
+    document.getElementById("sb-budgetkpi")?.addEventListener("click",   () => navigate("/budget-kpi"));
+    document.getElementById("sb-financials")?.addEventListener("click",  () => navigate("/financials"));
 
   }
 
@@ -436,7 +310,7 @@ export default async function init(config) {
           ${ICONS.phone} Tech Support
         </button>
         ${_tier === "SUPER" ? `<button class="nav-item nav-btn" id="mb-itsupport">
-          ${ICONS.phone} IT Support
+          ${ICONS.phone} IT Support (Not Operational)
         </button>` : ""}
       </div>`;
 
@@ -444,147 +318,17 @@ export default async function init(config) {
       document.getElementById("mobile-nav")?.classList.toggle("open");
     });
 
-    // Mobile home link
-    document.getElementById("mb-home")?.addEventListener("click", e => {
-      e.preventDefault();
-      document.getElementById("mobile-nav")?.classList.remove("open");
-      if (window.__hub_fees)      window.__hub_fees.hide();
-      if (window.__hub_aml)       window.__hub_aml.hide();
-      if (window.__hub_staff)     window.__hub_staff.hide();
-      if (window.__hub_kb)        window.__hub_kb.hide();
-      if (window.__hub_projects)  window.__hub_projects.hide();
-      if (window.__hub_valuation) window.__hub_valuation.hide();
-      if (window.__hub_companies)    window.__hub_companies.hide();
-      if (window.__hub_tbratio)      window.__hub_tbratio.hide();
-      if (window.__hub_performance)  window.__hub_performance.hide();
-      if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
-      if (window.__hub_forms)           window.__hub_forms.hide();
-      if (window.__hub_teamcalendar)  window.__hub_teamcalendar.hide();
-      if (window.__hub_reader)        window.__hub_reader.goHome();
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    });
+    // Mobile nav — close drawer then route
+    const closeNav = () => document.getElementById("mobile-nav")?.classList.remove("open");
 
-    document.getElementById("mb-kb")?.addEventListener("click", () => {
-      document.getElementById("mobile-nav")?.classList.remove("open");
-      if (window.__hub_reader)    window.__hub_reader.goHome();
-      if (window.__hub_fees)      window.__hub_fees.hide();
-      if (window.__hub_aml)       window.__hub_aml.hide();
-      if (window.__hub_staff)     window.__hub_staff.hide();
-      if (window.__hub_projects)  window.__hub_projects.hide();
-      if (window.__hub_valuation) window.__hub_valuation.hide();
-      if (window.__hub_companies)    window.__hub_companies.hide();
-      if (window.__hub_tbratio)      window.__hub_tbratio.hide();
-      if (window.__hub_performance)  window.__hub_performance.hide();
-      if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
-      if (window.__hub_forms)           window.__hub_forms.hide();
-      if (window.__hub_teamcalendar)  window.__hub_teamcalendar.hide();
-      if (window.__hub_kb)            window.__hub_kb.show();
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    });
-
-    document.getElementById("mb-staff")?.addEventListener("click", () => {
-      document.getElementById("mobile-nav")?.classList.remove("open");
-      if (window.__hub_reader)    window.__hub_reader.goHome();
-      if (window.__hub_fees)      window.__hub_fees.hide();
-      if (window.__hub_aml)       window.__hub_aml.hide();
-      if (window.__hub_kb)        window.__hub_kb.hide();
-      if (window.__hub_projects)  window.__hub_projects.hide();
-      if (window.__hub_valuation) window.__hub_valuation.hide();
-      if (window.__hub_companies)    window.__hub_companies.hide();
-      if (window.__hub_tbratio)      window.__hub_tbratio.hide();
-      if (window.__hub_performance)  window.__hub_performance.hide();
-      if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
-      if (window.__hub_forms)           window.__hub_forms.hide();
-      if (window.__hub_teamcalendar)  window.__hub_teamcalendar.hide();
-      if (window.__hub_staff)         window.__hub_staff.show();
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    });
-
-    // Mobile Tools link
-    document.getElementById("mb-tools")?.addEventListener("click", () => {
-      document.getElementById("mobile-nav")?.classList.remove("open");
-      if (window.__hub_reader)       window.__hub_reader.goHome();
-      if (window.__hub_fees)         window.__hub_fees.hide();
-      if (window.__hub_aml)          window.__hub_aml.hide();
-      if (window.__hub_staff)        window.__hub_staff.hide();
-      if (window.__hub_kb)           window.__hub_kb.hide();
-      if (window.__hub_valuation)    window.__hub_valuation.hide();
-      if (window.__hub_companies)    window.__hub_companies.hide();
-      if (window.__hub_tbratio)      window.__hub_tbratio.hide();
-      if (window.__hub_performance)  window.__hub_performance.hide();
-      if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
-      if (window.__hub_forms)           window.__hub_forms.hide();
-      if (window.__hub_teamcalendar)  window.__hub_teamcalendar.hide();
-      if (window.__hub_projects)      window.__hub_projects.show();
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    });
-
-    // Mobile CRM link (SUPER-only)
-    document.getElementById("mb-crm")?.addEventListener("click", () => {
-      document.getElementById("mobile-nav")?.classList.remove("open");
-      if (window.__hub_reader)       window.__hub_reader.goHome();
-      if (window.__hub_fees)         window.__hub_fees.hide();
-      if (window.__hub_aml)          window.__hub_aml.hide();
-      if (window.__hub_staff)        window.__hub_staff.hide();
-      if (window.__hub_kb)           window.__hub_kb.hide();
-      if (window.__hub_valuation)    window.__hub_valuation.hide();
-      if (window.__hub_companies)    window.__hub_companies.hide();
-      if (window.__hub_crmlist)      window.__hub_crmlist.hide();
-      if (window.__hub_tbratio)      window.__hub_tbratio.hide();
-      if (window.__hub_performance)  window.__hub_performance.hide();
-      if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
-      if (window.__hub_forms)        window.__hub_forms.hide();
-      if (window.__hub_teamcalendar) window.__hub_teamcalendar.hide();
-      if (window.__hub_financials)   window.__hub_financials.hide();
-      if (window.__hub_projects)     window.__hub_projects.hide();
-      if (window.__hub_crm)          window.__hub_crm.show();
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    });
-
-    // Mobile Performance Report link
-    document.getElementById("mb-performance")?.addEventListener("click", () => {
-      document.getElementById("mobile-nav")?.classList.remove("open");
-      if (window.__hub_reader)       window.__hub_reader.goHome();
-      if (window.__hub_fees)         window.__hub_fees.hide();
-      if (window.__hub_aml)          window.__hub_aml.hide();
-      if (window.__hub_staff)        window.__hub_staff.hide();
-      if (window.__hub_kb)           window.__hub_kb.hide();
-      if (window.__hub_projects)     window.__hub_projects.hide();
-      if (window.__hub_valuation)    window.__hub_valuation.hide();
-      if (window.__hub_companies)    window.__hub_companies.hide();
-      if (window.__hub_tbratio)      window.__hub_tbratio.hide();
-      if (window.__hub_budgetkpi)    window.__hub_budgetkpi.hide();
-      if (window.__hub_forms)           window.__hub_forms.hide();
-      if (window.__hub_teamcalendar)  window.__hub_teamcalendar.hide();
-      if (window.__hub_performance)   window.__hub_performance.show();
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    });
-
-    // Mobile Budget KPI link
-    document.getElementById("mb-budgetkpi")?.addEventListener("click", () => {
-      document.getElementById("mobile-nav")?.classList.remove("open");
-      if (window.__hub_reader)       window.__hub_reader.goHome();
-      if (window.__hub_fees)         window.__hub_fees.hide();
-      if (window.__hub_aml)          window.__hub_aml.hide();
-      if (window.__hub_staff)        window.__hub_staff.hide();
-      if (window.__hub_kb)           window.__hub_kb.hide();
-      if (window.__hub_projects)     window.__hub_projects.hide();
-      if (window.__hub_valuation)    window.__hub_valuation.hide();
-      if (window.__hub_companies)    window.__hub_companies.hide();
-      if (window.__hub_tbratio)      window.__hub_tbratio.hide();
-      if (window.__hub_performance)  window.__hub_performance.hide();
-      if (window.__hub_forms)           window.__hub_forms.hide();
-      if (window.__hub_teamcalendar)  window.__hub_teamcalendar.hide();
-      if (window.__hub_budgetkpi)     window.__hub_budgetkpi.show();
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    });
-
-    // Mobile Financials link (board/admin)
-    document.getElementById("mb-financials")?.addEventListener("click", () => {
-      document.getElementById("mobile-nav")?.classList.remove("open");
-      window.__hub_financials?.show();
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    });
+    document.getElementById("mb-home")?.addEventListener("click", e => { e.preventDefault(); closeNav(); navigate("/"); });
+    document.getElementById("mb-kb")?.addEventListener("click",          () => { closeNav(); navigate("/kb"); });
+    document.getElementById("mb-staff")?.addEventListener("click",       () => { closeNav(); navigate("/staff"); });
+    document.getElementById("mb-tools")?.addEventListener("click",       () => { closeNav(); navigate("/tools"); });
+    document.getElementById("mb-crm")?.addEventListener("click",         () => { closeNav(); navigate("/crm"); });
+    document.getElementById("mb-performance")?.addEventListener("click", () => { closeNav(); navigate("/performance"); });
+    document.getElementById("mb-budgetkpi")?.addEventListener("click",   () => { closeNav(); navigate("/budget-kpi"); });
+    document.getElementById("mb-financials")?.addEventListener("click",  () => { closeNav(); navigate("/financials"); });
 
     document.getElementById("mb-support")?.addEventListener("click", () => {
       document.getElementById("mobile-nav")?.classList.remove("open");
@@ -612,8 +356,8 @@ export default async function init(config) {
       kb:          ["sb-kb",          "mb-kb"],
       staff:       ["sb-staff",       "mb-staff"],
       projects:    ["sb-tools",       "mb-tools"],     // Tools landing page
-      aml:         ["sb-tools",       "mb-tools"],     // tool sub-page → highlight Tools
-      fees:        ["sb-tools",       "mb-tools"],
+      aml:         ["sb-crm",         "mb-crm"],       // AML lives under CRM
+      fees:        ["sb-crm",         "mb-crm"],
       valuation:   ["sb-tools",       "mb-tools"],
       companies:   ["sb-crm",         "mb-crm"],       // Deals dashboard (under CRM)
       crm:         ["sb-crm",         "mb-crm"],       // CRM landing

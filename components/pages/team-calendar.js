@@ -461,9 +461,7 @@ function getEventsForPersonDay(email, d) {
 function bindEvents() {
   // Back button
   document.getElementById("tcal-back")?.addEventListener("click", () => {
-    hidePage();
-    window.__hub_projects?.show();
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.__hub_router?.navigate("/tools");
   });
 
   // Prev / Next

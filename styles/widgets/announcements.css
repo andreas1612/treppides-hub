@@ -2,12 +2,74 @@
    styles/widgets/announcements.css — Social media style post feed
    ============================================================ */
 
+/* --- Carousel wrapper --- */
+.post-carousel {
+  position: relative;
+}
+
 /* --- Feed container --- */
 .post-feed {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 20px;
   align-items: start;
+}
+
+/* --- Carousel page indicator + arrows --- */
+.carousel-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+.carousel-controls.single-page { display: none; }
+
+.carousel-arrow {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  box-shadow: var(--shadow);
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s, box-shadow 0.2s;
+  padding: 0;
+}
+.carousel-arrow:hover {
+  box-shadow: var(--shadow-hover);
+}
+.carousel-arrow:disabled {
+  opacity: 0.35;
+  cursor: default;
+  box-shadow: none;
+}
+.carousel-arrow svg {
+  width: 16px;
+  height: 16px;
+}
+
+.carousel-dots {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.carousel-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.carousel-dot.active {
+  background: var(--accent);
 }
 
 /* --- Post card --- */

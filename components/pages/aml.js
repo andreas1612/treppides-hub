@@ -86,7 +86,7 @@ export default async function init(_config) {
     <div class="hub-section">
       <div class="section-header">
         <div class="aml-header-left">
-          <button class="aml-back-btn" id="${BACK_BTN_ID}" aria-label="Back to Hub">
+          <button class="aml-back-btn" id="${BACK_BTN_ID}" aria-label="Back to CRM">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
                  stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <line x1="19" y1="12" x2="5" y2="12"/>
@@ -104,9 +104,7 @@ export default async function init(_config) {
     </div>`;
 
   document.getElementById(BACK_BTN_ID)?.addEventListener("click", () => {
-    hideAmlPage();
-    window.__hub_projects?.show();
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.__hub_router?.navigate("/crm");
   });
 
   section.querySelectorAll(".aml-card").forEach(btn => {

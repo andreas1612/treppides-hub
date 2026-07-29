@@ -123,6 +123,83 @@ function cardHtml(page) {
     </article>`;
 }
 
+// ── Carousel (paginated grid) ─────────────────────────────
+
+let _allCards = [];   // full list of rendered card HTML strings
+let _page = 0;        // current page index
+let _perPage = 3;     // cards per page (recalculated on render)
+
+/** How many cards fit in one grid row at the current container width. */
+function calcPerPage(feedEl) {
+  const gap = 20;
+  const minCard = 320;
+  const w = feedEl.clientWidth;
+  return Math.max(1, Math.floor((w + gap) / (minCard + gap)));
+}
+
+function totalPages() {
+  return Math.max(1, Math.ceil(_allCards.length / _perPage));
+}
+
+function renderPage(container) {
+  const feed = container.querySelector(".post-feed");
+  const dotsWrap = container.querySelector(".carousel-dots");
+  const prevBtn = container.querySelector(".carousel-arrow-prev");
+  const nextBtn = container.querySelector(".carousel-arrow-next");
+  const controls = container.querySelector(".carousel-controls");
+  if (!feed) return;
+
+  const start = _page * _perPage;
+  feed.innerHTML = _allCards.slice(start, start + _perPage).join("");
+
+  const pages = totalPages();
+  if (controls) controls.classList.toggle("single-page", pages <= 1);
+  if (prevBtn) prevBtn.disabled = _page <= 0;
+  if (nextBtn) nextBtn.disabled = _page >= pages - 1;
+
+  if (dotsWrap) {
+    dotsWrap.innerHTML = Array.from({ length: pages }, (_, i) =>
+      `<button class="carousel-dot ${i === _page ? "active" : ""}" data-page="${i}" aria-label="Page ${i + 1}"></button>`
+    ).join("");
+  }
+}
+
+function initCarousel(container) {
+  const feed = container.querySelector(".post-feed");
+  if (!feed) return;
+
+  _perPage = calcPerPage(feed);
+  _page = 0;
+  renderPage(container);
+
+  container.querySelector(".carousel-arrow-prev")?.addEventListener("click", () => {
+    if (_page > 0) { _page--; renderPage(container); }
+  });
+  container.querySelector(".carousel-arrow-next")?.addEventListener("click", () => {
+    if (_page < totalPages() - 1) { _page++; renderPage(container); }
+  });
+  container.querySelector(".carousel-dots")?.addEventListener("click", e => {
+    const dot = e.target.closest(".carousel-dot");
+    if (!dot) return;
+    _page = parseInt(dot.dataset.page, 10);
+    renderPage(container);
+  });
+
+  // Recalculate on resize
+  let resizeTimer;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      const newPer = calcPerPage(feed);
+      if (newPer !== _perPage) {
+        _perPage = newPer;
+        _page = Math.min(_page, totalPages() - 1);
+        renderPage(container);
+      }
+    }, 150);
+  });
+}
+
 /** Fetches announcements and re-renders the feed. */
 async function load() {
   const cardsEl    = document.getElementById(CARDS_ID);
@@ -147,7 +224,25 @@ async function load() {
       const fullPages = await Promise.all(
         pages.map(p => fetchPageContent(p.id).catch(() => p))
       );
-      cardsEl.innerHTML = `<div class="post-feed">${fullPages.map(cardHtml).join("")}</div>`;
+      _allCards = fullPages.map(cardHtml);
+      cardsEl.innerHTML = `
+        <div class="post-carousel">
+          <div class="post-feed"></div>
+          <div class="carousel-controls">
+            <button class="carousel-arrow carousel-arrow-prev" aria-label="Previous">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"/>
+              </svg>
+            </button>
+            <div class="carousel-dots"></div>
+            <button class="carousel-arrow carousel-arrow-next" aria-label="Next">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 6 15 12 9 18"/>
+              </svg>
+            </button>
+          </div>
+        </div>`;
+      initCarousel(cardsEl);
     }
 
     setStatus("All systems operational");

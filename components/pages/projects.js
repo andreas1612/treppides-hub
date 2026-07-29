@@ -93,13 +93,12 @@ const CARDS = {
   kyc:          { icon: "kyc",         color: "green",  title: "KYC Management",  desc: "Track KYC file custody, requests &amp; approvals.", external: true },
   valuation:    { icon: "valuation",   color: "purple", title: "Valuation Tool",  desc: "Build auditor-facing valuation reports." },
   tbratio:      { icon: "tbratio",     color: "teal",   title: "TB Ratio Tool",   desc: "Upload a trial balance for P&amp;L, Balance Sheet &amp; ratios." },
-  aml:          { icon: "aml",         color: "amber",  title: "AML Dashboard",   desc: "New, rejected &amp; disengaged client fee tracking." },
   training:     { icon: "training",    color: "indigo", title: "Training Portal (coming soon)", desc: "Induction courses, SCORM modules &amp; completion tracking.", external: true },
 };
 
 const SECTIONS = [
   { label: "Admin",    cards: ["tasks", "roombooking", "teamcalendar", "kyc"] },
-  { label: "Work",     cards: ["valuation", "tbratio", "aml"] },
+  { label: "Work",     cards: ["valuation", "tbratio"] },
   { label: "Learning", cards: ["training"] },
 ];
 
@@ -191,8 +190,7 @@ export default async function init(config) {
 
   // ---- Back button ----
   document.getElementById(BACK_BTN_ID)?.addEventListener("click", () => {
-    hideToolsPage();
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.__hub_router?.navigate("/");
   });
 
   // ---- Card click handlers ----
@@ -206,25 +204,14 @@ export default async function init(config) {
       case "tasks":
         window.open(config.PROJECTS_URL, "_blank", "noopener");
         break;
-      case "aml":
-        hideAllPages();
-        window.__hub_aml?.show();
-        window.scrollTo({ top: 0, behavior: "smooth" });
-        break;
       case "valuation":
-        hideAllPages();
-        window.__hub_valuation?.show();
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        window.__hub_router?.navigate("/tools/valuation");
         break;
       case "tbratio":
-        hideAllPages();
-        window.__hub_tbratio?.show();
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        window.__hub_router?.navigate("/tools/tbratio");
         break;
       case "teamcalendar":
-        hideAllPages();
-        window.__hub_teamcalendar?.show();
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        window.__hub_router?.navigate("/tools/calendar");
         break;
       case "training":
         window.open("https://learn.treppides.com", "_blank", "noopener");

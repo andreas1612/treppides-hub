@@ -1687,9 +1687,7 @@ export default async function init(_config) {
   section.innerHTML = SHELL_HTML;
 
   document.getElementById(BACK_BTN_ID)?.addEventListener("click", () => {
-    hidePage();
-    window.__hub_projects?.show();
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.__hub_router?.navigate("/tools");
   });
 
   wirePrimaryUpload(section);

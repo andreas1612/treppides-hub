@@ -77,6 +77,18 @@ const CARDS = [
              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
            </svg>`,
   },
+  {
+    key: "aml",
+    title: "AML Dashboard",
+    desc: "New, rejected &amp; disengaged client fee tracking.",
+    iconClass: "aml",
+    ready: true,
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+             <line x1="18" y1="20" x2="18" y2="10"/>
+             <line x1="12" y1="20" x2="12" y2="4"/>
+             <line x1="6"  y1="20" x2="6"  y2="14"/>
+           </svg>`,
+  },
 ];
 
 const ARROW_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -145,21 +157,25 @@ export default async function init(_config) {
   // CRM is a top-level sidebar item (SUPER-only), no longer under Tools — its
   // back button returns to the hub home, not the Tools grid.
   document.getElementById(BACK_BTN_ID)?.addEventListener("click", () => {
-    hideCrmPage();
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.__hub_router?.navigate("/");
   });
 
   section.querySelectorAll(".crm-card").forEach(btn => {
     btn.addEventListener("click", () => {
       const key = btn.dataset.crm;
       if (key === "deals") {
-        window.__hub_crm?.hide();
-        window.__hub_companies?.show();
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        window.__hub_router?.navigate("/crm/deals");
         return;
       }
-      // Other lists — wired in Phase 3 once __hub_crmlist exists.
-      if (window.__hub_crmlist) {
+      if (key === "aml") {
+        window.__hub_router?.navigate("/crm/aml");
+        return;
+      }
+      // Leads / Accounts / Contacts — use router path if available
+      const pathMap = { leads: "/crm/leads", accounts_companies: "/crm/accounts-companies", accounts_individuals: "/crm/accounts-individuals", contacts: "/crm/contacts" };
+      if (pathMap[key]) {
+        window.__hub_router?.navigate(pathMap[key]);
+      } else if (window.__hub_crmlist) {
         window.__hub_crm?.hide();
         window.__hub_crmlist.show(key);
         window.scrollTo({ top: 0, behavior: "smooth" });

@@ -652,7 +652,7 @@ function bindFilters(apply) {
 function wireHeader() {
   // Back arrow returns to the CRM landing (Tools → CRM → Deals); refresh re-syncs.
   document.getElementById("companies-home-btn")?.addEventListener("click", () => {
-    hidePage(); window.__hub_crm?.show(); window.scrollTo({ top: 0, behavior: "smooth" });
+    window.__hub_router?.navigate("/crm");
   });
   document.getElementById("companies-refresh-btn")?.addEventListener("click", onRefresh);
   refreshSyncedLabel();
@@ -711,9 +711,7 @@ async function goMain() {
   wireHeader();
   // Forms button → the shared Forms page (Lead + Deal both available).
   document.getElementById("companies-forms-btn")?.addEventListener("click", () => {
-    hidePage();
-    window.__hub_forms?.show();
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.__hub_router?.navigate("/crm/forms");
   });
   document.getElementById("companies-chart-btn")?.addEventListener("click", goChart);
   document.getElementById("companies-calc-btn")?.addEventListener("click", goCalc);

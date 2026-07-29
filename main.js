@@ -5,6 +5,7 @@
 
 import CONFIG            from "./config.js";
 import { initAuth }      from "./js/auth.js";
+import { initRouter }    from "./js/router.js";
 import initSidebar       from "./components/shell/sidebar.js";
 import initSimulator     from "./components/shell/simulator.js";
 import initTopbar        from "./components/shell/topbar.js";
@@ -112,6 +113,10 @@ async function boot() {
     initQuicklinks(CONFIG),
     initFees(CONFIG),
   ]);
+
+  // SPA router — reads current URL and navigates to the right section.
+  // Must run AFTER all components are initialised so window.__hub_* APIs exist.
+  initRouter();
 }
 
 document.addEventListener("DOMContentLoaded", boot);

@@ -146,9 +146,7 @@ function mountFilters(onApply) {
 // The header "Forms" button: every dashboard opens the shared Forms page (both
 // the Lead and Deal forms available) — not individualized per dashboard.
 function onFormsClick() {
-  hidePage();
-  window.__hub_forms?.show();
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  window.__hub_router?.navigate("/crm/forms");
 }
 
 // ---- Main view: table (mirrors the Deals dashboard layout) --------
@@ -173,9 +171,7 @@ function goMain() {
     </div>`;
 
   document.getElementById("crml-back")?.addEventListener("click", () => {
-    hidePage();
-    window.__hub_crm?.show();
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.__hub_router?.navigate("/crm");
   });
   document.getElementById("crml-refresh")?.addEventListener("click", () => loadRows());
   document.getElementById("crml-chart-btn")?.addEventListener("click", () => { goChart(); window.scrollTo({ top: 0, behavior: "smooth" }); });
