@@ -319,10 +319,11 @@ def rebuild_companies(session):
             Task.tid,
             func.count(Task.id),
             func.max(Task.date_updated),
+            func.min(Task.date_created),
         ).where(Task.tid.isnot(None)).group_by(Task.tid)
     ).all()
 
-    for tid, task_count, last_activity in rows:
+    for tid, task_count, last_activity, first_created in rows:
         deals = session.execute(
             select(Task.deal_value, Task.is_lost, Task.name, Task.list_name, Task.space_name, Task.ubos)
             .where(Task.tid == tid)
@@ -363,6 +364,7 @@ def rebuild_companies(session):
             space_names=json.dumps(sorted(spaces)),
             ubos=json.dumps(sorted(ubo_set.values(), key=str.lower)),
             last_activity=last_activity,
+            first_created=first_created,
         ))
 
 

@@ -153,6 +153,13 @@ function fmtDate(ms) {
   try { return new Date(Number(ms)).toISOString().slice(0, 10); } catch { return ""; }
 }
 
+// Human-readable absolute date, e.g. "17 Mar 2026".
+function fmtDateShort(ms) {
+  const n = Number(ms);
+  if (!ms || Number.isNaN(n)) return "—";
+  return new Date(n).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
+
 function relativeTime(ms) {
   const m = Math.round((Date.now() - Number(ms)) / 60000);
   if (m < 1) return "just now";
@@ -1065,6 +1072,7 @@ const COLS = [
   { key: "deal_value",    label: "Total Deal Value", num: true },
   { key: "deal_count",    label: "Deals", num: true },
   { key: "spaces",        label: "Spaces", sortable: false },
+  { key: "date_created",  label: "Created" },
   { key: "last_activity", label: "Last Activity" },
 ];
 
@@ -1114,6 +1122,7 @@ function renderTable(wrap, data) {
         <td class="num ${noDeals ? "muted" : "val"}">${noDeals ? "—" : EUR.format(c.active_deal_value || 0)}</td>
         <td class="num">${c.deal_count || 0}</td>
         <td class="companies-td-spaces">${escapeHtml((c.space_names || []).map(prettySpace).join(", "))}</td>
+        <td class="companies-td-created">${escapeHtml(fmtDateShort(c.date_created))}</td>
         <td>${c.last_activity ? escapeHtml(relativeTime(c.last_activity)) : "—"}</td>
       </tr>`;
   }).join("");

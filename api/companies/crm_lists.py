@@ -95,14 +95,15 @@ CRM_LISTS = {
         "cross_link_deals": True,       # detail shows this company's Deals (by TID)
         "search_fields": ["name", "client_code"],
         "search_placeholder": "Search company, client code or TID-XXXXX…",
+        # UBO(s) and Group are intentionally kept OUT of the table (they're the
+        # widest columns and forced a horizontal scroll) — both remain in the
+        # detail drawer, and Group stays available as a filter.
         "columns": [
             {"key": "name",        "label": "Name",        "source": "name",        "type": "text"},
             {"key": "client_code", "label": "Client Code", "source": "client_code", "type": "text"},
             {"key": "industry",    "label": "Industry",    "source": "industry",    "type": "text"},
             {"key": "country",     "label": "Country",     "source": "country",     "type": "text"},
-            {"key": "ubos",        "label": "UBO(s)",      "source": "ubos",        "type": "chips"},
             {"key": "status",      "label": "Status",      "source": "status",      "type": "status"},
-            {"key": "group_name",  "label": "Group",       "source": "group_name",  "type": "text"},
             {"key": "date_created", "label": "Created",    "source": "date_created", "type": "date"},
         ],
         "filters": [

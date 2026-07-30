@@ -94,6 +94,7 @@ class Company(Base):
     space_names       = Column(Text)                 # JSON array of spaces this company appears in
     ubos              = Column(Text)                  # JSON array of this company's UBO names (union across its tasks)
     last_activity     = Column(Integer)              # max(date_updated)
+    first_created     = Column(Integer)              # min(date_created) — when the company first appeared
 
 
 class SyncState(Base):

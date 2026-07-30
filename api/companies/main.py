@@ -54,7 +54,7 @@ TID_RE = re.compile(r"^\s*TID-\d+\s*$", re.IGNORECASE)
 SEARCH_LIMIT = 50
 DEFAULT_PAGE_SIZE = 50
 MAX_PAGE_SIZE = 200
-SORT_FIELDS = {"deal_value", "name", "deal_count", "last_activity"}
+SORT_FIELDS = {"deal_value", "name", "deal_count", "last_activity", "date_created"}
 
 router = APIRouter(prefix="/api/companies")
 
@@ -332,6 +332,7 @@ def _company_summary(c: Company, totals: dict | None = None) -> dict:
         "currency": "EUR",
         "space_names": json.loads(c.space_names) if c.space_names else [],
         "last_activity": c.last_activity,
+        "date_created": c.first_created,
         "filtered": totals is not None,
     }
 
@@ -550,6 +551,7 @@ def browse_companies(
         "name": lambda s: (s["display_name"] or "").lower(),
         "deal_count": lambda s: s["deal_count"],
         "last_activity": lambda s: s["last_activity"] or 0,
+        "date_created": lambda s: s["date_created"] or 0,
     }
     # name sorts ascending-by-default feel; others default desc. Respect `dir`.
     summaries.sort(key=keymap[sort], reverse=descending)
