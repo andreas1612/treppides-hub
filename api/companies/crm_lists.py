@@ -53,6 +53,7 @@ CRM_LISTS = {
             {"key": "jurisdiction", "label": "Jurisdiction", "source": "jurisdiction", "type": "text"},
             {"key": "status",       "label": "Status",       "source": "status",       "type": "status"},
             {"key": "assignees",    "label": "Assignees",    "source": "assignees",    "type": "chips"},
+            {"key": "date_created", "label": "Created",      "source": "date_created", "type": "date"},
         ],
         "filters": [
             {"key": "status",       "label": "Status",       "source": "status"},
@@ -102,6 +103,7 @@ CRM_LISTS = {
             {"key": "ubos",        "label": "UBO(s)",      "source": "ubos",        "type": "chips"},
             {"key": "status",      "label": "Status",      "source": "status",      "type": "status"},
             {"key": "group_name",  "label": "Group",       "source": "group_name",  "type": "text"},
+            {"key": "date_created", "label": "Created",    "source": "date_created", "type": "date"},
         ],
         "filters": [
             {"key": "status",     "label": "Status",    "source": "status"},
@@ -159,6 +161,7 @@ CRM_LISTS = {
             {"key": "country",     "label": "Country",     "source": "country",     "type": "text"},
             {"key": "status",      "label": "Status",      "source": "status",      "type": "status"},
             {"key": "gender",      "label": "Gender",      "source": "gender",      "type": "text"},
+            {"key": "date_created", "label": "Created",    "source": "date_created", "type": "date"},
         ],
         "filters": [
             {"key": "status",  "label": "Status",  "source": "status"},
@@ -203,6 +206,7 @@ CRM_LISTS = {
             {"key": "email",      "label": "Email",      "source": "email",     "type": "text"},
             {"key": "phone",      "label": "Phone",      "source": "phone",     "type": "text"},
             {"key": "status",     "label": "Status",     "source": "status",    "type": "status"},
+            {"key": "date_created", "label": "Created",  "source": "date_created", "type": "date"},
         ],
         "filters": [
             {"key": "status",    "label": "Status",    "source": "status"},

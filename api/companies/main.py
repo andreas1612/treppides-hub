@@ -786,6 +786,8 @@ def _row_value(t: Task, cf: dict, source: str):
     if source == "tid":        return t.tid
     if source == "assignees":  return json.loads(t.assignees) if t.assignees else []
     if source == "ubos":       return json.loads(t.ubos) if t.ubos else []
+    if source == "date_created": return t.date_created   # Unix ms (frontend formats)
+    if source == "date_updated": return t.date_updated
     if source in crm_lists.PROMOTED_COLUMNS:
         return getattr(t, source)
     return _clean(cf.get(source))
@@ -1014,10 +1016,16 @@ def crm_list_rows(key: str, request: Request,
     sort_key = sort if sort in col_sources else cfg["columns"][0]["key"]
     descending = dir == "desc"
     def sortval(r):
+        # Numeric columns (e.g. date_created, Unix ms) sort chronologically;
+        # everything else sorts case-insensitively as text. None always last.
         v = r.get(sort_key)
         if isinstance(v, list):
             v = ", ".join(str(x) for x in v)
-        return (v is None, str(v).lower() if v is not None else "")
+        if v is None:
+            return (True, 1, 0, "")
+        if isinstance(v, (int, float)):
+            return (False, 0, v, "")
+        return (False, 1, 0, str(v).lower())
     serialized.sort(key=sortval, reverse=descending)
 
     total = len(serialized)
@@ -1081,6 +1089,7 @@ def crm_list_detail(key: str, task_id: str, db: Session = Depends(get_db)):
             "space_name": t.space_name, "list_name": t.list_name,
             "assignees": json.loads(t.assignees) if t.assignees else [],
             "ubos": json.loads(t.ubos) if t.ubos else [],
+            "date_created": t.date_created, "date_updated": t.date_updated,
         },
         "fields": fields,
         "linked_deals": linked_deals,

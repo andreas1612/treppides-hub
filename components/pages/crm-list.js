@@ -30,6 +30,21 @@ const EUR = new Intl.NumberFormat("en-IE", { style: "currency", currency: "EUR",
 // KPI chart palette (one hue per bar-chart card, cycled).
 const KPI_COLORS = ["#4A90D9", "#48BB78", "#9F7AEA", "#ED8936", "#38B2AC", "#E53E3E"];
 
+// A record created within this many days is flagged "New" in the Created column.
+const NEW_WITHIN_DAYS = 14;
+
+// Format a Unix-ms timestamp as "15 Jul 2026"; flag recent records as New.
+function fmtDateCell(ms) {
+  const n = Number(ms);
+  if (!ms || Number.isNaN(n)) return `<span class="crml-null">—</span>`;
+  const d = new Date(n);
+  const label = d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  const ageDays = (Date.now() - n) / 86400000;
+  const isNew = ageDays >= 0 && ageDays < NEW_WITHIN_DAYS;
+  const badge = isNew ? ` <span class="crml-new" title="Created in the last ${NEW_WITHIN_DAYS} days">New</span>` : "";
+  return `<span class="crml-date" title="${escapeHtml(d.toISOString().slice(0, 10))}">${escapeHtml(label)}</span>${badge}`;
+}
+
 // ---- State --------------------------------------------------------
 let _registry = null;                 // {key: cfg} from /lists
 let _key = null;
@@ -314,6 +329,7 @@ function renderCell(col, row) {
     const more = arr.length > MAX ? `<span class="crml-chip-more">+${arr.length - MAX}</span>` : "";
     return shown + more;
   }
+  if (col.type === "date") return fmtDateCell(val);
   if (val === null || val === undefined || val === "") return `<span class="crml-null">—</span>`;
   return escapeHtml(String(val));
 }
@@ -463,6 +479,7 @@ function renderDetail(holder, det) {
             ${t.tid ? `<span class="companies-meta-item">${escapeHtml(t.tid)}</span>` : ""}
           </div>
           <div class="companies-task-meta">
+            ${t.date_created ? `<span class="companies-meta-item">Created ${fmtDateCell(t.date_created)}</span>` : ""}
             ${openLink}
             ${editBtn}
           </div>
