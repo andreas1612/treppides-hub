@@ -467,7 +467,7 @@ function renderTable(data, upTo) {
     const isExpanded = drill && expandedMonth === m.month;
     const hasFees = (m.auditFees || 0) !== 0 || (m.taxFees || 0) !== 0;
     const feeDetail = hasFees
-      ? `<div class="kpi-fee-detail">eSoft: &euro;${fmt(m.esoftInvoiced || 0)}${m.auditFees ? ` + Audit: &euro;${fmt(m.auditFees)}` : ''}${m.taxFees ? ` + Tax: &euro;${fmt(m.taxFees)}` : ''}</div>`
+      ? `<div class="kpi-fee-detail">eSoft: &euro;${fmt(m.esoftInvoiced || 0)}${m.auditFees ? ` + Audit: &euro;${fmt(m.auditFees)}` : ''}${m.taxFees ? ` + Other Fees: &euro;${fmt(m.taxFees)}` : ''}</div>`
       : '';
     let html = `
       <tr class="${rowClass} ${drill ? "kpi-row-clickable" : ""} ${isExpanded ? 'kpi-row-expanded' : ''}" data-month="${m.month}">
@@ -690,7 +690,11 @@ function renderFeePanel(entries, mgrList, defaultCode) {
           <label>Type</label>
           <select id="fee-type">
             <option value="AUDIT">Audit</option>
+            <option value="FCR">FCR</option>
+            <option value="FRA">FRA</option>
+            <option value="ICAS">ICAS</option>
             <option value="TAX">Tax</option>
+            <option value="VAT">VAT</option>
           </select>
         </div>
         <div class="fee-field">
