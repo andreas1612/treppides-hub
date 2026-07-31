@@ -42,8 +42,10 @@ let selectedInvoiceCode = null;
 let selectedManagerName = null;
 let expandedMonth = null;       // month number whose detail row is open
 let invoiceDetailCache = {};    // { year: [ ...rows ] }
-// STANDARD tier: self-view only (own /me budget, no manager dropdown, no drill / fee tools).
-let selfMode = false;
+// View modes: 'admin' (FULL/SUPER), 'supervisor' (SUPERVISOR), 'self' (STANDARD).
+let viewMode = 'self';
+let feeManagers = [];       // manager list for supervisor fee panel (from /fee-managers)
+let feeViewCode = null;     // which manager's fees the supervisor is currently viewing
 
 // ---- Init ---------------------------------------------------
 
@@ -79,12 +81,25 @@ export default async function init() {
 
   buildPeriodBar();
 
-  // Tier: FULL sees the manager dropdown (view anyone); STANDARD sees only their own budget.
-  // FULL and SUPER get the admin "view anyone" dropdown; STANDARD gets self-view only.
-  selfMode = !["FULL", "SUPER"].includes(getCurrentUser()?.tier);
-  if (selfMode) {
+  // Resolve view mode from tier.
+  const tier = getCurrentUser()?.tier;
+  if (tier === 'FULL' || tier === 'SUPER') {
+    viewMode = 'admin';
+  } else if (tier === 'SUPERVISOR') {
+    viewMode = 'supervisor';
+  } else {
+    viewMode = 'self';
+  }
+
+  if (viewMode === 'self') {
     document.getElementById("kpi-manager-select")?.remove();
     loadSelf();
+    return;
+  }
+
+  if (viewMode === 'supervisor') {
+    document.getElementById("kpi-manager-select")?.remove();
+    await loadSelfWithDrill();
     return;
   }
 
@@ -136,6 +151,57 @@ async function loadSelf() {
   // Self view is read-only: no invoice drill-down, no fee-adjustment tools.
 }
 
+// ---- Supervisor view (self budget + drill + fee panel) ------
+
+async function loadSelfWithDrill() {
+  const me = getCurrentUser();
+  if (me && me.hasBudgetData === false) {
+    showNotApplicable();
+    await loadSupervisorFees();
+    return;
+  }
+
+  setSummaryLoading();
+  clearTable();
+
+  let data;
+  try {
+    data = await apiFetch(`/api/reports/budget-kpi/me?year=${currentYear}`);
+  } catch (err) {
+    const msg = err.message || "";
+    if (msg.includes("No budget") || msg === "NOT_FOUND" || msg === "FORBIDDEN") {
+      showNotApplicable();
+    } else {
+      setSummaryError(msg);
+    }
+    await loadSupervisorFees();
+    return;
+  }
+
+  cachedData = data;
+  cachedYear = currentYear;
+  selectedInvoiceCode = data.invoiceCode;
+  selectedManagerName = data.managerName;
+  renderFromCache();
+  await loadSupervisorFees();
+}
+
+async function loadSupervisorFees() {
+  try {
+    feeManagers = await apiFetch(`/api/reports/budget-kpi/fee-managers?year=${currentYear}`);
+  } catch { feeManagers = []; }
+
+  feeViewCode = selectedInvoiceCode || (feeManagers.length > 0 ? feeManagers[0].invoice_code : null);
+  if (!feeViewCode) return;
+
+  let entries = [];
+  try {
+    entries = await apiFetch(`/api/reports/budget-kpi/fee-adjustments/${feeViewCode}?year=${currentYear}`);
+  } catch { /* InvoiceAllocation DB may be unavailable */ }
+
+  renderFeePanel(entries, feeManagers, feeViewCode);
+}
+
 function showNotApplicable() {
   const summary = document.getElementById("kpi-summary-section");
   if (summary) summary.innerHTML = `<div class="perf-exempt">The Budget KPI report isn't applicable to your role.</div>`;
@@ -185,16 +251,19 @@ function buildPeriodBar() {
       buildPeriodBar();
       updateSubtitle();
 
-      if (selfMode) {
+      if (viewMode === 'self') {
         if (yearChanged) {
-          cachedData = null;
-          cachedYear = null;
-          expandedMonth = null;
-          invoiceDetailCache = {};
+          cachedData = null; cachedYear = null; expandedMonth = null; invoiceDetailCache = {};
           loadSelf();
-        } else if (cachedData) {
-          renderFromCache();
-        }
+        } else if (cachedData) { renderFromCache(); }
+        return;
+      }
+
+      if (viewMode === 'supervisor') {
+        if (yearChanged) {
+          cachedData = null; cachedYear = null; expandedMonth = null; invoiceDetailCache = {};
+          loadSelfWithDrill();
+        } else if (cachedData) { renderFromCache(); }
         return;
       }
 
@@ -385,8 +454,8 @@ function renderTable(data, upTo) {
   const section = document.getElementById("kpi-table-section");
   if (!section) return;
 
-  // FULL can drill into a month's invoices (admin endpoint); STANDARD gets a read-only table.
-  const drill = !selfMode;
+  // FULL/SUPER/SUPERVISOR can drill into a month's invoices; STANDARD gets a read-only table.
+  const drill = viewMode !== 'self';
 
   const months = (data.months || []).filter(m => m.month <= upTo);
   const now = new Date();
@@ -438,7 +507,7 @@ function renderTable(data, upTo) {
       </table>
     </div>`;
 
-  // Attach click handlers (FULL only — self view is read-only)
+  // Attach click handlers (admin + supervisor — self view is read-only)
   if (drill) {
     section.querySelectorAll('.kpi-row-clickable').forEach(tr => {
       tr.addEventListener('click', () => {
@@ -520,10 +589,14 @@ async function ensureInvoiceDetails(year) {
   if (invoiceDetailCache[cacheKey]) return;
   if (!selectedInvoiceCode) return;
 
+  // Supervisor uses the self-scoped endpoint (server resolves own invoice code).
+  const url = viewMode === 'supervisor'
+    ? `/api/reports/budget-kpi/me/invoice-details?year=${year}`
+    : `/api/reports/budget-kpi/invoice-details/${selectedInvoiceCode}?year=${year}`;
+
   try {
-    const data = await apiFetch(`/api/reports/budget-kpi/invoice-details/${selectedInvoiceCode}?year=${year}`);
+    const data = await apiFetch(url);
     invoiceDetailCache[cacheKey] = data;
-    // Re-render to replace "Loading..."
     if (cachedData) renderFromCache();
   } catch (err) {
     invoiceDetailCache[cacheKey] = [];
@@ -577,9 +650,12 @@ async function loadFeeEntries() {
   renderFeePanel(entries);
 }
 
-function renderFeePanel(entries) {
+function renderFeePanel(entries, mgrList, defaultCode) {
   const section = document.getElementById("kpi-fee-section");
   if (!section) return;
+
+  if (!mgrList) mgrList = managers;
+  if (!defaultCode) defaultCode = selectedInvoiceCode;
 
   const entryRows = entries.map(e => {
     const amtClass = e.amount >= 0 ? 'fee-pos' : 'fee-neg';
@@ -602,10 +678,10 @@ function renderFeePanel(entries) {
     <div class="fee-form-card">
       <div class="fee-form-grid">
         <div class="fee-field fee-field-manager">
-          <label>Target Manager</label>
+          <label>${viewMode === 'supervisor' ? 'Manager' : 'Target Manager'}</label>
           <select id="fee-manager">
-            ${managers.map(m => {
-              const sel = m.invoice_code === selectedInvoiceCode ? 'selected' : '';
+            ${mgrList.map(m => {
+              const sel = m.invoice_code === defaultCode ? 'selected' : '';
               return `<option value="${escapeHtml(m.invoice_code)}" data-name="${escapeHtml(m.manager_name)}" ${sel}>${escapeHtml(m.manager_name)}</option>`;
             }).join('')}
           </select>
@@ -663,6 +739,19 @@ function renderFeePanel(entries) {
   section.querySelectorAll(".fee-delete-btn").forEach(btn => {
     btn.addEventListener("click", () => deleteFeeEntry(parseInt(btn.dataset.id)));
   });
+
+  // Supervisor: changing the manager reloads fee entries for that manager.
+  if (viewMode === 'supervisor') {
+    document.getElementById("fee-manager")?.addEventListener("change", async (e) => {
+      feeViewCode = e.target.value;
+      if (!feeViewCode) return;
+      let newEntries = [];
+      try {
+        newEntries = await apiFetch(`/api/reports/budget-kpi/fee-adjustments/${feeViewCode}?year=${currentYear}`);
+      } catch { /* InvoiceAllocation DB may be unavailable */ }
+      renderFeePanel(newEntries, feeManagers, feeViewCode);
+    });
+  }
 }
 
 async function addFeeEntry() {
@@ -688,9 +777,25 @@ async function addFeeEntry() {
         monthNum, year, amount, entityName, country
       })
     });
-    cachedData = null;
-    cachedYear = null;
-    await loadAndRender();
+
+    if (viewMode === 'supervisor') {
+      // Refresh fee entries for the currently viewed manager.
+      let entries = [];
+      try { entries = await apiFetch(`/api/reports/budget-kpi/fee-adjustments/${feeViewCode}?year=${currentYear}`); } catch {}
+      renderFeePanel(entries, feeManagers, feeViewCode);
+      // If the fee touched the supervisor's own code, refresh the budget card.
+      if (invoiceCode === selectedInvoiceCode) {
+        cachedData = null; cachedYear = null;
+        try {
+          const data = await apiFetch(`/api/reports/budget-kpi/me?year=${currentYear}`);
+          cachedData = data; cachedYear = currentYear;
+          renderFromCache();
+        } catch {}
+      }
+    } else {
+      cachedData = null; cachedYear = null;
+      await loadAndRender();
+    }
   } catch (err) {
     console.error("Failed to add fee adjustment:", err);
   }
@@ -703,9 +808,23 @@ async function deleteFeeEntry(id) {
       credentials: "include",
       headers: { "X-Requested-With": "XMLHttpRequest" }
     });
-    cachedData = null;
-    cachedYear = null;
-    await loadAndRender();
+
+    if (viewMode === 'supervisor') {
+      let entries = [];
+      try { entries = await apiFetch(`/api/reports/budget-kpi/fee-adjustments/${feeViewCode}?year=${currentYear}`); } catch {}
+      renderFeePanel(entries, feeManagers, feeViewCode);
+      if (feeViewCode === selectedInvoiceCode) {
+        cachedData = null; cachedYear = null;
+        try {
+          const data = await apiFetch(`/api/reports/budget-kpi/me?year=${currentYear}`);
+          cachedData = data; cachedYear = currentYear;
+          renderFromCache();
+        } catch {}
+      }
+    } else {
+      cachedData = null; cachedYear = null;
+      await loadAndRender();
+    }
   } catch (err) {
     console.error("Failed to delete fee adjustment:", err);
   }
