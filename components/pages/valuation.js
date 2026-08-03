@@ -59,7 +59,7 @@ let _vendorPromise = null;
 function loadVendor() {
   if (_vendorPromise) return _vendorPromise;
   _vendorPromise = Promise.all(VENDOR_SCRIPTS.map(src => new Promise((ok, fail) => {
-    if ([...document.scripts].some(s => s.src === src)) return ok();
+    if ([...document.scripts].some(s => s.src.endsWith(src))) return ok();
     const tag = document.createElement("script");
     tag.src = src;
     tag.onload = ok;
