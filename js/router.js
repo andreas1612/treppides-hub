@@ -122,4 +122,7 @@ export function initRouter() {
     // Replace state so popstate has data
     history.replaceState({ path }, "", path);
   }
+
+  // Remove the pre-render guard (see inline <script> in index.html)
+  document.documentElement.classList.remove("route-loading");
 }
