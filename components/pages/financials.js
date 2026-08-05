@@ -11,7 +11,7 @@
 // ============================================================
 
 import { escapeHtml } from "../../utils/dom.js";
-import { TM_BASE } from "../../js/auth.js";
+import { TM_BASE, getCurrentUser } from "../../js/auth.js";
 
 const SECTION_ID = "section-financials";
 const PROVISIONAL = new Set(["recoverability", "debtors"]);
@@ -95,6 +95,12 @@ async function drawChart(canvasId, config) {
 export default async function init() {
   const section = document.getElementById(SECTION_ID);
   if (!section) return;
+
+  // Financials is SUPER-tier only — redirect others to home.
+  if (!getCurrentUser()?.features?.includes("financials")) {
+    window.__hub_router?.navigate("/");
+    return;
+  }
 
   section.innerHTML = `
     <div class="fin-page">
