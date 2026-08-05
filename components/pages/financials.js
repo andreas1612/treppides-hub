@@ -45,7 +45,8 @@ function hidePage() {
   document.querySelector(".main")?.classList.remove("financials-active");
 }
 
-window.__hub_financials = { show: showPage, hide: hidePage };
+// Registered in init() after tier check — no-op for non-SUPER users.
+window.__hub_financials = { show: () => {}, hide: () => {} };
 
 // ---- Chart.js (lazy-loaded; bundled at /vendor) -------------
 
@@ -101,6 +102,8 @@ export default async function init() {
     window.__hub_router?.navigate("/");
     return;
   }
+
+  window.__hub_financials = { show: showPage, hide: hidePage };
 
   section.innerHTML = `
     <div class="fin-page">
