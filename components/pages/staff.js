@@ -289,7 +289,7 @@ export default async function init(_config) {
   try {
     const resp = await fetch(`${STAFF_API}/api/staff`);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    _allStaff = await resp.json();
+    _allStaff = (await resp.json()).filter(s => s.department !== "Unmapped");
     _depts    = [...new Set(_allStaff.map(s => s.department))].sort();
   } catch (err) {
     console.error("[Hub] staff fetch error:", err);

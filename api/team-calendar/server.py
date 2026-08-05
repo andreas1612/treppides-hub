@@ -103,6 +103,7 @@ DIRECTOR_OVERRIDES = {
         {"teamKey": "ICAS / Assurance & Risk Advisory", "filter": None},
         {"teamKey": "ICAS / Internal Audit",            "filter": None},
         {"teamKey": "ICAS / Compliance",                "filter": ["director", "manager"]},
+        {"teamKey": "ICAS / Compliance",                "emails": ["ikoutsonikola@treppides.com"]},
         {"teamKey": "ICAS / Licensing",                 "filter": ["principal", "manager"]},
         {"teamKey": "Technology",                       "filter": None},
     ],
@@ -123,6 +124,50 @@ DIRECTOR_OVERRIDES = {
             "ekasieri@treppides.com",
         ]},
         {"teamKey": "ICAS / Compliance",                "filter": ["manager"]},
+        {"teamKey": "ICAS / Compliance",                "emails": ["ikoutsonikola@treppides.com"]},
+    ],
+    # ── ICAS supervisor+ seniors — see their own team + the other 9 seniors ──
+    "etheodorou@treppides.com": [
+        {"teamKey": "ICAS / Assurance & Risk Advisory", "filter": None},
+        {"teamKey": "ICAS / Compliance",                "emails": ["ibeiti@treppides.com", "ikoutsonikola@treppides.com"]},
+        {"teamKey": "ICAS / Internal Audit",            "emails": ["skaramouzas@treppides.com", "aeleftheriou@treppides.com"]},
+        {"teamKey": "ICAS / Licensing",                 "emails": ["cchrysanthou@treppides.com"]},
+    ],
+    "ekasieri@treppides.com": [
+        {"teamKey": "ICAS / Assurance & Risk Advisory", "filter": None},
+        {"teamKey": "ICAS / Compliance",                "emails": ["ibeiti@treppides.com", "ikoutsonikola@treppides.com"]},
+        {"teamKey": "ICAS / Internal Audit",            "emails": ["skaramouzas@treppides.com", "aeleftheriou@treppides.com"]},
+        {"teamKey": "ICAS / Licensing",                 "emails": ["cchrysanthou@treppides.com"]},
+    ],
+    "ibeiti@treppides.com": [
+        {"teamKey": "ICAS / Compliance",                "filter": None},
+        {"teamKey": "ICAS / Assurance & Risk Advisory", "emails": ["etheodorou@treppides.com", "ekasieri@treppides.com"]},
+        {"teamKey": "ICAS / Internal Audit",            "emails": ["skaramouzas@treppides.com", "aeleftheriou@treppides.com"]},
+        {"teamKey": "ICAS / Licensing",                 "emails": ["cchrysanthou@treppides.com"]},
+    ],
+    "ikoutsonikola@treppides.com": [
+        {"teamKey": "ICAS / Compliance",                "filter": None},
+        {"teamKey": "ICAS / Assurance & Risk Advisory", "emails": ["syiannaki@treppides.com", "etheodorou@treppides.com", "ekasieri@treppides.com"]},
+        {"teamKey": "ICAS / Internal Audit",            "emails": ["skaramouzas@treppides.com", "aeleftheriou@treppides.com"]},
+        {"teamKey": "ICAS / Licensing",                 "emails": ["cacheriotou@treppides.com", "cchrysanthou@treppides.com"]},
+    ],
+    "skaramouzas@treppides.com": [
+        {"teamKey": "ICAS / Internal Audit",            "filter": None},
+        {"teamKey": "ICAS / Assurance & Risk Advisory", "emails": ["etheodorou@treppides.com", "ekasieri@treppides.com"]},
+        {"teamKey": "ICAS / Compliance",                "emails": ["ibeiti@treppides.com", "ikoutsonikola@treppides.com"]},
+        {"teamKey": "ICAS / Licensing",                 "emails": ["cchrysanthou@treppides.com"]},
+    ],
+    "aeleftheriou@treppides.com": [
+        {"teamKey": "ICAS / Internal Audit",            "filter": None},
+        {"teamKey": "ICAS / Assurance & Risk Advisory", "emails": ["etheodorou@treppides.com", "ekasieri@treppides.com"]},
+        {"teamKey": "ICAS / Compliance",                "emails": ["ibeiti@treppides.com", "ikoutsonikola@treppides.com"]},
+        {"teamKey": "ICAS / Licensing",                 "emails": ["cchrysanthou@treppides.com"]},
+    ],
+    "cchrysanthou@treppides.com": [
+        {"teamKey": "ICAS / Licensing",                 "filter": None},
+        {"teamKey": "ICAS / Assurance & Risk Advisory", "emails": ["etheodorou@treppides.com", "ekasieri@treppides.com"]},
+        {"teamKey": "ICAS / Internal Audit",            "emails": ["skaramouzas@treppides.com", "aeleftheriou@treppides.com"]},
+        {"teamKey": "ICAS / Compliance",                "emails": ["ibeiti@treppides.com", "ikoutsonikola@treppides.com"]},
     ],
 }
 
@@ -210,6 +255,7 @@ def resolve_team(email: str) -> tuple[list[dict], str]:
         for d in _directors_overseeing(email, all_staff, by_email):
             if d["email"] not in seen:
                 members.append(d)
+                seen.add(d["email"])
         members.sort(key=lambda m: (m["teamKey"], m["name"]))
         depts = sorted(set(m["department"] for m in members))
         return members, "multi" if len(depts) > 1 else "single"
