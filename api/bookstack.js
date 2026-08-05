@@ -14,11 +14,9 @@ function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-/** Shared auth header value, built from config constants. */
-function authHeader() {
-  // TODO: replace before deploy — token credentials come from config.js
-  return `Token ${CONFIG.API_TOKEN_ID}:${CONFIG.API_TOKEN_SECRET}`;
-}
+// BookStack API proxy base paths — token is injected server-side by nginx.
+const KB_API_BASE    = "/api/kb";
+const KB_ATTACH_BASE = "/api/kb-attach";
 
 /**
  * Fetches the most-recently-updated pages from a specific BookStack book.
@@ -44,17 +42,14 @@ export async function fetchPages(bookId, count = 3) {
   }
 
   const url =
-    `${CONFIG.BASE_URL}/api/pages` +
+    `${KB_API_BASE}/pages` +
     `?filter[book_id]=${bookId}` +
     `&sort=-updated_at` +
     `&count=${count}`;
 
   const response = await fetch(url, {
-    credentials: "omit",
-    headers: {
-      Authorization: authHeader(),
-      "Content-Type": "application/json",
-    },
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
   });
 
   if (!response.ok) {
@@ -75,14 +70,11 @@ export async function fetchPages(bookId, count = 3) {
  * @returns {Promise<Array>} Array of book objects with id, name, slug, description.
  */
 export async function fetchShelfBooks(shelfId) {
-  const url = `${CONFIG.BASE_URL}/api/shelves/${shelfId}`;
+  const url = `${KB_API_BASE}/shelves/${shelfId}`;
 
   const response = await fetch(url, {
-    credentials: "omit",
-    headers: {
-      Authorization: authHeader(),
-      "Content-Type": "application/json",
-    },
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
   });
 
   if (!response.ok) {
@@ -102,14 +94,11 @@ export async function fetchShelfBooks(shelfId) {
  * @returns {Promise<Object>} Full book object including contents array.
  */
 export async function fetchBook(bookId) {
-  const url = `${CONFIG.BASE_URL}/api/books/${bookId}`;
+  const url = `${KB_API_BASE}/books/${bookId}`;
 
   const response = await fetch(url, {
-    credentials: "omit",
-    headers: {
-      Authorization: authHeader(),
-      "Content-Type": "application/json",
-    },
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
   });
 
   if (!response.ok) {
@@ -128,14 +117,11 @@ export async function fetchBook(bookId) {
  * @returns {Promise<Object>} Full chapter object including pages array.
  */
 export async function fetchChapter(chapterId) {
-  const url = `${CONFIG.BASE_URL}/api/chapters/${chapterId}`;
+  const url = `${KB_API_BASE}/chapters/${chapterId}`;
 
   const response = await fetch(url, {
-    credentials: "omit",
-    headers: {
-      Authorization: authHeader(),
-      "Content-Type": "application/json",
-    },
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
   });
 
   if (!response.ok) {
@@ -154,14 +140,11 @@ export async function fetchChapter(chapterId) {
  * @returns {Promise<Object>} Full page object with .html field.
  */
 export async function fetchPageContent(pageId) {
-  const url = `${CONFIG.BASE_URL}/api/pages/${pageId}`;
+  const url = `${KB_API_BASE}/pages/${pageId}`;
 
   const response = await fetch(url, {
-    credentials: "omit",
-    headers: {
-      Authorization: authHeader(),
-      "Content-Type": "application/json",
-    },
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
   });
 
   if (!response.ok) {
@@ -194,16 +177,13 @@ export async function searchPages(query) {
   }
 
   const url =
-    `${CONFIG.BASE_URL}/api/search` +
+    `${KB_API_BASE}/search` +
     `?query=${encodeURIComponent(query)}` +
     `&count=10`;
 
   const response = await fetch(url, {
-    credentials: "omit",
-    headers: {
-      Authorization: authHeader(),
-      "Content-Type": "application/json",
-    },
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
   });
 
   if (!response.ok) {
@@ -224,16 +204,13 @@ export async function searchPages(query) {
  */
 export async function fetchAttachments(pageId) {
   const url =
-    `${CONFIG.BASE_URL}/api/attachments` +
+    `${KB_API_BASE}/attachments` +
     `?filter[uploaded_to]=${pageId}` +
     `&count=50`;
 
   const response = await fetch(url, {
-    credentials: "omit",
-    headers: {
-      Authorization: authHeader(),
-      "Content-Type": "application/json",
-    },
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
   });
 
   if (!response.ok) {
@@ -256,15 +233,12 @@ export async function fetchAttachments(pageId) {
  * @returns {Promise<Object>} The newly created page object from BookStack.
  */
 export async function createPage(bookId, title, htmlContent) {
-  const url = `${CONFIG.BASE_URL}/api/pages`;
+  const url = `${KB_API_BASE}/pages`;
 
   const response = await fetch(url, {
     method: "POST",
-    credentials: "omit",
-    headers: {
-      Authorization: authHeader(),
-      "Content-Type": "application/json",
-    },
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ book_id: bookId, name: title, html: htmlContent }),
   });
 
@@ -285,10 +259,9 @@ export async function createPage(bookId, title, htmlContent) {
  * @returns {Promise<void>}
  */
 export async function deletePage(pageId) {
-  const response = await fetch(`${CONFIG.BASE_URL}/api/pages/${pageId}`, {
+  const response = await fetch(`${KB_API_BASE}/pages/${pageId}`, {
     method: "DELETE",
-    credentials: "omit",
-    headers: { Authorization: authHeader() },
+    credentials: "include",
   });
   if (!response.ok) {
     throw new Error(`BookStack API error: HTTP ${response.status} ${response.statusText}`);
@@ -311,10 +284,9 @@ export async function uploadAttachment(pageId, name, file) {
   form.append("name", name);
   form.append("file", file);
 
-  const response = await fetch(`${CONFIG.BASE_URL}/api/attachments`, {
+  const response = await fetch(`${KB_API_BASE}/attachments`, {
     method: "POST",
-    credentials: "omit",
-    headers: { Authorization: authHeader() },
+    credentials: "include",
     // Do NOT set Content-Type — browser sets it with the correct boundary for FormData
     body: form,
   });
@@ -334,11 +306,10 @@ export async function uploadAttachment(pageId, name, file) {
  * @returns {Promise<string>} An object URL (blob:) safe to use as an iframe src.
  */
 export async function fetchAttachmentBlob(attachmentId, mimeType) {
-  const url = `${CONFIG.BASE_URL}/attachments/${attachmentId}`;
+  const url = `${KB_ATTACH_BASE}/${attachmentId}`;
 
   const response = await fetch(url, {
-    credentials: "omit",
-    headers: { Authorization: authHeader() },
+    credentials: "include",
   });
 
   if (!response.ok) {

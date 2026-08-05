@@ -36,7 +36,7 @@
   <!-- Prevent flash of home-page content when reloading a non-home route.
        Runs synchronously before first paint; router.js removes the class. -->
   <style>.route-loading .page-content{display:none!important}</style>
-  <script>if(location.pathname!=="/")document.documentElement.classList.add("route-loading")</script>
+  <script src="js/route-guard.js"></script>
 </head>
 
 <body>

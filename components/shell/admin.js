@@ -10,6 +10,7 @@
 import CONFIG from "../../config.js";
 import { createPage, deletePage, fetchPages } from "../../api/bookstack.js";
 import { escapeHtml } from "../../utils/dom.js";
+import { getCurrentUser } from "../../js/auth.js";
 
 // ---- Helpers --------------------------------------------------
 
@@ -258,6 +259,9 @@ function buildAdminButton() {
 // ---- Main init ------------------------------------------------
 
 export default function init(config) {
+  // Admin panel is SUPER-tier only — don't render anything for other tiers.
+  if (getCurrentUser()?.tier !== "SUPER") return;
+
   const sections = [
     { label: "Announcements",          bookId: config.ANNOUNCEMENTS_BOOK_ID },
     { label: "Policies & Procedures",  bookId: config.POLICIES_BOOK_ID      },
