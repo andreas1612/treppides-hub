@@ -128,6 +128,7 @@ function cardHtml(page) {
 let _allCards = [];   // full list of rendered card HTML strings
 let _page = 0;        // current page index
 let _perPage = 3;     // cards per page (recalculated on render)
+let _ro = null;       // ResizeObserver on the feed (recalcs perPage on width change)
 
 /** How many cards fit in one grid row at the current container width. */
 function calcPerPage(feedEl) {
@@ -185,11 +186,20 @@ function initCarousel(container) {
     renderPage(container);
   });
 
-  // Recalculate on resize
+  // Recalculate whenever the feed's width changes. A ResizeObserver (not a
+  // window "resize" listener) is used deliberately: when the hub loads on a
+  // non-home route, the home .page-content is display:none, so at init
+  // feed.clientWidth is 0 and calcPerPage() is forced to 1 — the cards render
+  // one-per-page. Navigating home makes the feed visible; ResizeObserver fires
+  // on that hidden→visible transition (a window resize never does), letting us
+  // recompute perPage and re-render into the correct grouped form. This also
+  // covers ordinary viewport resizes.
+  _ro?.disconnect();
   let resizeTimer;
-  window.addEventListener("resize", () => {
+  _ro = new ResizeObserver(() => {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
+      if (!feed.clientWidth) return;   // still hidden — wait for a real width
       const newPer = calcPerPage(feed);
       if (newPer !== _perPage) {
         _perPage = newPer;
@@ -198,6 +208,7 @@ function initCarousel(container) {
       }
     }, 150);
   });
+  _ro.observe(feed);
 }
 
 /** Fetches announcements and re-renders the feed. */
