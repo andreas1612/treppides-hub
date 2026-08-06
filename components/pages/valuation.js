@@ -1124,6 +1124,11 @@ function bootValuation() {
     // 'Tax due' / 'Net profit before tax' (mirrors Excel's L27/L25 fallback path).
     let lastProjections = null;
     let _importing = false;  // suppresses recalculation during snapshot import
+    // Last computed inputs to the Valuation Summary / Range slider. Captured in
+    // the JSON snapshot so the range slider (which is a pure visual, not part of
+    // the restored output tables) can be redrawn on import from the audit values
+    // rather than left at its empty boot state (0…1M).
+    let lastSummaryRange = null;
 
     // --- Override state for P&L and CF projection tables ---
     // When active, the respective table renders editable inputs instead of
@@ -2121,6 +2126,9 @@ function bootValuation() {
     };
 
     const renderValuationSummaryAndRange = (baseEv, s1Ev, s2Ev, baseYear) => {
+        // Remember the inputs so an imported snapshot can redraw the range
+        // slider without a full recompute (see applySnapshot).
+        lastSummaryRange = { s1Ev, s2Ev, baseYear };
         const getInputVal = (id) => parseFloat(document.getElementById(id)?.value) || 0;
         const totalCash = getInputVal('totalCash');
         const totalDebt = getInputVal('totalDebt');
@@ -3279,6 +3287,7 @@ function bootValuation() {
             coverImageDataUrl,
             referenceDataState: JSON.parse(JSON.stringify(referenceDataState)),
             outputs: captureOutputs(),
+            summaryRange: lastSummaryRange ? { ...lastSummaryRange } : null,
             overrides: {
                 plOverrideActive,
                 cfOverrideActive,
@@ -3411,17 +3420,39 @@ function bootValuation() {
         // exact point-in-time state. This is the audit-trail guarantee:
         // re-importing yesterday's snapshot shows yesterday's numbers,
         // even if Damodaran data has changed since.
+
+        // Redraw the Equity Valuation Range slider from the snapshot's audit
+        // values. The slider is a pure visual derived from s1Ev/s2Ev and the
+        // (already-restored) cash/debt/currency inputs — it isn't part of the
+        // captured output tables, so without this it stays at its empty boot
+        // state (0…1M). This runs BEFORE the output restore below so the
+        // summary tables it also touches get overwritten with the exact audit
+        // HTML, keeping the point-in-time guarantee. Older snapshots without
+        // summaryRange simply skip the redraw (no regression).
+        if (snapshot.summaryRange && typeof renderValuationSummaryAndRange === 'function') {
+            const { s1Ev, s2Ev, baseYear } = snapshot.summaryRange;
+            renderValuationSummaryAndRange(null, s1Ev, s2Ev, baseYear);
+        }
+
         if (snapshot.outputs) {
-            // Sanitize imported HTML to prevent XSS from crafted snapshots
+            // Sanitize imported HTML to prevent XSS from crafted snapshots.
+            // NOTE: the captured HTML is a <tbody>'s innerHTML — i.e. bare
+            // <tr>/<td> rows. Parsing that with DOMParser (a document/body
+            // context) makes the HTML5 parser discard every stray table tag
+            // and keep only the text, collapsing each row into a run of
+            // concatenated numbers. A <template> parses in table-fragment
+            // context, so the row/cell structure survives. See the assignment
+            // below (el.innerHTML on a real <tbody>) which also relies on it.
             const sanitizeSnapshotHtml = (raw) => {
-                const doc = new DOMParser().parseFromString(raw, "text/html");
-                doc.querySelectorAll("script, style").forEach(n => n.remove());
-                doc.body.querySelectorAll("*").forEach(n => {
+                const tpl = document.createElement("template");
+                tpl.innerHTML = raw;
+                tpl.content.querySelectorAll("script, style").forEach(n => n.remove());
+                tpl.content.querySelectorAll("*").forEach(n => {
                     for (const a of [...n.attributes]) {
                         if (a.name.toLowerCase().startsWith("on")) n.removeAttribute(a.name);
                     }
                 });
-                return doc.body.innerHTML;
+                return tpl.innerHTML;
             };
             Object.entries(snapshot.outputs.tables || {}).forEach(([id, html]) => {
                 const el = document.getElementById(id);
