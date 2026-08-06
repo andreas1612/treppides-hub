@@ -191,7 +191,7 @@ export default async function init(config) {
 
   // Reports section is gated by the user's feature set from /api/me (RoleService tier):
   // SUPER sees Performance / Budget KPI / Financials for everyone (label "Admin");
-  // FULL sees Performance / Budget KPI for everyone, NO Financials (label "Admin");
+  // FULL sees Performance / Budget KPI / Financials for everyone (label "Admin");
   // STANDARD sees Performance / Budget KPI SELF-scoped only (label "My Reports").
   // NONE sees nothing.
   const _feat = new Set(getCurrentUser()?.features || []);
@@ -204,7 +204,7 @@ export default async function init(config) {
       _has("crm")         ? `<button class="nav-item nav-btn" id="${p}-crm">${ICONS.crm} CRM</button>` : "",
       _has("performance") ? `<button class="nav-item nav-btn" id="${p}-performance">${ICONS.trendUp} Performance</button>` : "",
       _has("budgetkpi")   ? `<button class="nav-item nav-btn" id="${p}-budgetkpi">${ICONS.dollar} Budget KPI</button>` : "",
-      // Financials — SUPER-tier only (feature "financials" is granted only to SUPER users).
+      // Financials — gated by "financials" feature (granted to FULL and SUPER tiers).
       _has("financials")  ? `<button class="nav-item nav-btn" id="${p}-financials">${ICONS.ledger} Financials</button>` : "",
     ].filter(Boolean).join("\n        ");
     return btns ? `<div class="nav-label" style="margin-top:12px;">${_label}</div>\n        ${btns}` : "";

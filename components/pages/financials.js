@@ -45,7 +45,7 @@ function hidePage() {
   document.querySelector(".main")?.classList.remove("financials-active");
 }
 
-// Registered in init() after tier check — no-op for non-SUPER users.
+// Registered in init() after the feature check — no-op for users without "financials".
 window.__hub_financials = { show: () => {}, hide: () => {} };
 
 // ---- Chart.js (lazy-loaded; bundled at /vendor) -------------
@@ -97,7 +97,7 @@ export default async function init() {
   const section = document.getElementById(SECTION_ID);
   if (!section) return;
 
-  // Financials is SUPER-tier only — redirect others to home.
+  // Financials is gated by the "financials" feature (FULL + SUPER) — redirect others home.
   if (!getCurrentUser()?.features?.includes("financials")) {
     window.__hub_router?.navigate("/");
     return;
