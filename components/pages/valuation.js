@@ -1123,6 +1123,7 @@ function bootValuation() {
     // Stores the most recent projections object so updateDcfTaxRate can read
     // 'Tax due' / 'Net profit before tax' (mirrors Excel's L27/L25 fallback path).
     let lastProjections = null;
+    let _importing = false;  // suppresses recalculation during snapshot import
 
     // --- Override state for P&L and CF projection tables ---
     // When active, the respective table renders editable inputs instead of
@@ -1243,7 +1244,7 @@ function bootValuation() {
                     if (perpetualEl && referenceDataState.industry.exp_revenue_growth_5yr != null) {
                         perpetualEl.value = (referenceDataState.industry.exp_revenue_growth_5yr / 5 * 100).toFixed(2);
                     }
-                    if (typeof calculatePlProjections === 'function') calculatePlProjections();
+                    if (!_importing && typeof calculatePlProjections === 'function') calculatePlProjections();
                 } else {
                     referenceDataState.industry = null;
                 }
@@ -1343,7 +1344,7 @@ function bootValuation() {
                     }
                 }
 
-                if (typeof calculatePlProjections === 'function') calculatePlProjections();
+                if (!_importing && typeof calculatePlProjections === 'function') calculatePlProjections();
             } catch (err) { console.error('API fetch failed:', err?.message || 'error'); }
         });
     }
@@ -1380,7 +1381,7 @@ function bootValuation() {
                 hintEl.textContent = `${currency} per 1 USD on ${data.as_of_date} (${matchNote})${sourceNote}`;
                 hintEl.style.display = 'block';
             }
-            if (typeof calculatePlProjections === 'function') calculatePlProjections();
+            if (!_importing && typeof calculatePlProjections === 'function') calculatePlProjections();
         } catch (err) {
             console.error('FX fetch failed:', err?.message || 'error');
             if (hintEl) { hintEl.textContent = 'Could not load reference rate — please enter manually.'; hintEl.style.display = 'block'; }
@@ -1404,7 +1405,7 @@ function bootValuation() {
                         document.getElementById('riskFreeRate').value = "";
                         if (document.getElementById('dcfRiskFreeRate')) document.getElementById('dcfRiskFreeRate').value = "";
                     }
-                    if (typeof calculatePlProjections === 'function') calculatePlProjections();
+                    if (!_importing && typeof calculatePlProjections === 'function') calculatePlProjections();
                 } else {
                     // Currency table is only populated for editions 2024-01+.
                     // For older editions the 404 here is expected — clear fields
@@ -1454,7 +1455,9 @@ function bootValuation() {
     const calcInputs = document.querySelectorAll('.calc-input');
 
     const getVal = (id) => {
-        const val = parseFloat(document.getElementById(id).value);
+        const el = document.getElementById(id);
+        if (!el) return 0;
+        const val = parseFloat(el.value.replace(/,/g, ''));
         return isNaN(val) ? 0 : val;
     };
 
@@ -1466,10 +1469,11 @@ function bootValuation() {
     };
 
     const formatCurrency = (val) => {
-        return val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return (Number(val) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     };
 
     const calculateIncomeStatement = () => {
+        if (_importing) return;
         // Gross Profit = Revenue - Cost of sales
         const grossProfit = getVal('revenue') - getVal('cogs');
         document.getElementById('grossProfit').value = formatCurrency(grossProfit);
@@ -1495,6 +1499,7 @@ function bootValuation() {
 
     // P&L Projections Logic
     const calculatePlProjections = () => {
+        if (_importing) return;
         const baseYear = getBaseYear();
 
         // If P&L is overridden, skip computation but still drive downstream
@@ -1601,7 +1606,7 @@ function bootValuation() {
     };
 
     const formatProjCurrency = (val) => {
-        return val.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+        return (Number(val) || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
     };
 
     const getPlCalcDetail = (key, year, projections, baseYear) => {
@@ -1791,7 +1796,7 @@ function bootValuation() {
         const firstProjYear = baseYear + 1;
         if (!projections || !projections[firstProjYear]) return;
 
-        const getVal = (id) => parseFloat(document.getElementById(id).value) || 0;
+        const getVal = (id) => parseFloat((document.getElementById(id).value || '').replace(/,/g, '')) || 0;
         
         // --- 0. Auto-calculate DLOM and SSP based on USD Revenue ---
         // Rate semantics: 1 USD = rate_per_usd × {currency}. So to convert a
@@ -3375,6 +3380,11 @@ function bootValuation() {
             }
         }
 
+        // Suppress recalculation while cascading dropdowns — the snapshot
+        // already has the correct output HTML; we just need to populate the
+        // dropdown option lists without overwriting the rendered tables.
+        _importing = true;
+
         // Fire change on dropdowns that have reference-data side effects.
         // Order matters for downstream auto-fill (continent → country → industry).
         const cascadeOrder = ['currency', 'continent', 'operatingCountry', 'industry'];
@@ -3441,6 +3451,11 @@ function bootValuation() {
             }
         }
 
+        // Clear the import guard after a delay — async cascade handlers
+        // (industry, country, currency) make API calls that may complete after
+        // this point. The guard prevents them from overwriting the snapshot's
+        // restored output tables with recalculated values.
+        setTimeout(() => { _importing = false; }, 2000);
         return true;
     };
 
