@@ -14,6 +14,16 @@ export default async function init(config) {
   const section = document.getElementById("section-quicklinks");
   if (!section) return;
 
+  // ---- DISABLED 2026-08-06 ------------------------------------------
+  // The Quick Access cards (Knowledge Base / Tools / Tech Support) are
+  // commented out for now: they duplicate the sidebar navigation and the
+  // support modal, so they were redundant links serving no unique purpose.
+  // To restore: delete this block (the `section.innerHTML = ""; return;`
+  // and the surrounding /* ... */) so the original render runs again.
+  section.innerHTML = "";
+  return;
+  /* eslint-disable */
+  /*
   section.innerHTML = `
     <div class="widget-row">
 
@@ -88,4 +98,5 @@ export default async function init(config) {
     qlSupport.addEventListener("click",   openSupport);
     qlSupport.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") openSupport(); });
   }
+  */
 }

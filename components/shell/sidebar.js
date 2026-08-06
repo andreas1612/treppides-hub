@@ -258,7 +258,7 @@ export default async function init(config) {
       <!-- Sidebar footer -->
       <div class="sidebar-footer">
         <!-- TODO: replace before deploy — update version string on each release -->
-        <span class="version">v0.1.0</span> &nbsp;·&nbsp; Internal use only
+        <span class="version">v1.0.0</span> &nbsp;·&nbsp; Internal use only
       </div>`;
 
     // Desktop nav — all use the router

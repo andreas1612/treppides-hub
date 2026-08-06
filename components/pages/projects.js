@@ -90,10 +90,10 @@ const CARDS = {
   tasks:        { icon: "tasks",       color: "blue",   title: "Task Manager",    desc: "Assign tasks, track progress and manage workload.", external: true },
   roombooking:  { icon: "roombooking", color: "rose",   title: "Room Booking",    desc: "Reserve meeting rooms and check availability.", external: true },
   teamcalendar: { icon: "calendar",    color: "teal",   title: "Team Calendar",   desc: "Log leave, meetings &amp; deadlines. View your team&#x2019;s schedule." },
-  kyc:          { icon: "kyc",         color: "green",  title: "KYC Management",  desc: "Track KYC file custody, requests &amp; approvals.", external: true },
+  kyc:          { icon: "kyc",         color: "green",  title: "KYC Management (WIP)",  desc: "Track KYC file custody, requests &amp; approvals.", external: true },
   valuation:    { icon: "valuation",   color: "purple", title: "Valuation Tool",  desc: "Build auditor-facing valuation reports." },
   tbratio:      { icon: "tbratio",     color: "teal",   title: "TB Ratio Tool",   desc: "Upload a trial balance for P&amp;L, Balance Sheet &amp; ratios." },
-  training:     { icon: "training",    color: "indigo", title: "Training Portal (coming soon)", desc: "Induction courses, SCORM modules &amp; completion tracking.", external: true },
+  training:     { icon: "training",    color: "indigo", title: "Training Portal (WIP)", desc: "Induction courses, SCORM modules &amp; completion tracking.", external: true },
 };
 
 const SECTIONS = [
