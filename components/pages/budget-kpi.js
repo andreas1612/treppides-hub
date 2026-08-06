@@ -81,9 +81,10 @@ export default async function init() {
 
   buildPeriodBar();
 
-  // Resolve view mode from tier.
+  // Resolve view mode. Anyone with read-across (FULL/SUPER, plus the HR team via
+  // the backend canViewAllReports flag) gets the admin "view anyone" view.
   const tier = getCurrentUser()?.tier;
-  if (tier === 'FULL' || tier === 'SUPER') {
+  if (getCurrentUser()?.canViewAllReports) {
     viewMode = 'admin';
   } else if (tier === 'SUPERVISOR') {
     viewMode = 'supervisor';
@@ -350,7 +351,12 @@ async function loadAndRender() {
   selectedInvoiceCode = data.invoiceCode;
   selectedManagerName = data.managerName;
   renderFromCache();
-  loadFeeEntries();
+  // Fee-adjustment CRUD is limited to fee managers (SUPERVISOR/FULL/SUPER). HR
+  // read-across users (STANDARD tier via canViewAllReports) get the budget view
+  // without the fee editor — matches the backend requireFeeAccess gate.
+  if (['SUPERVISOR', 'FULL', 'SUPER'].includes(getCurrentUser()?.tier)) {
+    loadFeeEntries();
+  }
 }
 
 function renderFromCache() {

@@ -197,7 +197,8 @@ export default async function init(config) {
   const _feat = new Set(getCurrentUser()?.features || []);
   const _has = (k) => _feat.has(k);
   const _tier = getCurrentUser()?.tier;
-  const _label = (_tier === "FULL" || _tier === "SUPER") ? "Admin" : "My Reports";
+  // "Admin" for read-across users (FULL/SUPER + HR via canViewAllReports); else "My Reports".
+  const _label = getCurrentUser()?.canViewAllReports ? "Admin" : "My Reports";
   const adminItems = (p) => {
     const btns = [
       // CRM — gated by "crm" feature (SUPERVISOR + SUPER tiers).
