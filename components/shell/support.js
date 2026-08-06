@@ -18,12 +18,12 @@ import { getCurrentUser, TM_BASE } from "../../js/auth.js";
 
 const TOOLS_LIST = [
   "AML Dashboard",
-  "KYC Management",
+  "KYC Management (Work In Progress)",
   "Room Booking",
   "Task Manager",
   "TB Ratio Tool",
   "Team Calendar",
-  "Training Portal",
+  "Training Portal (Work In Progress)",
   "Valuation Tool",
 ];
 
