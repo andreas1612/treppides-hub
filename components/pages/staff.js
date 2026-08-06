@@ -95,8 +95,7 @@ function cardHtml(s) {
     <div class="card staff-card">
       <div class="staff-avatar-wrap">
         <img class="staff-photo" src="${escapeHtml(photoUrl)}" alt=""
-             loading="lazy"
-             onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
+             loading="lazy" />
         <div class="staff-avatar" style="background:hsl(${hue},50%,88%);color:hsl(${hue},50%,28%);display:none">
           ${escapeHtml(initials(s.name))}
         </div>
@@ -230,6 +229,14 @@ function renderGrid() {
   }
 
   mount.innerHTML = depts.map(deptSectionHtml).join("");
+
+  // Photo error fallback — CSP blocks inline onerror, so use delegated listener.
+  mount.querySelectorAll("img.staff-photo").forEach(img => {
+    img.addEventListener("error", () => {
+      img.style.display = "none";
+      if (img.nextElementSibling) img.nextElementSibling.style.display = "flex";
+    });
+  });
 
   mount.querySelectorAll(".staff-dept-header").forEach(btn => {
     btn.addEventListener("click", () => {
