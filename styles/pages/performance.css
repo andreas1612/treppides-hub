@@ -533,3 +533,4 @@
   border: 1px solid var(--border); border-radius: 6px;
 }
 .perf-edit-msg { font-size: 12px; color: var(--text-secondary); }
+.perf-edit-effnote { font-size: 11px; color: var(--text-secondary); margin-bottom: 10px; font-style: italic; }

@@ -435,9 +435,9 @@ async function openTargetEditor(card) {
       <div class="perf-edit-grid">
         <label>Level<select id="pe-level">${opts}</select></label>
         <label>Target h/week<input id="pe-week" type="number" step="0.01" min="0" value="${(card.targetHrsWeek ?? 0)}"></label>
-        <label>Target h/month<input id="pe-month" type="number" step="0.01" min="0" value="${(card.targetHrsMonth ?? 0)}"></label>
         <label>Location<input id="pe-loc" type="text" value="${escapeHtml(card.location || "")}"></label>
       </div>
+      <div class="perf-edit-effnote" id="pe-effnote"></div>
       <div class="perf-edit-actions">
         <button type="button" class="perf-edit-save" id="pe-save">Save</button>
         <button type="button" class="perf-edit-cancel" id="pe-cancel">Cancel</button>
@@ -446,29 +446,45 @@ async function openTargetEditor(card) {
     </div>`;
   host.dataset.open = "1";
 
-  // Selecting a level pre-fills that level's default hours (still overridable).
+  // Tell the editor which month this change applies from.
+  const eff = effectiveMonth();
+  const note = document.getElementById("pe-effnote");
+  if (note) {
+    const dt = new Date(eff.year, eff.month - 1);
+    note.textContent = `Applies from ${dt.toLocaleDateString("en-GB", { month: "long", year: "numeric" })} onward (earlier months unchanged).`;
+  }
+
+  // Selecting a level pre-fills that level's default weekly hours (still overridable).
   document.getElementById("pe-level")?.addEventListener("change", (e) => {
     const o = e.target.selectedOptions[0];
     if (!o) return;
-    const w = o.getAttribute("data-week"), m = o.getAttribute("data-month");
+    const w = o.getAttribute("data-week");
     if (w != null && w !== "null") document.getElementById("pe-week").value = Number(w).toFixed(4);
-    if (m != null && m !== "null") document.getElementById("pe-month").value = Number(m).toFixed(4);
   });
   document.getElementById("pe-cancel")?.addEventListener("click", () => { host.innerHTML = ""; host.dataset.open = "0"; });
   document.getElementById("pe-save")?.addEventListener("click", () => saveTarget(card.esoftCode));
+}
+
+// The month an edit applies from: the viewed month, else the current month.
+function effectiveMonth() {
+  const now = new Date();
+  return {
+    year: currentYear || now.getFullYear(),
+    month: currentMonth || (now.getMonth() + 1)
+  };
 }
 
 async function saveTarget(code) {
   const msg = document.getElementById("pe-msg");
   const level = document.getElementById("pe-level")?.value;
   const week = document.getElementById("pe-week")?.value;
-  const month = document.getElementById("pe-month")?.value;
   const loc = document.getElementById("pe-loc")?.value;
   if (!level) { if (msg) msg.textContent = "Level is required"; return; }
   if (msg) msg.textContent = "Saving…";
+  const eff = effectiveMonth();
   try {
     await apiPut(`/api/reports/performance/target/${encodeURIComponent(code)}`,
-      { level, targetHrsWeek: week, targetHrsMonth: month, location: loc });
+      { level, targetHrsWeek: week, location: loc, year: eff.year, month: eff.month });
     reloadCurrent();
   } catch (e) {
     if (msg) msg.textContent = e.message === "FORBIDDEN" ? "Not allowed" : ("Error: " + e.message);
