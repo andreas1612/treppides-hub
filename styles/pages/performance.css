@@ -496,3 +496,40 @@
     right: 16px;
   }
 }
+
+/* ---- Target editor (HR / SUPER only) --------------------- */
+.perf-edit-wrap { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+.perf-edit-btn {
+  font-size: 12px; font-weight: 600; padding: 6px 12px; cursor: pointer;
+  color: var(--text-secondary); background: var(--card-bg);
+  border: 1px solid var(--border); border-radius: 8px;
+  transition: background var(--transition), color var(--transition);
+}
+.perf-edit-btn:hover { background: var(--page-bg); color: var(--text-primary); }
+.perf-edit { margin-top: 12px; }
+.perf-edit-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px; margin-bottom: 12px;
+}
+.perf-edit-grid label {
+  display: flex; flex-direction: column; gap: 4px;
+  font-size: 11px; font-weight: 600; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--text-secondary);
+}
+.perf-edit-grid select, .perf-edit-grid input {
+  padding: 7px 10px; font-size: 13px; font-weight: 500;
+  color: var(--text-primary); background: var(--card-bg);
+  border: 1px solid var(--border); border-radius: 6px; outline: none;
+}
+.perf-edit-grid select:focus, .perf-edit-grid input:focus { border-color: var(--accent); }
+.perf-edit-actions { display: flex; align-items: center; gap: 10px; }
+.perf-edit-save {
+  font-size: 13px; font-weight: 600; padding: 7px 16px; cursor: pointer;
+  color: #0b0f19; background: var(--accent); border: none; border-radius: 6px;
+}
+.perf-edit-cancel {
+  font-size: 13px; font-weight: 600; padding: 7px 14px; cursor: pointer;
+  color: var(--text-secondary); background: transparent;
+  border: 1px solid var(--border); border-radius: 6px;
+}
+.perf-edit-msg { font-size: 12px; color: var(--text-secondary); }

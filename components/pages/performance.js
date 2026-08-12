@@ -38,6 +38,9 @@ let currentMonth = null;
 let selfMode = false;
 // STANDARD managers: the report currently drilled into (null = viewing own card).
 let viewingReportCode = null;
+// HR / SUPER only: may edit performance targets. Cached level options for the editor.
+let canEdit = false;
+let levelOptions = null;
 
 // ---- Init ---------------------------------------------------
 
@@ -77,6 +80,8 @@ export default async function init() {
   // Who sees the employee dropdown ("view anyone"): FULL, SUPER, and the HR team
   // (backend flag canViewAllReports). Everyone else gets self-view only.
   selfMode = !getCurrentUser()?.canViewAllReports;
+  // HR + SUPER admins may edit targets (level / target hours / location) inline.
+  canEdit = !!getCurrentUser()?.canEditTargets;
   if (selfMode) {
     document.getElementById("perf-employee-select")?.remove();
   } else {
@@ -376,6 +381,100 @@ async function apiFetch(path) {
   return res.json();
 }
 
+async function apiPut(path, body) {
+  const res = await fetch(`${TM_BASE}${path}`, {
+    method: "PUT",
+    credentials: "include",
+    headers: { "Content-Type": "application/json", "X-Requested-With": "XMLHttpRequest" },
+    body: JSON.stringify(body)
+  });
+  if (res.status === 401) {
+    sessionStorage.setItem("hub_pre_login_url", window.location.href);
+    window.location.href = "/login.html";
+    throw new Error("Redirecting to login");
+  }
+  if (res.status === 403) throw new Error("FORBIDDEN");
+  if (!res.ok) {
+    const b = await res.json().catch(() => ({}));
+    throw new Error(b.message || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+// ---- Target editor (HR / SUPER only) ------------------------
+
+// Re-fetch whatever card is currently shown (self / drilled report / admin-selected).
+function reloadCurrent() {
+  if (selfMode) {
+    if (viewingReportCode) openReport(viewingReportCode);
+    else loadSelf();
+  } else if (selectedCode) {
+    loadAndRender();
+  }
+}
+
+async function getLevels() {
+  if (levelOptions) return levelOptions;
+  try { levelOptions = await apiFetch("/api/reports/performance/levels"); }
+  catch { levelOptions = []; }
+  return levelOptions;
+}
+
+async function openTargetEditor(card) {
+  const host = document.getElementById("perf-edit-form");
+  if (!host) return;
+  if (host.dataset.open === "1") { host.innerHTML = ""; host.dataset.open = "0"; return; }
+
+  const levels = await getLevels();
+  const opts = levels.map(l =>
+    `<option value="${escapeHtml(l.level)}" data-week="${l.target_hrs_week}" data-month="${l.target_hrs_month}" ${l.level === card.level ? "selected" : ""}>${escapeHtml(l.level)}</option>`
+  ).join("");
+
+  host.innerHTML = `
+    <div class="perf-edit">
+      <div class="perf-edit-grid">
+        <label>Level<select id="pe-level">${opts}</select></label>
+        <label>Target h/week<input id="pe-week" type="number" step="0.01" min="0" value="${(card.targetHrsWeek ?? 0)}"></label>
+        <label>Target h/month<input id="pe-month" type="number" step="0.01" min="0" value="${(card.targetHrsMonth ?? 0)}"></label>
+        <label>Location<input id="pe-loc" type="text" value="${escapeHtml(card.location || "")}"></label>
+      </div>
+      <div class="perf-edit-actions">
+        <button type="button" class="perf-edit-save" id="pe-save">Save</button>
+        <button type="button" class="perf-edit-cancel" id="pe-cancel">Cancel</button>
+        <span class="perf-edit-msg" id="pe-msg"></span>
+      </div>
+    </div>`;
+  host.dataset.open = "1";
+
+  // Selecting a level pre-fills that level's default hours (still overridable).
+  document.getElementById("pe-level")?.addEventListener("change", (e) => {
+    const o = e.target.selectedOptions[0];
+    if (!o) return;
+    const w = o.getAttribute("data-week"), m = o.getAttribute("data-month");
+    if (w != null && w !== "null") document.getElementById("pe-week").value = Number(w).toFixed(4);
+    if (m != null && m !== "null") document.getElementById("pe-month").value = Number(m).toFixed(4);
+  });
+  document.getElementById("pe-cancel")?.addEventListener("click", () => { host.innerHTML = ""; host.dataset.open = "0"; });
+  document.getElementById("pe-save")?.addEventListener("click", () => saveTarget(card.esoftCode));
+}
+
+async function saveTarget(code) {
+  const msg = document.getElementById("pe-msg");
+  const level = document.getElementById("pe-level")?.value;
+  const week = document.getElementById("pe-week")?.value;
+  const month = document.getElementById("pe-month")?.value;
+  const loc = document.getElementById("pe-loc")?.value;
+  if (!level) { if (msg) msg.textContent = "Level is required"; return; }
+  if (msg) msg.textContent = "Saving…";
+  try {
+    await apiPut(`/api/reports/performance/target/${encodeURIComponent(code)}`,
+      { level, targetHrsWeek: week, targetHrsMonth: month, location: loc });
+    reloadCurrent();
+  } catch (e) {
+    if (msg) msg.textContent = e.message === "FORBIDDEN" ? "Not allowed" : ("Error: " + e.message);
+  }
+}
+
 // ---- Render: self card --------------------------------------
 
 function renderSelfCard(card) {
@@ -435,12 +534,22 @@ function renderSelfCard(card) {
           Target chargeability: <strong>${card.targetPct.toFixed(1)}%</strong>
         </div>
         ${breakdownHtml}
+        ${canEdit ? `
+        <div class="perf-edit-wrap">
+          <button type="button" class="perf-edit-btn" id="perf-edit-btn">&#9998; Edit target</button>
+          <div id="perf-edit-form"></div>
+        </div>` : ""}
       </div>
       <div class="perf-gauge-wrap">
         <div class="perf-pct ${card.badge}">${card.chargeabilityPct.toFixed(1)}%</div>
         <span class="perf-badge ${card.badge}">${card.badge}</span>
       </div>
     </div>`;
+
+  if (canEdit) {
+    document.getElementById("perf-edit-btn")
+      ?.addEventListener("click", () => openTargetEditor(card));
+  }
 }
 
 // ---- Render: team section -----------------------------------
