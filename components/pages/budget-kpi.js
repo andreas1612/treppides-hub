@@ -7,7 +7,7 @@
 // Mounts into: #section-budgetkpi
 // ============================================================
 
-import { escapeHtml } from "../../utils/dom.js";
+import { escapeHtml } from "../../utils/dom.js?v=2";
 import { TM_BASE, getCurrentUser } from "../../js/auth.js";
 
 const SECTION_ID = "section-budgetkpi";

@@ -5,8 +5,8 @@
 
 import CONFIG            from "./config.js";
 import { initAuth }      from "./js/auth.js";
-import { initRouter }    from "./js/router.js";
-import initSidebar       from "./components/shell/sidebar.js";
+import { initRouter }    from "./js/router.js?v=1";
+import initSidebar       from "./components/shell/sidebar.js?v=1";
 import initSimulator     from "./components/shell/simulator.js";
 import initTopbar        from "./components/shell/topbar.js";
 import initAnnouncements from "./components/widgets/announcements.js";
@@ -30,7 +30,7 @@ import initTbratio        from "./components/pages/tbratio.js";
 import initForms          from "./components/pages/forms.js";
 import initFinancials     from "./components/pages/financials.js";
 import initTeamCalendar   from "./components/pages/team-calendar.js";
-import initInvoices       from "./components/pages/invoices.js";
+import initInvoices       from "./components/pages/invoices.js?v=1";
 
 async function boot() {
   // Auth gate — redirects to Microsoft login if no active session.

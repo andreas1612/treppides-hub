@@ -16,7 +16,7 @@
 // (status/assignee/comment → ClickUp) is layered on next via crm-shared.
 // ============================================================
 
-import { escapeHtml, renderError, renderEmpty } from "../../utils/dom.js";
+import { escapeHtml, renderError, renderEmpty } from "../../utils/dom.js?v=2";
 import { prettySpace, statusPill, loadChartJs, mountFilterBar, filterQS, renderEditor } from "./crm-shared.js";
 
 const SECTION_ID = "section-crmlist";

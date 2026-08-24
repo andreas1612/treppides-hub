@@ -6,7 +6,7 @@
 
 import CONFIG from "../../config.js";
 import { getCurrentUser } from "../../js/auth.js";
-import { navigate } from "../../js/router.js";
+import { navigate } from "../../js/router.js?v=1";
 
 // ---- Coming Soon modal ----------------------------------------
 // Guard: quicklinks.js may have already injected the modal.

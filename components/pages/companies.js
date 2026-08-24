@@ -17,7 +17,7 @@
 // Mounts into: #section-companies (sibling of .page-content)
 // ============================================================
 
-import { escapeHtml, renderError, renderEmpty } from "../../utils/dom.js";
+import { escapeHtml, renderError, renderEmpty } from "../../utils/dom.js?v=2";
 import { setStatus } from "../shell/topbar.js";
 
 const SECTION_ID = "section-companies";

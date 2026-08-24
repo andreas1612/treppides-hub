@@ -6,7 +6,7 @@
 
 import { fetchPages, fetchPageContent } from "../../api/bookstack.js";
 import { formatDate }      from "../../utils/format.js";
-import { escapeHtml, renderSkeleton, renderError, renderEmpty } from "../../utils/dom.js";
+import { escapeHtml, renderSkeleton, renderError, renderEmpty } from "../../utils/dom.js?v=2";
 import { setStatus }       from "../shell/topbar.js";
 import CONFIG              from "../../config.js";
 

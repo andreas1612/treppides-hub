@@ -11,7 +11,7 @@
 // Mounts into: #section-forms
 // ============================================================
 
-import { escapeHtml } from "../../utils/dom.js";
+import { escapeHtml } from "../../utils/dom.js?v=2";
 
 const SECTION_ID  = "section-forms";
 const BACK_BTN_ID = "forms-back-btn";

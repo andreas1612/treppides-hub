@@ -8,7 +8,7 @@
 // Mounts into: #section-staff
 // ============================================================
 
-import { escapeHtml } from "../../utils/dom.js";
+import { escapeHtml } from "../../utils/dom.js?v=2";
 
 const SECTION_ID  = "section-staff";
 const BACK_BTN_ID = "staff-back-btn";

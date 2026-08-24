@@ -8,7 +8,7 @@
 // ============================================================
 
 import { getCurrentUser } from "../../js/auth.js";
-import { escapeHtml } from "../../utils/dom.js";
+import { escapeHtml } from "../../utils/dom.js?v=2";
 
 const SECTION_ID = "section-newsletter";
 const NL_API = "/api/newsletter";

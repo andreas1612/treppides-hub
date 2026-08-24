@@ -16,7 +16,7 @@
 // pattern as components/pages/valuation.js.
 // ============================================================
 
-import { escapeHtml } from "../../utils/dom.js";
+import { escapeHtml } from "../../utils/dom.js?v=2";
 import { initTbratioTour, maybeTbratioPrompt } from "./tbratio-tour.js";
 
 const SECTION_ID = "section-tbratio";

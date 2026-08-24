@@ -15,7 +15,7 @@
 // Mounts into: #section-fees (sibling of .page-content)
 // ============================================================
 
-import { escapeHtml, renderError } from "../../utils/dom.js";
+import { escapeHtml, renderError } from "../../utils/dom.js?v=2";
 import { setStatus }               from "../shell/topbar.js";
 import CONFIG                      from "../../config.js";
 

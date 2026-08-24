@@ -9,7 +9,7 @@
 
 import CONFIG from "../../config.js";
 import { createPage, deletePage, fetchPages } from "../../api/bookstack.js";
-import { escapeHtml } from "../../utils/dom.js";
+import { escapeHtml } from "../../utils/dom.js?v=2";
 import { getCurrentUser } from "../../js/auth.js";
 
 // ---- Helpers --------------------------------------------------

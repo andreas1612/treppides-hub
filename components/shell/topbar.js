@@ -7,7 +7,7 @@
 import CONFIG from "../../config.js";
 import { searchPages } from "../../api/bookstack.js";
 import { signOut } from "../../js/auth.js";
-import { escapeHtml } from "../../utils/dom.js";
+import { escapeHtml } from "../../utils/dom.js?v=2";
 
 const SEARCH_STYLES = `
   .search-wrap {

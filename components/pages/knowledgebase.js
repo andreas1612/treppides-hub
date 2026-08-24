@@ -7,7 +7,7 @@
 // ============================================================
 
 import { fetchShelfBooks }  from "../../api/bookstack.js";
-import { escapeHtml, renderSkeleton, renderError } from "../../utils/dom.js";
+import { escapeHtml, renderSkeleton, renderError } from "../../utils/dom.js?v=2";
 import { setStatus }        from "../shell/topbar.js";
 import { getCurrentUser }   from "../../js/auth.js";
 import CONFIG               from "../../config.js";

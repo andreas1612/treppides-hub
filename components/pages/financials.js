@@ -10,7 +10,7 @@
 // against the .pbix is still in progress (see financials/BUILD_PROGRESS.md).
 // ============================================================
 
-import { escapeHtml } from "../../utils/dom.js";
+import { escapeHtml } from "../../utils/dom.js?v=2";
 import { TM_BASE, getCurrentUser } from "../../js/auth.js";
 
 const SECTION_ID = "section-financials";

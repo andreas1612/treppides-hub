@@ -10,7 +10,7 @@
 // inherits companies.css styling — no duplicate CSS.
 // ============================================================
 
-import { escapeHtml } from "../../utils/dom.js";
+import { escapeHtml } from "../../utils/dom.js?v=2";
 
 // Prettify raw ClickUp space names (drop "_CRM", expand "KT"). Display-only.
 export function prettySpace(name) {
