@@ -161,6 +161,15 @@
 
   </div><!-- /app-shell -->
 
+  <!-- Kill browser autocomplete / form-restore on every search input -->
+  <script>
+  window.addEventListener("pageshow", function () {
+    document.querySelectorAll('input[type="search"], input[type="text"]').forEach(function (el) {
+      if (el.placeholder && !el.dataset.keepValue) el.value = "";
+    });
+  });
+  </script>
+
   <!-- Single ES module entry point — all logic lives in JS files -->
   <script type="module" src="main.js?v=live5"></script>
 

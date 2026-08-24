@@ -223,7 +223,7 @@ function buildFilterHtml() {
     <div class="nl-filters">
       <div class="nl-search-wrap">
         <svg class="nl-search-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input class="nl-search" type="text" placeholder="Search..." id="nl-search" value="${escapeHtml(_filters.q)}" />
+        <input class="nl-search" type="text" placeholder="Search..." id="nl-search" value="${escapeHtml(_filters.q)}" autocomplete="off" />
       </div>
       ${selectHtml("nl-f-dept", "All Departments", opts.departments, _filters.department)}
       ${selectHtml("nl-f-source", "All Sources", opts.sources, _filters.source, prettySource)}

@@ -132,6 +132,7 @@ function attachResultHandlers(results) {
 function setupSearch() {
   const input = document.getElementById("search-input");
   if (!input) return;
+  input.value = "";
 
   let timer;
 
