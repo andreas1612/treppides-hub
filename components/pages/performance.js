@@ -40,7 +40,8 @@ let selfMode = false;
 let viewingReportCode = null;
 // HR / SUPER only: may edit performance targets. Cached level options for the editor.
 let canEdit = false;
-let levelOptions = null;
+let targetDefaults = null;      // per-person status options (cached by code)
+let targetDefaultsCode = null;
 
 // ---- Init ---------------------------------------------------
 
@@ -413,30 +414,45 @@ function reloadCurrent() {
   }
 }
 
-async function getLevels() {
-  if (levelOptions) return levelOptions;
-  try { levelOptions = await apiFetch("/api/reports/performance/levels"); }
-  catch { levelOptions = []; }
-  return levelOptions;
+async function getTargetDefaults(code) {
+  if (targetDefaults && targetDefaultsCode === code) return targetDefaults;
+  try { targetDefaults = await apiFetch(`/api/reports/performance/target-defaults/${encodeURIComponent(code)}`); }
+  catch { targetDefaults = []; }
+  targetDefaultsCode = code;
+  return targetDefaults;
 }
+
+const W2M = 52 / 12;   // week -> month factor
 
 async function openTargetEditor(card) {
   const host = document.getElementById("perf-edit-form");
   if (!host) return;
   if (host.dataset.open === "1") { host.innerHTML = ""; host.dataset.open = "0"; return; }
 
-  const levels = await getLevels();
-  const opts = levels.map(l =>
-    `<option value="${escapeHtml(l.level)}" data-week="${l.target_hrs_week}" data-month="${l.target_hrs_month}" ${l.level === card.level ? "selected" : ""}>${escapeHtml(l.level)}</option>`
+  const defs = await getTargetDefaults(card.esoftCode);
+  if (!defs.length) {
+    host.innerHTML = `<div class="perf-edit-msg">Could not load status options.</div>`;
+    host.dataset.open = "1";
+    return;
+  }
+
+  const curStatus = defs.some(d => d.status === card.level) ? card.level : defs[0].status;
+  const opts = defs.map(d =>
+    `<option value="${escapeHtml(d.status)}" ${d.status === curStatus ? "selected" : ""}>${escapeHtml(d.label)}</option>`
   ).join("");
+  const seed = defs.find(d => d.status === curStatus);
+  const initContracted = (card.contractedHrsWeek && card.contractedHrsWeek > 0)
+    ? card.contractedHrsWeek : (seed ? seed.contractedWeek : 38.5);
 
   host.innerHTML = `
     <div class="perf-edit">
       <div class="perf-edit-grid">
-        <label>Level<select id="pe-level">${opts}</select></label>
-        <label>Target h/week<input id="pe-week" type="number" step="0.01" min="0" value="${(card.targetHrsWeek ?? 0)}"></label>
+        <label>Status<select id="pe-status">${opts}</select></label>
+        <label>Contracted h/week<input id="pe-cw" type="number" step="0.01" min="0"></label>
+        <label>Contracted h/month<input id="pe-cm" type="number" step="0.01" min="0"></label>
         <label>Location<input id="pe-loc" type="text" value="${escapeHtml(card.location || "")}"></label>
       </div>
+      <div class="perf-edit-target" id="pe-target"></div>
       <div class="perf-edit-effnote" id="pe-effnote"></div>
       <div class="perf-edit-actions">
         <button type="button" class="perf-edit-save" id="pe-save">Save</button>
@@ -446,7 +462,32 @@ async function openTargetEditor(card) {
     </div>`;
   host.dataset.open = "1";
 
-  // Tell the editor which month this change applies from.
+  const cwEl = document.getElementById("pe-cw");
+  const cmEl = document.getElementById("pe-cm");
+  const statusEl = document.getElementById("pe-status");
+  const tgtEl = document.getElementById("pe-target");
+  const ratioOf = (s) => (defs.find(d => d.status === s)?.ratio ?? 0);
+
+  function renderTarget() {
+    const w = parseFloat(cwEl.value) || 0;
+    const tw = w * ratioOf(statusEl.value);
+    tgtEl.innerHTML = `Chargeable target: <strong>${tw.toFixed(2)} h/week</strong> &middot; <strong>${(tw * W2M).toFixed(2)} h/month</strong>`;
+  }
+  function setContracted(w) {
+    cwEl.value = Number(w || 0).toFixed(2);
+    cmEl.value = (Number(w || 0) * W2M).toFixed(2);
+    renderTarget();
+  }
+  setContracted(initContracted);
+
+  cwEl.addEventListener("input", () => { cmEl.value = ((parseFloat(cwEl.value) || 0) * W2M).toFixed(2); renderTarget(); });
+  cmEl.addEventListener("input", () => { cwEl.value = ((parseFloat(cmEl.value) || 0) / W2M).toFixed(2); renderTarget(); });
+  // Picking a status seeds that status's contracted hours (still editable).
+  statusEl.addEventListener("change", () => {
+    const d = defs.find(x => x.status === statusEl.value);
+    setContracted(d ? d.contractedWeek : 38.5);
+  });
+
   const eff = effectiveMonth();
   const note = document.getElementById("pe-effnote");
   if (note) {
@@ -454,13 +495,6 @@ async function openTargetEditor(card) {
     note.textContent = `Applies from ${dt.toLocaleDateString("en-GB", { month: "long", year: "numeric" })} onward (earlier months unchanged).`;
   }
 
-  // Selecting a level pre-fills that level's default weekly hours (still overridable).
-  document.getElementById("pe-level")?.addEventListener("change", (e) => {
-    const o = e.target.selectedOptions[0];
-    if (!o) return;
-    const w = o.getAttribute("data-week");
-    if (w != null && w !== "null") document.getElementById("pe-week").value = Number(w).toFixed(4);
-  });
   document.getElementById("pe-cancel")?.addEventListener("click", () => { host.innerHTML = ""; host.dataset.open = "0"; });
   document.getElementById("pe-save")?.addEventListener("click", () => saveTarget(card.esoftCode));
 }
@@ -476,15 +510,15 @@ function effectiveMonth() {
 
 async function saveTarget(code) {
   const msg = document.getElementById("pe-msg");
-  const level = document.getElementById("pe-level")?.value;
-  const week = document.getElementById("pe-week")?.value;
+  const level = document.getElementById("pe-status")?.value;
+  const cw = document.getElementById("pe-cw")?.value;
   const loc = document.getElementById("pe-loc")?.value;
-  if (!level) { if (msg) msg.textContent = "Level is required"; return; }
+  if (!level) { if (msg) msg.textContent = "Status is required"; return; }
   if (msg) msg.textContent = "Saving…";
   const eff = effectiveMonth();
   try {
     await apiPut(`/api/reports/performance/target/${encodeURIComponent(code)}`,
-      { level, targetHrsWeek: week, location: loc, year: eff.year, month: eff.month });
+      { level, contractedHrsWeek: cw, location: loc, year: eff.year, month: eff.month });
     reloadCurrent();
   } catch (e) {
     if (msg) msg.textContent = e.message === "FORBIDDEN" ? "Not allowed" : ("Error: " + e.message);

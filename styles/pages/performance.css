@@ -534,3 +534,4 @@
 }
 .perf-edit-msg { font-size: 12px; color: var(--text-secondary); }
 .perf-edit-effnote { font-size: 11px; color: var(--text-secondary); margin-bottom: 10px; font-style: italic; }
+.perf-edit-target { font-size: 13px; color: var(--text-primary); margin: 4px 0 8px; padding: 8px 10px; background: var(--page-bg); border-radius: 6px; }
