@@ -1,10 +1,14 @@
 // ============================================================
-// components/pages/invoices.js — Invoices (SUPER-only)
+// components/pages/invoices.js — Invoices
 //
-// Per-manager list of issued invoices with paid/unpaid status, flagging
-// anything still unpaid past a configurable age threshold. Paid/unpaid is
-// reconstructed server-side from the eSoft debtor ledger — eSoft itself has
-// no direct "paid" flag (audited 2026-08-24; see InvoiceRepository).
+// Per-invoice paid/unpaid status, flagging anything still unpaid past a
+// configurable age threshold. Paid/unpaid is reconstructed server-side from
+// the eSoft debtor ledger — eSoft itself has no direct "paid" flag (audited
+// 2026-08-24; see InvoiceRepository).
+//
+// Two view modes, mirroring Budget KPI:
+//   'admin' (SUPER only) — manager picker, can view anyone's invoices.
+//   'self'  (everyone else with budget data) — own invoices only, no picker.
 // Mounts into: #section-invoices
 // ============================================================
 
@@ -37,6 +41,7 @@ let currentYear = new Date().getFullYear();
 let flagAfterDays = 30;
 let unpaidOnly = false;
 let invoices = [];
+let viewMode = 'self'; // 'admin' (SUPER) or 'self' (everyone else with budget data)
 
 // ---- Init ---------------------------------------------------
 
@@ -44,10 +49,7 @@ export default async function init() {
   const section = document.getElementById(SECTION_ID);
   if (!section) return;
 
-  // SUPER-only feature — mirrors the backend gate. Section simply never
-  // shows for anyone else (sidebar button is also hidden via the "invoices"
-  // feature flag), but guard here too in case of direct navigation.
-  if (getCurrentUser()?.tier !== "SUPER") return;
+  viewMode = getCurrentUser()?.tier === "SUPER" ? 'admin' : 'self';
 
   section.innerHTML = `
     <div class="kpi-page">
@@ -85,20 +87,9 @@ export default async function init() {
 
   document.getElementById("inv-back-btn")?.addEventListener("click", hidePage);
 
-  await loadManagers();
-
-  document.getElementById("inv-manager-select")?.addEventListener("change", (e) => {
-    selectedCode = e.target.value || null;
-    if (selectedCode) {
-      loadAndRender();
-    } else {
-      clearAll();
-    }
-  });
-
   document.getElementById("inv-year")?.addEventListener("change", (e) => {
     const yr = parseInt(e.target.value);
-    if (!isNaN(yr)) { currentYear = yr; if (selectedCode) loadAndRender(); }
+    if (!isNaN(yr)) { currentYear = yr; if (viewMode === 'self' || selectedCode) loadAndRender(); }
   });
   document.getElementById("inv-flag-days")?.addEventListener("input", (e) => {
     const d = parseInt(e.target.value);
@@ -107,11 +98,29 @@ export default async function init() {
   });
   document.getElementById("inv-unpaid-only")?.addEventListener("change", (e) => {
     unpaidOnly = e.target.checked;
-    if (selectedCode) loadAndRender();
+    if (viewMode === 'self' || selectedCode) loadAndRender();
+  });
+
+  if (viewMode === 'self') {
+    // No picker for self view — one manager only (the caller).
+    document.getElementById("inv-manager-select")?.remove();
+    loadAndRender();
+    return;
+  }
+
+  // Admin (SUPER): manager picker, same list Budget KPI uses.
+  await loadManagers();
+  document.getElementById("inv-manager-select")?.addEventListener("change", (e) => {
+    selectedCode = e.target.value || null;
+    if (selectedCode) {
+      loadAndRender();
+    } else {
+      clearAll();
+    }
   });
 }
 
-// ---- Load managers (reuses the same picker Budget KPI uses) -
+// ---- Load managers (admin only — reuses the Budget KPI picker) -
 
 async function loadManagers() {
   try {
@@ -135,7 +144,7 @@ async function loadManagers() {
 // ---- Load & render --------------------------------------------
 
 async function loadAndRender() {
-  if (!selectedCode) return;
+  if (viewMode === 'admin' && !selectedCode) return;
   setLoading();
 
   const params = new URLSearchParams({
@@ -144,14 +153,23 @@ async function loadAndRender() {
     unpaidOnly: unpaidOnly
   });
 
+  const url = viewMode === 'self'
+    ? `${TM_BASE}/api/reports/invoices/me?${params}`
+    : `${TM_BASE}/api/reports/invoices/${encodeURIComponent(selectedCode)}?${params}`;
+
   try {
-    const res = await fetch(`${TM_BASE}/api/reports/invoices/${encodeURIComponent(selectedCode)}?${params}`, {
+    const res = await fetch(url, {
       credentials: "include",
       headers: { "X-Requested-With": "XMLHttpRequest" }
     });
     if (res.status === 401) {
       sessionStorage.setItem("hub_pre_login_url", window.location.href);
       window.location.href = "/login.html";
+      return;
+    }
+    if (res.status === 404) {
+      // Self view, not a budget holder — same "not applicable" pattern as Budget KPI.
+      showNotApplicable();
       return;
     }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -173,6 +191,13 @@ function clearAll() {
   invoices = [];
   document.getElementById("inv-summary-section").innerHTML = "";
   document.getElementById("inv-table-section").innerHTML = "";
+}
+
+function showNotApplicable() {
+  const summary = document.getElementById("inv-summary-section");
+  if (summary) summary.innerHTML = `<div class="perf-exempt">The Invoices report isn't applicable to your role.</div>`;
+  const table = document.getElementById("inv-table-section");
+  if (table) table.innerHTML = "";
 }
 
 // ---- Render: summary ------------------------------------------
@@ -214,7 +239,7 @@ function renderTable() {
   if (!section) return;
 
   if (invoices.length === 0) {
-    section.innerHTML = `<p style="color:var(--text-secondary);font-size:12px;margin-top:16px">No invoices for this manager / year${unpaidOnly ? " (unpaid only)" : ""}.</p>`;
+    section.innerHTML = `<p style="color:var(--text-secondary);font-size:12px;margin-top:16px">No invoices for ${viewMode === 'self' ? 'you' : 'this manager'} / this year${unpaidOnly ? " (unpaid only)" : ""}.</p>`;
     return;
   }
 
