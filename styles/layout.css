@@ -422,6 +422,18 @@
 .main.financials-active #section-financials   { display: block !important; }
 
 /* ============================================================
+   INVOICES — dedicated full-page view (SUPER-only)
+   ============================================================ */
+#section-invoices {
+  display: none;
+  padding: var(--page-gutter, 32px);
+}
+
+.main.invoices-active .page-content       { display: none !important; }
+.main.invoices-active .reader-overlay     { display: none !important; }
+.main.invoices-active #section-invoices   { display: block !important; }
+
+/* ============================================================
    TEAM CALENDAR — dedicated full-page view
    ============================================================ */
 #section-teamcalendar {
