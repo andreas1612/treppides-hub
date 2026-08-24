@@ -10,7 +10,7 @@ const ACTIVE_CLASSES = [
   "fees-active", "valuation-active", "companies-active", "crm-active",
   "crmlist-active", "tbratio-active", "performance-active",
   "budgetkpi-active", "financials-active", "forms-active",
-  "teamcalendar-active",
+  "teamcalendar-active", "invoices-active",
 ];
 
 // Route table: path → { section, cssClass, showFn, hideFn }
@@ -35,6 +35,7 @@ const ROUTES = [
   { path: "/performance",      section: "performance",  cssClass: "performance-active",  hub: "performance" },
   { path: "/budget-kpi",       section: "budgetkpi",    cssClass: "budgetkpi-active",    hub: "budgetkpi" },
   { path: "/financials",       section: "financials",   cssClass: "financials-active",   hub: "financials" },
+  { path: "/invoices",         section: "invoices",     cssClass: "invoices-active",     hub: "invoices" },
 ];
 
 function findRoute(path) {

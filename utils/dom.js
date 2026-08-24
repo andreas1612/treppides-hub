@@ -6,10 +6,15 @@
 /**
  * Escapes special HTML characters to prevent XSS when inserting
  * untrusted strings into innerHTML.
+ * null/undefined return "" rather than the literal string "null"/"undefined" —
+ * String(null) stringifying into a real value was the root cause of a budget-kpi
+ * bug where a manager with no invoice_code got an <option value="null"> that
+ * silently 404'd instead of just showing blank.
  * @param {string} str
  * @returns {string}
  */
 export function escapeHtml(str) {
+  if (str == null) return "";
   return String(str)
     .replace(/&/g,  "&amp;")
     .replace(/</g,  "&lt;")

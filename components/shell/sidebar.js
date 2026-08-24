@@ -170,6 +170,14 @@ const ICONS = {
              <line x1="8" y1="17" x2="13" y2="17"/>
            </svg>`,
 
+  receipt: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+             <path d="M4 2h16v20l-3-2-3 2-3-2-3 2-3-2-1 2z"/>
+             <line x1="8" y1="7" x2="16" y2="7"/>
+             <line x1="8" y1="11" x2="16" y2="11"/>
+             <line x1="8" y1="15" x2="12" y2="15"/>
+           </svg>`,
+
   crm: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M3 21h18"/>
@@ -207,6 +215,8 @@ export default async function init(config) {
       _has("budgetkpi")   ? `<button class="nav-item nav-btn" id="${p}-budgetkpi">${ICONS.dollar} Budget KPI</button>` : "",
       // Financials — gated by "financials" feature (granted to FULL and SUPER tiers).
       _has("financials")  ? `<button class="nav-item nav-btn" id="${p}-financials">${ICONS.ledger} Financials</button>` : "",
+      // Invoices — SUPER-tier only (per-invoice paid/unpaid tracking).
+      _has("invoices")    ? `<button class="nav-item nav-btn" id="${p}-invoices">${ICONS.receipt} Invoices</button>` : "",
     ].filter(Boolean).join("\n        ");
     return btns ? `<div class="nav-label" style="margin-top:12px;">${_label}</div>\n        ${btns}` : "";
   };
@@ -271,6 +281,7 @@ export default async function init(config) {
     document.getElementById("sb-performance")?.addEventListener("click", () => navigate("/performance"));
     document.getElementById("sb-budgetkpi")?.addEventListener("click",   () => navigate("/budget-kpi"));
     document.getElementById("sb-financials")?.addEventListener("click",  () => navigate("/financials"));
+    document.getElementById("sb-invoices")?.addEventListener("click",    () => navigate("/invoices"));
 
   }
 
@@ -330,6 +341,7 @@ export default async function init(config) {
     document.getElementById("mb-performance")?.addEventListener("click", () => { closeNav(); navigate("/performance"); });
     document.getElementById("mb-budgetkpi")?.addEventListener("click",   () => { closeNav(); navigate("/budget-kpi"); });
     document.getElementById("mb-financials")?.addEventListener("click",  () => { closeNav(); navigate("/financials"); });
+    document.getElementById("mb-invoices")?.addEventListener("click",    () => { closeNav(); navigate("/invoices"); });
 
     document.getElementById("mb-support")?.addEventListener("click", () => {
       document.getElementById("mobile-nav")?.classList.remove("open");
@@ -369,12 +381,13 @@ export default async function init(config) {
       performance:  ["sb-performance", "mb-performance"],
       budgetkpi:   ["sb-budgetkpi",   "mb-budgetkpi"],
       financials:  ["sb-financials",  "mb-financials"],
+      invoices:    ["sb-invoices",    "mb-invoices"],
     };
     [
       "sb-home","sb-kb","sb-staff","sb-tools","sb-crm",
-      "sb-performance","sb-budgetkpi","sb-financials",
+      "sb-performance","sb-budgetkpi","sb-financials","sb-invoices",
       "mb-home","mb-kb","mb-staff","mb-tools","mb-crm",
-      "mb-performance","mb-budgetkpi","mb-financials",
+      "mb-performance","mb-budgetkpi","mb-financials","mb-invoices",
     ].forEach(id => {
       document.getElementById(id)?.classList.remove("active");
     });

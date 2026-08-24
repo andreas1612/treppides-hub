@@ -30,6 +30,7 @@ import initTbratio        from "./components/pages/tbratio.js";
 import initForms          from "./components/pages/forms.js";
 import initFinancials     from "./components/pages/financials.js";
 import initTeamCalendar   from "./components/pages/team-calendar.js";
+import initInvoices       from "./components/pages/invoices.js";
 
 async function boot() {
   // Auth gate — redirects to Microsoft login if no active session.
@@ -103,6 +104,9 @@ async function boot() {
 
   // Team Calendar — leave, meetings & deadlines (tool, launched from Tools grid).
   await initTeamCalendar(CONFIG);
+
+  // Invoices — SUPER-only per-invoice paid/unpaid tracking.
+  await initInvoices(CONFIG);
 
   // Content sections — initialise in visual page order.
   // Each runs independently; a failure in one does not block others.
