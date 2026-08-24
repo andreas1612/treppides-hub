@@ -441,8 +441,11 @@ async function openTargetEditor(card) {
     `<option value="${escapeHtml(d.status)}" ${d.status === curStatus ? "selected" : ""}>${escapeHtml(d.label)}</option>`
   ).join("");
   const seed = defs.find(d => d.status === curStatus);
-  const initContracted = (card.contractedHrsWeek && card.contractedHrsWeek > 0)
-    ? card.contractedHrsWeek : (seed ? seed.contractedWeek : 38.5);
+  // Part-time hours are HR-typed: show the saved figure if any, else blank (prompt input).
+  // Other statuses seed their known contracted (else the effective value).
+  const initContracted = (curStatus === "Part-time")
+    ? ((card.contractedOverride && card.contractedOverride > 0) ? card.contractedOverride : "")
+    : ((card.contractedHrsWeek && card.contractedHrsWeek > 0) ? card.contractedHrsWeek : (seed ? seed.contractedWeek : 38.5));
 
   host.innerHTML = `
     <div class="perf-edit">
@@ -469,23 +472,26 @@ async function openTargetEditor(card) {
   const ratioOf = (s) => (defs.find(d => d.status === s)?.ratio ?? 0);
 
   function renderTarget() {
-    const w = parseFloat(cwEl.value) || 0;
+    const w = parseFloat(cwEl.value);
+    if (!isFinite(w)) { tgtEl.innerHTML = `Chargeable target: <strong>—</strong> <span class="perf-edit-hint">enter the weekly hours</span>`; return; }
     const tw = w * ratioOf(statusEl.value);
     tgtEl.innerHTML = `Chargeable target: <strong>${tw.toFixed(2)} h/week</strong> &middot; <strong>${(tw * W2M).toFixed(2)} h/month</strong>`;
   }
   function setContracted(w) {
-    cwEl.value = Number(w || 0).toFixed(2);
-    cmEl.value = (Number(w || 0) * W2M).toFixed(2);
+    if (w === "" || w == null) { cwEl.value = ""; cmEl.value = ""; }
+    else { cwEl.value = Number(w).toFixed(2); cmEl.value = (Number(w) * W2M).toFixed(2); }
     renderTarget();
   }
   setContracted(initContracted);
 
-  cwEl.addEventListener("input", () => { cmEl.value = ((parseFloat(cwEl.value) || 0) * W2M).toFixed(2); renderTarget(); });
-  cmEl.addEventListener("input", () => { cwEl.value = ((parseFloat(cmEl.value) || 0) / W2M).toFixed(2); renderTarget(); });
-  // Picking a status seeds that status's contracted hours (still editable).
+  cwEl.addEventListener("input", () => { cmEl.value = cwEl.value === "" ? "" : ((parseFloat(cwEl.value) || 0) * W2M).toFixed(2); renderTarget(); });
+  cmEl.addEventListener("input", () => { cwEl.value = cmEl.value === "" ? "" : ((parseFloat(cmEl.value) || 0) / W2M).toFixed(2); renderTarget(); });
+  // Part-time: HR types the actual weekly hours (blank so nothing wrong is assumed).
+  // Other statuses seed their known contracted hours (still editable).
   statusEl.addEventListener("change", () => {
-    const d = defs.find(x => x.status === statusEl.value);
-    setContracted(d ? d.contractedWeek : 38.5);
+    const s = statusEl.value;
+    if (s === "Part-time") { setContracted(""); cwEl.focus(); }
+    else { const d = defs.find(x => x.status === s); setContracted(d ? d.contractedWeek : 38.5); }
   });
 
   const eff = effectiveMonth();
