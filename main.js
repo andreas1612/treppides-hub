@@ -24,7 +24,7 @@ import initValuation     from "./components/pages/valuation.js";
 import initCompanies      from "./components/pages/companies.js?v=2";
 import initCrm            from "./components/pages/crm.js";
 import initCrmList        from "./components/pages/crm-list.js?v=2";
-import initAccounts       from "./components/pages/accounts.js?v=2";
+import initAccounts       from "./components/pages/accounts.js?v=3";
 import initPerformance    from "./components/pages/performance.js";
 import initBudgetKpi      from "./components/pages/budget-kpi.js";
 import initTbratio        from "./components/pages/tbratio.js";

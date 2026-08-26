@@ -779,6 +779,17 @@ def _crm_list_scope(cfg):
     return func.lower(func.trim(Task.list_name)) == cfg["list_match"]
 
 
+# The "KT" (K. Treppides) CRM space. The public read-only Accounts view surfaces
+# ONLY this space — every other CRM space (Finanz, Nomus, ZK, Service Now, …) is
+# hidden there. The full editable CRM (supervisor+) still sees all spaces.
+KT_SPACE_MATCH = "kt_crm"
+
+
+def _kt_scope():
+    """SQL predicate: task lives in the KT space (normalized match)."""
+    return func.lower(func.trim(Task.space_name)) == KT_SPACE_MATCH
+
+
 def _row_value(t: Task, cf: dict, source: str):
     """Resolve a config field 'source' to a value on a mirrored task row.
     `cf` is the already-parsed custom_fields dict (parsed once per row)."""
@@ -824,11 +835,18 @@ def _parse_links(raw) -> list[dict]:
     return out
 
 
-def _load_list_rows(db, cfg):
+def _load_list_rows(db, cfg, public=False):
     """Fetch + parse every mirrored task for a CRM list. Returns [(Task, cf_dict)].
     These lists are small (≤ ~3.6k rows) so an in-memory pass per request keeps
-    filtering/search/aggregation simple and avoids json_extract path quoting."""
-    rows = db.execute(select(Task).where(_crm_list_scope(cfg))).scalars().all()
+    filtering/search/aggregation simple and avoids json_extract path quoting.
+
+    public=True restricts to the KT space — the authoritative gate for the
+    read-only Accounts view, so no crafted query param can surface another
+    space's records."""
+    scope = _crm_list_scope(cfg)
+    if public:
+        scope = and_(scope, _kt_scope())
+    rows = db.execute(select(Task).where(scope)).scalars().all()
     out = []
     for t in rows:
         try:
@@ -881,10 +899,14 @@ def crm_registry():
 # router narrows WHICH lists are reachable and strips fee data; it never adds
 # its own query logic here.
 
-def _filters_payload(cfg, params, db):
-    rows = _load_list_rows(db, cfg)
+def _filters_payload(cfg, params, db, public=False):
+    rows = _load_list_rows(db, cfg, public=public)
     out = {}
     for f in cfg["filters"]:
+        # The public view is KT-only, so the "Companies" (space) filter is
+        # meaningless there — omit it entirely.
+        if public and f["key"] == "space":
+            continue
         vals = set()
         for t, cf in rows:
             if not _row_matches_filters(t, cf, cfg, params, exclude=f["key"]):
@@ -909,8 +931,8 @@ def crm_list_filters(key: str, request: Request, db: Session = Depends(get_db)):
     return _filters_payload(cfg, request.query_params, db)
 
 
-def _kpis_payload(cfg, params, db):
-    rows = [(t, cf) for t, cf in _load_list_rows(db, cfg)
+def _kpis_payload(cfg, params, db, public=False):
+    rows = [(t, cf) for t, cf in _load_list_rows(db, cfg, public=public)
             if _row_matches_filters(t, cf, cfg, params)]
     groups = []
     for g in cfg.get("kpis", {}).get("groups", []):
@@ -975,10 +997,10 @@ def crm_list_kpis(key: str, request: Request, db: Session = Depends(get_db)):
     return _kpis_payload(cfg, request.query_params, db)
 
 
-def _rows_payload(cfg, key, params, q, sort, dir, page, page_size, db):
+def _rows_payload(cfg, key, params, q, sort, dir, page, page_size, db, public=False):
     col_sources = {c["key"]: c["source"] for c in cfg["columns"]}
 
-    rows = [(t, cf) for t, cf in _load_list_rows(db, cfg)
+    rows = [(t, cf) for t, cf in _load_list_rows(db, cfg, public=public)
             if _row_matches_filters(t, cf, cfg, params)]
 
     # Whole-word search across the list's search_fields (title + a few fields),
@@ -1565,7 +1587,8 @@ def _resolve_public_list(key: str) -> dict:
 
 @public_router.get("/lists")
 def public_crm_registry():
-    """Read-only registry: only the two Account lists, with editing disabled."""
+    """Read-only registry: only the two Account lists, with editing disabled and
+    the KT-only view's redundant "Companies" (space) filter removed."""
     out = []
     for l in crm_lists.public_registry():
         if l["key"] not in PUBLIC_LIST_KEYS:
@@ -1573,6 +1596,7 @@ def public_crm_registry():
         l = dict(l)
         l["editable"] = False
         l["extended_edit"] = False
+        l["filters"] = [f for f in l["filters"] if f["key"] != "space"]
         out.append(l)
     return {"lists": out}
 
@@ -1580,13 +1604,13 @@ def public_crm_registry():
 @public_router.get("/list/{key}/filters")
 def public_list_filters(key: str, request: Request, db: Session = Depends(get_db)):
     cfg = _resolve_public_list(key)
-    return _filters_payload(cfg, request.query_params, db)
+    return _filters_payload(cfg, request.query_params, db, public=True)
 
 
 @public_router.get("/list/{key}/kpis")
 def public_list_kpis(key: str, request: Request, db: Session = Depends(get_db)):
     cfg = _resolve_public_list(key)
-    return _kpis_payload(cfg, request.query_params, db)
+    return _kpis_payload(cfg, request.query_params, db, public=True)
 
 
 @public_router.get("/list/{key}/rows")
@@ -1596,14 +1620,16 @@ def public_list_rows(key: str, request: Request,
                      page_size: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
                      db: Session = Depends(get_db)):
     cfg = _resolve_public_list(key)
-    return _rows_payload(cfg, key, request.query_params, q, sort, dir, page, page_size, db)
+    return _rows_payload(cfg, key, request.query_params, q, sort, dir, page, page_size, db, public=True)
 
 
 @public_router.get("/list/{key}/{task_id}")
 def public_list_detail(key: str, task_id: str, db: Session = Depends(get_db)):
     cfg = _resolve_public_list(key)
     t = db.get(Task, task_id)
-    if not t or func_lower_trim(t.list_name) != cfg["list_match"]:
+    # KT-only: a non-KT record is not part of the public view even by direct id.
+    if (not t or func_lower_trim(t.list_name) != cfg["list_match"]
+            or func_lower_trim(t.space_name) != KT_SPACE_MATCH):
         raise HTTPException(status_code=404, detail="Record not found in this list.")
     return _detail_payload(cfg, key, t, db, public=True)
 

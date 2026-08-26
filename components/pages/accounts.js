@@ -148,7 +148,6 @@ function mountFilters(onApply) {
   mountFilterBar(document.getElementById("acc-filterbar"), {
     filters: _cfg.filters,
     state: _filters,
-    primaryKey: "space",
     fetchOptions: async (state) => {
       const qs = filterQS(state);
       const res = await fetch(`${API_BASE}/list/${_key}/filters${qs ? "?" + qs : ""}`, { credentials: "include" });
