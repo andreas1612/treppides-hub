@@ -79,6 +79,16 @@ const TOOL_ICONS = {
                <line x1="7" y1="17" x2="17" y2="7"/>
                <polyline points="7 7 17 7 17 17"/>
              </svg>`,
+  accountsCo: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                 <path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/>
+                 <line x1="9" y1="9" x2="9" y2="9"/><line x1="9" y1="13" x2="9" y2="13"/><line x1="9" y1="17" x2="9" y2="17"/>
+               </svg>`,
+  accountsInd: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                  <circle cx="12" cy="7" r="4"/>
+                </svg>`,
 };
 
 // ---- Card registry + section layout -------------------------
@@ -94,10 +104,13 @@ const CARDS = {
   valuation:    { icon: "valuation",   color: "purple", title: "Valuation Tool",  desc: "Build auditor-facing valuation reports." },
   tbratio:      { icon: "tbratio",     color: "teal",   title: "TB Ratio Tool",   desc: "Upload a trial balance for P&amp;L, Balance Sheet &amp; ratios." },
   training:     { icon: "training",    color: "indigo", title: "Training Portal (Work In Progress)", desc: "Induction courses, SCORM modules &amp; completion tracking.", external: true },
+  accountsCompanies:   { icon: "accountsCo",  color: "blue",   title: "Accounts — Companies",   desc: "Look up company client records — client code, industry, country, auditors &amp; risk. Read-only." },
+  accountsIndividuals: { icon: "accountsInd", color: "purple", title: "Accounts — Individuals",  desc: "Look up individual client records — client code, country &amp; status. Read-only." },
 };
 
 const SECTIONS = [
   { label: "Admin",    cards: ["tasks", "roombooking", "teamcalendar", "kyc"] },
+  { label: "Accounts", cards: ["accountsCompanies", "accountsIndividuals"] },
   { label: "Work",     cards: ["valuation", "tbratio"] },
   { label: "Learning", cards: ["training"] },
 ];
@@ -159,6 +172,7 @@ function hideAllPages() {
   if (window.__hub_budgetkpi)   window.__hub_budgetkpi.hide();
   if (window.__hub_forms)          window.__hub_forms.hide();
   if (window.__hub_teamcalendar)  window.__hub_teamcalendar.hide();
+  if (window.__hub_accounts)      window.__hub_accounts.hide();
 }
 
 // ---- Component init -----------------------------------------
@@ -212,6 +226,12 @@ export default async function init(config) {
         break;
       case "teamcalendar":
         window.__hub_router?.navigate("/tools/calendar");
+        break;
+      case "accountsCompanies":
+        window.__hub_router?.navigate("/tools/accounts-companies");
+        break;
+      case "accountsIndividuals":
+        window.__hub_router?.navigate("/tools/accounts-individuals");
         break;
       case "training":
         window.open("https://learn.treppides.com", "_blank", "noopener");

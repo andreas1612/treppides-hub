@@ -4,13 +4,47 @@
 // Uses History API (pushState / popstate).
 // ============================================================
 
+import { getCurrentUser } from "./auth.js";
+
+// Feature a section requires to be reachable. The sidebar already HIDES nav for
+// features a user lacks, but that alone doesn't stop a direct URL / back-button
+// from activating a gated section (e.g. a STANDARD user typing /crm and landing
+// on the editable CRM). This map is the actual gate: any route whose section is
+// listed here is only allowed when the user's /api/me features include it.
+// Sections NOT listed (home, kb, staff, tools, the read-only Accounts view, …)
+// are open to every eligible hub user.
+//
+// The whole CRM family — landing, list dashboards, Deals, Forms, AML, Fees — is
+// gated on "crm" (SUPERVISOR tier and up). The read-only Tools "accounts" view
+// is deliberately absent, so it stays open to all.
+const SECTION_FEATURE = {
+  crm:        "crm",
+  crmlist:    "crm",
+  companies:  "crm",
+  forms:      "crm",
+  aml:        "crm",
+  fees:       "crm",
+  performance: "performance",
+  budgetkpi:   "budgetkpi",
+  financials:  "financials",
+  invoices:    "invoices",
+};
+
+/** True if the current user may reach this route's section. */
+function routeAllowed(route) {
+  const need = SECTION_FEATURE[route.section];
+  if (!need) return true;
+  const feats = getCurrentUser()?.features || [];
+  return feats.includes(need);
+}
+
 // All CSS-active classes that toggle section visibility on .main
 const ACTIVE_CLASSES = [
   "kb-active", "staff-active", "projects-active", "aml-active",
   "fees-active", "valuation-active", "companies-active", "crm-active",
   "crmlist-active", "tbratio-active", "performance-active",
   "budgetkpi-active", "financials-active", "forms-active",
-  "teamcalendar-active", "invoices-active",
+  "teamcalendar-active", "invoices-active", "accounts-active",
 ];
 
 // Route table: path → { section, cssClass, showFn, hideFn }
@@ -28,6 +62,8 @@ const ROUTES = [
   { path: "/crm/contacts",            section: "crmlist", cssClass: "crmlist-active", hub: "crmlist", showArg: "contacts" },
   { path: "/crm/aml",      section: "aml",          cssClass: "aml-active",          hub: "aml" },
   { path: "/crm/forms",    section: "forms",        cssClass: "forms-active",        hub: "forms" },
+  { path: "/tools/accounts-companies",   section: "accounts", cssClass: "accounts-active", hub: "accounts", showArg: "accounts_companies" },
+  { path: "/tools/accounts-individuals", section: "accounts", cssClass: "accounts-active", hub: "accounts", showArg: "accounts_individuals" },
   { path: "/tools/valuation",  section: "valuation",    cssClass: "valuation-active",    hub: "valuation" },
   { path: "/tools/tbratio",    section: "tbratio",      cssClass: "tbratio-active",      hub: "tbratio" },
   { path: "/tools/fees",       section: "fees",         cssClass: "fees-active",         hub: "fees" },
@@ -76,7 +112,13 @@ function activateRoute(route) {
  * @param {object} [opts] - { replace: true } to use replaceState
  */
 export function navigate(path, opts = {}) {
-  const route = findRoute(path);
+  let route = findRoute(path);
+
+  // Gate: a user without the section's feature never lands on it — redirect home.
+  if (!routeAllowed(route)) {
+    path = "/";
+    route = findRoute("/");
+  }
 
   if (opts.replace) {
     history.replaceState({ path }, "", path);
@@ -111,17 +153,27 @@ export function initRouter() {
   // Back/forward button
   window.addEventListener("popstate", () => {
     const path = window.location.pathname;
-    const route = findRoute(path);
+    let route = findRoute(path);
+    if (!routeAllowed(route)) {
+      route = findRoute("/");
+      history.replaceState({ path: "/" }, "", "/");
+    }
     activateRoute(route);
   });
 
   // Navigate to whatever URL the page was loaded with
   const path = window.location.pathname;
   if (path !== "/") {
-    const route = findRoute(path);
+    let route = findRoute(path);
+    if (!routeAllowed(route)) {
+      // Deep-link into a gated section the user can't see → send home.
+      route = findRoute("/");
+      history.replaceState({ path: "/" }, "", "/");
+    } else {
+      // Replace state so popstate has data
+      history.replaceState({ path }, "", path);
+    }
     activateRoute(route);
-    // Replace state so popstate has data
-    history.replaceState({ path }, "", path);
   }
 
   // Remove the pre-render guard (see inline <script> in index.html)

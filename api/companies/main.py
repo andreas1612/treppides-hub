@@ -874,12 +874,14 @@ def crm_registry():
     return {"lists": crm_lists.public_registry()}
 
 
-@router.get("/list/{key}/filters")
-def crm_list_filters(key: str, request: Request, db: Session = Depends(get_db)):
-    """Cascading option lists for one list's filters — each field scoped to the
-    OTHER active filters (its own value excluded), same behaviour as /filters."""
-    cfg = _resolve_crm_list(key)
-    params = request.query_params
+# ---- Shared read-path builders ------------------------------------
+# The list read logic lives in these plain functions so BOTH the full CRM
+# router (below) and the public read-only router (further down) can serve the
+# same data without duplicating filter/search/serialize logic. The public
+# router narrows WHICH lists are reachable and strips fee data; it never adds
+# its own query logic here.
+
+def _filters_payload(cfg, params, db):
     rows = _load_list_rows(db, cfg)
     out = {}
     for f in cfg["filters"]:
@@ -899,12 +901,15 @@ def crm_list_filters(key: str, request: Request, db: Session = Depends(get_db)):
     return {"filters": out}
 
 
-@router.get("/list/{key}/kpis")
-def crm_list_kpis(key: str, request: Request, db: Session = Depends(get_db)):
-    """Summary tiles/charts for a list: total + per-group counts (honours filters
-    so the KPIs reflect the current view)."""
+@router.get("/list/{key}/filters")
+def crm_list_filters(key: str, request: Request, db: Session = Depends(get_db)):
+    """Cascading option lists for one list's filters — each field scoped to the
+    OTHER active filters (its own value excluded), same behaviour as /filters."""
     cfg = _resolve_crm_list(key)
-    params = request.query_params
+    return _filters_payload(cfg, request.query_params, db)
+
+
+def _kpis_payload(cfg, params, db):
     rows = [(t, cf) for t, cf in _load_list_rows(db, cfg)
             if _row_matches_filters(t, cf, cfg, params)]
     groups = []
@@ -962,16 +967,15 @@ def crm_list_kpis(key: str, request: Request, db: Session = Depends(get_db)):
     return {"total": len(rows), "groups": groups}
 
 
-@router.get("/list/{key}/rows")
-def crm_list_rows(key: str, request: Request,
-                  q: str = Query(""), sort: str = Query(""), dir: str = Query("asc"),
-                  page: int = Query(1, ge=1),
-                  page_size: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
-                  db: Session = Depends(get_db)):
-    """Filtered / searched / sorted / paginated rows for one CRM list. Each row
-    carries id/url/tid/status(+color) plus one value per configured column."""
+@router.get("/list/{key}/kpis")
+def crm_list_kpis(key: str, request: Request, db: Session = Depends(get_db)):
+    """Summary tiles/charts for a list: total + per-group counts (honours filters
+    so the KPIs reflect the current view)."""
     cfg = _resolve_crm_list(key)
-    params = request.query_params
+    return _kpis_payload(cfg, request.query_params, db)
+
+
+def _rows_payload(cfg, key, params, q, sort, dir, page, page_size, db):
     col_sources = {c["key"]: c["source"] for c in cfg["columns"]}
 
     rows = [(t, cf) for t, cf in _load_list_rows(db, cfg)
@@ -1039,14 +1043,24 @@ def crm_list_rows(key: str, request: Request,
     }
 
 
-@router.get("/list/{key}/{task_id}")
-def crm_list_detail(key: str, task_id: str, db: Session = Depends(get_db)):
-    """Full detail for one record: curated fields + native info + (for company/
-    individual accounts) the linked Deals for the same TID."""
+@router.get("/list/{key}/rows")
+def crm_list_rows(key: str, request: Request,
+                  q: str = Query(""), sort: str = Query(""), dir: str = Query("asc"),
+                  page: int = Query(1, ge=1),
+                  page_size: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
+                  db: Session = Depends(get_db)):
+    """Filtered / searched / sorted / paginated rows for one CRM list. Each row
+    carries id/url/tid/status(+color) plus one value per configured column."""
     cfg = _resolve_crm_list(key)
-    t = db.get(Task, task_id)
-    if not t or func_lower_trim(t.list_name) != cfg["list_match"]:
-        raise HTTPException(status_code=404, detail="Record not found in this list.")
+    return _rows_payload(cfg, key, request.query_params, q, sort, dir, page, page_size, db)
+
+
+def _detail_payload(cfg, key, t, db, public=False):
+    """Build the record-detail response for a mirrored task `t`.
+
+    public=True is the Tools-page read-only surface: `editable` is forced False
+    and linked deals are returned WITHOUT deal_value / fee flags, so a company's
+    or individual's deal amounts are never exposed to non-CRM users."""
     try:
         cf = json.loads(t.custom_fields) if t.custom_fields else {}
     except (ValueError, TypeError):
@@ -1075,16 +1089,21 @@ def crm_list_detail(key: str, task_id: str, db: Session = Depends(get_db)):
             select(Task).where(Task.tid == t.tid, Task.is_deal.is_(True))
         ).scalars().all()
         for d in sorted(deals, key=lambda x: (x.deal_value or 0.0), reverse=True):
-            linked_deals.append({
+            entry = {
                 "id": d.id, "task_name": d.name, "url": d.url,
-                "deal_value": d.deal_value, "status": d.status,
-                "status_color": d.status_color, "is_lost": bool(d.is_lost),
+                "status": d.status, "status_color": d.status_color,
                 "service": d.service,
-            })
+            }
+            # Fee data is CRM-only. The public (Tools) surface still shows that
+            # a deal EXISTS (name/status/service) but never its value.
+            if not public:
+                entry["deal_value"] = d.deal_value
+                entry["is_lost"] = bool(d.is_lost)
+            linked_deals.append(entry)
 
     return {
         "key": key,
-        "editable": cfg["editable"],
+        "editable": False if public else cfg["editable"],
         "task": {
             "id": t.id, "tid": t.tid, "name": t.name, "url": t.url,
             "status": t.status, "status_color": t.status_color,
@@ -1096,6 +1115,17 @@ def crm_list_detail(key: str, task_id: str, db: Session = Depends(get_db)):
         "fields": fields,
         "linked_deals": linked_deals,
     }
+
+
+@router.get("/list/{key}/{task_id}")
+def crm_list_detail(key: str, task_id: str, db: Session = Depends(get_db)):
+    """Full detail for one record: curated fields + native info + (for company/
+    individual accounts) the linked Deals for the same TID."""
+    cfg = _resolve_crm_list(key)
+    t = db.get(Task, task_id)
+    if not t or func_lower_trim(t.list_name) != cfg["list_match"]:
+        raise HTTPException(status_code=404, detail="Record not found in this list.")
+    return _detail_payload(cfg, key, t, db, public=False)
 
 
 def func_lower_trim(s: str | None) -> str:
@@ -1502,7 +1532,84 @@ def _reconcile_and_return(task_id: str) -> dict:
         db.close()
 
 
+# ======================================================================
+# PUBLIC (read-only) CRM surface — /api/companies/public/*
+#
+# The two Account lists (Companies, Individuals) exposed to EVERY eligible hub
+# user via the Tools page. Deliberately a SEPARATE, allowlisted router so there
+# is no code path from this surface to the editable CRM:
+#   • only PUBLIC_LIST_KEYS resolve here (Leads / Contacts / Deals → 404)
+#   • no write routes exist under /public (no edit-options, status, assignee,
+#     comment, fields) — editing is structurally impossible, not just hidden
+#   • detail responses force editable=False and OMIT deal_value / fee data
+#
+# The full editable CRM stays under /api/companies/* and behind the frontend
+# `crm` feature (SUPERVISOR tier and up). nginx's auth_request already gates
+# /api/companies/ (incl. /public) to signed-in hub users, so NONE-tier users
+# can't reach this either.
+# ======================================================================
+
+PUBLIC_LIST_KEYS = {"accounts_companies", "accounts_individuals"}
+
+public_router = APIRouter(prefix="/api/companies/public")
+
+
+def _resolve_public_list(key: str) -> dict:
+    """Resolve a list key, but ONLY the read-only-allowlisted Account lists.
+    Anything else 404s here so the public surface can never reach Leads,
+    Contacts or the fee-bearing Deals dashboard."""
+    if key not in PUBLIC_LIST_KEYS:
+        raise HTTPException(status_code=404, detail="Not available.")
+    return _resolve_crm_list(key)
+
+
+@public_router.get("/lists")
+def public_crm_registry():
+    """Read-only registry: only the two Account lists, with editing disabled."""
+    out = []
+    for l in crm_lists.public_registry():
+        if l["key"] not in PUBLIC_LIST_KEYS:
+            continue
+        l = dict(l)
+        l["editable"] = False
+        l["extended_edit"] = False
+        out.append(l)
+    return {"lists": out}
+
+
+@public_router.get("/list/{key}/filters")
+def public_list_filters(key: str, request: Request, db: Session = Depends(get_db)):
+    cfg = _resolve_public_list(key)
+    return _filters_payload(cfg, request.query_params, db)
+
+
+@public_router.get("/list/{key}/kpis")
+def public_list_kpis(key: str, request: Request, db: Session = Depends(get_db)):
+    cfg = _resolve_public_list(key)
+    return _kpis_payload(cfg, request.query_params, db)
+
+
+@public_router.get("/list/{key}/rows")
+def public_list_rows(key: str, request: Request,
+                     q: str = Query(""), sort: str = Query(""), dir: str = Query("asc"),
+                     page: int = Query(1, ge=1),
+                     page_size: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
+                     db: Session = Depends(get_db)):
+    cfg = _resolve_public_list(key)
+    return _rows_payload(cfg, key, request.query_params, q, sort, dir, page, page_size, db)
+
+
+@public_router.get("/list/{key}/{task_id}")
+def public_list_detail(key: str, task_id: str, db: Session = Depends(get_db)):
+    cfg = _resolve_public_list(key)
+    t = db.get(Task, task_id)
+    if not t or func_lower_trim(t.list_name) != cfg["list_match"]:
+        raise HTTPException(status_code=404, detail="Record not found in this list.")
+    return _detail_payload(cfg, key, t, db, public=True)
+
+
 app.include_router(router)
+app.include_router(public_router)
 
 
 @app.on_event("startup")

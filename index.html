@@ -22,6 +22,7 @@
   <link rel="stylesheet" href="styles/pages/companies.css" />
   <link rel="stylesheet" href="styles/pages/crm.css" />
   <link rel="stylesheet" href="styles/pages/crm-list.css" />
+  <link rel="stylesheet" href="styles/pages/accounts.css" />
   <link rel="stylesheet" href="styles/pages/performance.css" />
   <link rel="stylesheet" href="styles/pages/manager-kpi.css" />
   <link rel="stylesheet" href="styles/pages/tbratio.css" />
@@ -146,6 +147,12 @@
            Populated by: components/pages/crm-list.js -->
       <div id="section-crmlist"></div>
 
+      <!-- Accounts directory — read-only view of the Companies / Individuals
+           account lists, available to ALL users from the Tools page. Talks only
+           to the public read-only API (no editing, no fees).
+           Populated by: components/pages/accounts.js -->
+      <div id="section-accounts"></div>
+
       <!-- TB Ratio Tool — dedicated full-page view.
            Upload an E-Soft trial balance → P&L, Balance Sheet & ratios.
            Populated by: components/pages/tbratio.js -->
@@ -175,7 +182,7 @@
   </script>
 
   <!-- Single ES module entry point — all logic lives in JS files -->
-  <script type="module" src="main.js?v=live6"></script>
+  <script type="module" src="main.js?v=live8"></script>
 
 </body>
 </html>

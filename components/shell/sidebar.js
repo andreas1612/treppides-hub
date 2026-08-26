@@ -6,7 +6,7 @@
 
 import CONFIG from "../../config.js";
 import { getCurrentUser } from "../../js/auth.js";
-import { navigate } from "../../js/router.js?v=1";
+import { navigate } from "../../js/router.js?v=2";
 
 // ---- Coming Soon modal ----------------------------------------
 // Guard: quicklinks.js may have already injected the modal.
@@ -376,6 +376,7 @@ export default async function init(config) {
       crm:         ["sb-crm",         "mb-crm"],       // CRM landing
       crmlist:     ["sb-crm",         "mb-crm"],       // Leads / Accounts dashboards
       tbratio:     ["sb-tools",       "mb-tools"],
+      accounts:    ["sb-tools",       "mb-tools"],      // read-only Accounts view (under Tools)
       forms:        ["sb-crm",         "mb-crm"],       // Lead/Deal forms live under CRM
       teamcalendar: ["sb-tools",       "mb-tools"],     // tool sub-page → highlight Tools
       performance:  ["sb-performance", "mb-performance"],

@@ -5,8 +5,8 @@
 
 import CONFIG            from "./config.js";
 import { initAuth }      from "./js/auth.js";
-import { initRouter }    from "./js/router.js?v=1";
-import initSidebar       from "./components/shell/sidebar.js?v=1";
+import { initRouter }    from "./js/router.js?v=2";
+import initSidebar       from "./components/shell/sidebar.js?v=2";
 import initSimulator     from "./components/shell/simulator.js";
 import initTopbar        from "./components/shell/topbar.js";
 import initAnnouncements from "./components/widgets/announcements.js";
@@ -24,6 +24,7 @@ import initValuation     from "./components/pages/valuation.js";
 import initCompanies      from "./components/pages/companies.js?v=2";
 import initCrm            from "./components/pages/crm.js";
 import initCrmList        from "./components/pages/crm-list.js?v=2";
+import initAccounts       from "./components/pages/accounts.js?v=2";
 import initPerformance    from "./components/pages/performance.js";
 import initBudgetKpi      from "./components/pages/budget-kpi.js";
 import initTbratio        from "./components/pages/tbratio.js";
@@ -83,6 +84,11 @@ async function boot() {
   // CRM list dashboard — generic view for Leads / Accounts, launched from the
   // CRM landing via window.__hub_crmlist.show(key).
   await initCrmList(CONFIG);
+
+  // Accounts directory — read-only Companies / Individuals view for ALL users,
+  // launched from the Tools grid via window.__hub_accounts.show(key). Separate
+  // from the CRM dashboards (public read-only API, no editing, no fees).
+  await initAccounts(CONFIG);
 
   // Performance Report — admin-only employee chargeability viewer.
   await initPerformance(CONFIG);

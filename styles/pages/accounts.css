@@ -1,0 +1,15 @@
+/* ============================================================
+   accounts.css — read-only Accounts directory (Tools page).
+   Reuses companies.css + crm-list.css for the filter bar, table,
+   pager, KPI tiles, chips and detail-pop; this file only adds the
+   page toggle so #section-accounts shows/hides like the others.
+   ============================================================ */
+
+/* Default: hidden, hub content visible */
+#section-accounts {
+  display: none;
+  padding: var(--page-gutter, 32px);
+}
+.main.accounts-active .page-content   { display: none !important; }
+.main.accounts-active .reader-overlay { display: none !important; }
+.main.accounts-active #section-accounts { display: block !important; }
