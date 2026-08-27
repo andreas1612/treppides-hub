@@ -7,7 +7,8 @@
 // 2026-08-24; see InvoiceRepository).
 //
 // Two view modes, mirroring Budget KPI:
-//   'admin' (SUPER only) — manager picker, can view anyone's invoices.
+//   'admin' (canViewAllInvoices — SUPER tier or the invoice-viewer allowlist)
+//           — manager picker, can view anyone's invoices.
 //   'self'  (everyone else with budget data) — own invoices only, no picker.
 // Mounts into: #section-invoices
 // ============================================================
@@ -41,7 +42,7 @@ let currentYear = new Date().getFullYear();
 let flagAfterDays = 30;
 let unpaidOnly = false;
 let invoices = [];
-let viewMode = 'self'; // 'admin' (SUPER) or 'self' (everyone else with budget data)
+let viewMode = 'self'; // 'admin' (canViewAllInvoices) or 'self' (everyone else with budget data)
 
 // ---- Init ---------------------------------------------------
 
@@ -49,7 +50,7 @@ export default async function init() {
   const section = document.getElementById(SECTION_ID);
   if (!section) return;
 
-  viewMode = getCurrentUser()?.tier === "SUPER" ? 'admin' : 'self';
+  viewMode = getCurrentUser()?.canViewAllInvoices ? 'admin' : 'self';
 
   section.innerHTML = `
     <div class="kpi-page">

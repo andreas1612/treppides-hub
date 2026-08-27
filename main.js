@@ -31,7 +31,7 @@ import initTbratio        from "./components/pages/tbratio.js";
 import initForms          from "./components/pages/forms.js";
 import initFinancials     from "./components/pages/financials.js";
 import initTeamCalendar   from "./components/pages/team-calendar.js";
-import initInvoices       from "./components/pages/invoices.js?v=2";
+import initInvoices       from "./components/pages/invoices.js?v=3";
 
 async function boot() {
   // Auth gate — redirects to Microsoft login if no active session.
