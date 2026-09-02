@@ -4,7 +4,7 @@
 // Nginx must proxy /api/* to BookStack when deployed.
 // ============================================================
 
-import CONFIG from "../config.js";
+import CONFIG from "../config.js?v=1";
 import MOCK from "./mock.js";
 
 const USE_MOCK = false;

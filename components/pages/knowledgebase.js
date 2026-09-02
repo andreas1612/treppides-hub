@@ -10,7 +10,7 @@ import { fetchShelfBooks }  from "../../api/bookstack.js";
 import { escapeHtml, renderSkeleton, renderError } from "../../utils/dom.js?v=2";
 import { setStatus }        from "../shell/topbar.js";
 import { getCurrentUser }   from "../../js/auth.js";
-import CONFIG               from "../../config.js";
+import CONFIG               from "../../config.js?v=1";
 
 const SECTION_ID  = "section-kb";
 const CARDS_ID    = "kb-cards";

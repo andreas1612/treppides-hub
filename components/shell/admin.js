@@ -7,7 +7,7 @@
 // Auth:   PIN stored in sessionStorage for the duration of the session
 // ============================================================
 
-import CONFIG from "../../config.js";
+import CONFIG from "../../config.js?v=1";
 import { createPage, deletePage, fetchPages } from "../../api/bookstack.js";
 import { escapeHtml } from "../../utils/dom.js?v=2";
 import { getCurrentUser } from "../../js/auth.js";

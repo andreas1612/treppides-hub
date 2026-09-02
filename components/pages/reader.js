@@ -15,7 +15,7 @@
 
 import { fetchBook, fetchChapter, fetchPageContent, fetchAttachments, fetchAttachmentBlob } from "../../api/bookstack.js";
 import { formatDate } from "../../utils/format.js";
-import CONFIG from "../../config.js";
+import CONFIG from "../../config.js?v=1";
 
 // ── State ────────────────────────────────────────────────────
 let _state = "home"; // "home" | "book" | "page"

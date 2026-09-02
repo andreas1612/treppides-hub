@@ -45,4 +45,10 @@ export default {
   // Set to the host:port where api/clickup/server.py is running
   // ⚠ Fill in config.js only
   CLICKUP_FEES_API: "--CLICKUP-FEES-API-URL--",
+
+  // WiseBOS-Next — external tool, FULL/SUPER tier only. Own port (not a path
+  // under this domain) because WiseBOS uses root-absolute paths baked into
+  // its HTML; gated by nginx (RoleService.isFull() via /api/me/gate/full),
+  // not embedded — the hub just redirects here.
+  WISEBOS_URL: "--WISEBOS-URL--",
 };

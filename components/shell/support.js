@@ -11,7 +11,7 @@
 //          window.__hub_itsupport.open()      (IT support)
 // ============================================================
 
-import CONFIG from "../../config.js";
+import CONFIG from "../../config.js?v=1";
 import { getCurrentUser, TM_BASE } from "../../js/auth.js";
 
 // ---- Tool list for the "Tools" sub-dropdown (alphabetical) ---

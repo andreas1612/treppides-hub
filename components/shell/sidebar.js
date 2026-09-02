@@ -4,7 +4,7 @@
 // Mounts into: #sidebar  (desktop) and #mobile-header (mobile)
 // ============================================================
 
-import CONFIG from "../../config.js";
+import CONFIG from "../../config.js?v=1";
 import { getCurrentUser } from "../../js/auth.js";
 import { navigate } from "../../js/router.js?v=2";
 
@@ -178,6 +178,13 @@ const ICONS = {
              <line x1="8" y1="15" x2="12" y2="15"/>
            </svg>`,
 
+  externalLink: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+             <polyline points="15 3 21 3 21 9"/>
+             <line x1="10" y1="14" x2="21" y2="3"/>
+           </svg>`,
+
   crm: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M3 21h18"/>
@@ -215,8 +222,11 @@ export default async function init(config) {
       _has("budgetkpi")   ? `<button class="nav-item nav-btn" id="${p}-budgetkpi">${ICONS.dollar} Budget KPI</button>` : "",
       // Financials — gated by "financials" feature (granted to FULL and SUPER tiers).
       _has("financials")  ? `<button class="nav-item nav-btn" id="${p}-financials">${ICONS.ledger} Financials</button>` : "",
-      // Invoices — SUPER-tier only (per-invoice paid/unpaid tracking).
+      // Invoices — self view for everyone; admin picker (view-anyone) for FULL/SUPER + allowlist.
       _has("invoices")    ? `<button class="nav-item nav-btn" id="${p}-invoices">${ICONS.receipt} Invoices</button>` : "",
+      // WiseBOS-Next — FULL/SUPER only. External tool, plain redirect (own port,
+      // gated by nginx via RoleService.isFull() — see /api/me/gate/full).
+      _has("wisebos")     ? `<button class="nav-item nav-btn" id="${p}-wisebos">${ICONS.externalLink} WiseBOS</button>` : "",
     ].filter(Boolean).join("\n        ");
     return btns ? `<div class="nav-label" style="margin-top:12px;">${_label}</div>\n        ${btns}` : "";
   };
@@ -282,6 +292,9 @@ export default async function init(config) {
     document.getElementById("sb-budgetkpi")?.addEventListener("click",   () => navigate("/budget-kpi"));
     document.getElementById("sb-financials")?.addEventListener("click",  () => navigate("/financials"));
     document.getElementById("sb-invoices")?.addEventListener("click",    () => navigate("/invoices"));
+    // WiseBOS-Next — plain redirect to an externally-hosted, nginx-gated tool
+    // (own port, not part of the hub's SPA router).
+    document.getElementById("sb-wisebos")?.addEventListener("click",     () => { window.location.href = CONFIG.WISEBOS_URL; });
 
   }
 
@@ -342,6 +355,7 @@ export default async function init(config) {
     document.getElementById("mb-budgetkpi")?.addEventListener("click",   () => { closeNav(); navigate("/budget-kpi"); });
     document.getElementById("mb-financials")?.addEventListener("click",  () => { closeNav(); navigate("/financials"); });
     document.getElementById("mb-invoices")?.addEventListener("click",    () => { closeNav(); navigate("/invoices"); });
+    document.getElementById("mb-wisebos")?.addEventListener("click",     () => { closeNav(); window.location.href = CONFIG.WISEBOS_URL; });
 
     document.getElementById("mb-support")?.addEventListener("click", () => {
       document.getElementById("mobile-nav")?.classList.remove("open");

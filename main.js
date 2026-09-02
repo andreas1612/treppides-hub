@@ -3,10 +3,10 @@
 // Imports and initialises all components in render order.
 // ============================================================
 
-import CONFIG            from "./config.js";
+import CONFIG            from "./config.js?v=1";
 import { initAuth }      from "./js/auth.js";
 import { initRouter }    from "./js/router.js?v=2";
-import initSidebar       from "./components/shell/sidebar.js?v=2";
+import initSidebar       from "./components/shell/sidebar.js?v=3";
 import initSimulator     from "./components/shell/simulator.js";
 import initTopbar        from "./components/shell/topbar.js";
 import initAnnouncements from "./components/widgets/announcements.js";

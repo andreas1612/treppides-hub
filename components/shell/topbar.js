@@ -4,7 +4,7 @@
 // Mounts into: #topbar
 // ============================================================
 
-import CONFIG from "../../config.js";
+import CONFIG from "../../config.js?v=1";
 import { searchPages } from "../../api/bookstack.js";
 import { signOut } from "../../js/auth.js";
 import { escapeHtml } from "../../utils/dom.js?v=2";

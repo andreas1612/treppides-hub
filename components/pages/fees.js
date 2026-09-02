@@ -17,7 +17,7 @@
 
 import { escapeHtml, renderError } from "../../utils/dom.js?v=2";
 import { setStatus }               from "../shell/topbar.js";
-import CONFIG                      from "../../config.js";
+import CONFIG                      from "../../config.js?v=1";
 
 // ---- DOM IDs -------------------------------------------------------
 const SECTION_ID   = "section-fees";

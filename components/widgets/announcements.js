@@ -8,7 +8,7 @@ import { fetchPages, fetchPageContent } from "../../api/bookstack.js";
 import { formatDate }      from "../../utils/format.js";
 import { escapeHtml, renderSkeleton, renderError, renderEmpty } from "../../utils/dom.js?v=2";
 import { setStatus }       from "../shell/topbar.js";
-import CONFIG              from "../../config.js";
+import CONFIG              from "../../config.js?v=1";
 
 const SECTION_ID  = "section-announcements";
 const CARDS_ID    = "announcements-cards";
