@@ -17,6 +17,7 @@ import { escapeHtml } from "../../utils/dom.js?v=2";
 import { TM_BASE, getCurrentUser } from "../../js/auth.js";
 
 const SECTION_ID = "section-invoices";
+const ICON_DOWNLOAD = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
 
 // ---- Page visibility ----------------------------------------
 
@@ -81,12 +82,16 @@ export default async function init() {
           <input type="checkbox" id="inv-unpaid-only" />
           Unpaid only
         </label>
+        <button class="inv-csv-btn" id="inv-csv-btn" title="Download the current list as CSV">
+          ${ICON_DOWNLOAD} Download CSV
+        </button>
       </div>
       <div id="inv-summary-section"></div>
       <div id="inv-table-section"></div>
     </div>`;
 
   document.getElementById("inv-back-btn")?.addEventListener("click", hidePage);
+  document.getElementById("inv-csv-btn")?.addEventListener("click", downloadCsv);
 
   document.getElementById("inv-year")?.addEventListener("change", (e) => {
     const yr = parseInt(e.target.value);
@@ -287,6 +292,47 @@ function setLoading() {
 function setError(msg) {
   const el = document.getElementById("inv-summary-section");
   if (el) el.innerHTML = `<div class="perf-error">Could not load invoices.<br><small>${escapeHtml(msg)}</small></div>`;
+}
+
+// ---- CSV export -------------------------------------------------
+
+function downloadCsv() {
+  if (!invoices.length) return;
+
+  const header = ["Invoice #", "Date", "Due", "Client", "Amount", "Age (days)", "Status", "Paid date", "Paid amount"];
+  const rows = invoices.map(i => [
+    i.docno,
+    fmtDate(i.docDate),
+    fmtDate(i.dueDate),
+    i.accountName || "",
+    i.amount.toFixed(2),
+    i.ageDays,
+    i.paid ? "PAID" : (i.flagged ? "UNPAID - FLAGGED" : "UNPAID"),
+    i.paid ? fmtDate(i.paidDate) : "",
+    i.paid && i.paidAmount != null ? i.paidAmount.toFixed(2) : "",
+  ]);
+
+  const csv = [header, ...rows]
+    .map(row => row.map(csvEscape).join(","))
+    .join("\r\n");
+
+  const who = viewMode === "self" ? "me" : (selectedCode || "manager");
+  const filename = `invoices_${who}_${currentYear}.csv`;
+
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function csvEscape(value) {
+  const s = String(value ?? "");
+  return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
 // ---- Utility --------------------------------------------------

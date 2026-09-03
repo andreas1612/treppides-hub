@@ -560,6 +560,25 @@
   cursor: pointer;
 }
 
+.inv-csv-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding: 7px 14px;
+  border: none;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  white-space: nowrap;
+}
+
+.inv-csv-btn:hover { opacity: 0.85; }
+
 .kpi-table td.kpi-cell-center {
   text-align: center;
 }
