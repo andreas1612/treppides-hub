@@ -214,8 +214,13 @@ function renderSummary() {
 
   const total = invoices.length;
   const unpaidCount = invoices.filter(i => !i.paid).length;
+  const partialCount = invoices.filter(i => isPartial(i)).length;
   const flaggedCount = invoices.filter(i => i.flagged).length;
-  const unpaidTotal = invoices.filter(i => !i.paid).reduce((s, i) => s + i.amount, 0);
+  // Outstanding balance, not face value — a partial invoice only counts what's
+  // actually still owed (amount minus whatever's already been paid down).
+  const outstandingTotal = invoices
+    .filter(i => !i.paid)
+    .reduce((s, i) => s + (i.amount - (i.paidAmount || 0)), 0);
 
   section.innerHTML = `
     <div class="kpi-summary-stats" style="margin-top:16px">
@@ -228,14 +233,23 @@ function renderSummary() {
         <span class="kpi-stat-value">${unpaidCount}</span>
       </div>
       <div class="kpi-stat">
+        <span class="kpi-stat-label">Partial</span>
+        <span class="kpi-stat-value" style="${partialCount > 0 ? 'color:#f57c00' : ''}">${partialCount}</span>
+      </div>
+      <div class="kpi-stat">
         <span class="kpi-stat-label">Flagged (&gt;${flagAfterDays}d)</span>
         <span class="kpi-stat-value" style="${flaggedCount > 0 ? 'color:#c62828' : ''}">${flaggedCount}</span>
       </div>
       <div class="kpi-stat">
-        <span class="kpi-stat-label">Unpaid total</span>
-        <span class="kpi-stat-value">&euro;${fmt(unpaidTotal)}</span>
+        <span class="kpi-stat-label">Outstanding total</span>
+        <span class="kpi-stat-value">&euro;${fmt(outstandingTotal)}</span>
       </div>
     </div>`;
+}
+
+/** Some, but not all, of the invoice has been paid down (see InvoiceService's FIFO + accallocation combination). */
+function isPartial(i) {
+  return !i.paid && i.paidAmount != null && i.paidAmount > 0.01;
 }
 
 // ---- Render: table ----------------------------------------------
@@ -250,9 +264,21 @@ function renderTable() {
   }
 
   const rows = invoices.map(i => {
-    const badge = i.paid ? "GREEN" : (i.flagged ? "FLAGGED" : "RED");
-    const badgeLabel = i.paid ? "PAID" : (i.flagged ? "UNPAID — FLAGGED" : "UNPAID");
+    const partial = isPartial(i);
+    let badge, badgeLabel;
+    if (i.paid) {
+      badge = "GREEN"; badgeLabel = "PAID";
+    } else if (i.flagged) {
+      badge = "FLAGGED"; badgeLabel = partial ? "PARTIAL — FLAGGED" : "UNPAID — FLAGGED";
+    } else if (partial) {
+      badge = "AMBER"; badgeLabel = "PARTIAL";
+    } else {
+      badge = "RED"; badgeLabel = "UNPAID";
+    }
     const rowClass = i.flagged ? "inv-row-flagged" : "";
+    const partialDetail = partial
+      ? `<div class="kpi-fee-detail">&euro;${fmt(i.paidAmount)} of &euro;${fmt(i.amount)} settled</div>`
+      : "";
     return `
       <tr class="${rowClass}">
         <td>${escapeHtml(i.docno)}</td>
@@ -261,7 +287,10 @@ function renderTable() {
         <td>${escapeHtml(i.accountName || "")}</td>
         <td class="kpi-cell-num">&euro;${fmt(i.amount)}</td>
         <td class="kpi-cell-num">${i.paid ? i.ageDays + "d to settle" : i.ageDays + "d"}</td>
-        <td class="kpi-cell-center"><span class="kpi-badge-sm ${badge}">${badgeLabel}</span></td>
+        <td class="kpi-cell-center">
+          <span class="kpi-badge-sm ${badge}">${badgeLabel}</span>
+          ${partialDetail}
+        </td>
       </tr>`;
   }).join("");
 
@@ -299,18 +328,23 @@ function setError(msg) {
 function downloadCsv() {
   if (!invoices.length) return;
 
-  const header = ["Invoice #", "Date", "Due", "Client", "Amount", "Age (days)", "Status", "Paid date", "Paid amount"];
-  const rows = invoices.map(i => [
-    i.docno,
-    fmtDate(i.docDate),
-    fmtDate(i.dueDate),
-    i.accountName || "",
-    i.amount.toFixed(2),
-    i.ageDays,
-    i.paid ? "PAID" : (i.flagged ? "UNPAID - FLAGGED" : "UNPAID"),
-    i.paid ? fmtDate(i.paidDate) : "",
-    i.paid && i.paidAmount != null ? i.paidAmount.toFixed(2) : "",
-  ]);
+  const header = ["Invoice #", "Date", "Due", "Client", "Amount", "Age (days)", "Status", "Paid date", "Paid amount", "Outstanding"];
+  const rows = invoices.map(i => {
+    const partial = isPartial(i);
+    const status = i.paid ? "PAID" : (i.flagged ? (partial ? "PARTIAL - FLAGGED" : "UNPAID - FLAGGED") : (partial ? "PARTIAL" : "UNPAID"));
+    return [
+      i.docno,
+      fmtDate(i.docDate),
+      fmtDate(i.dueDate),
+      i.accountName || "",
+      i.amount.toFixed(2),
+      i.ageDays,
+      status,
+      i.paidDate ? fmtDate(i.paidDate) : "",
+      i.paidAmount != null ? i.paidAmount.toFixed(2) : "",
+      i.paid ? "0.00" : (i.amount - (i.paidAmount || 0)).toFixed(2),
+    ];
+  });
 
   const csv = [header, ...rows]
     .map(row => row.map(csvEscape).join(","))
