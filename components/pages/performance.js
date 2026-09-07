@@ -572,6 +572,7 @@ function renderSelfCard(card) {
           <span>Level: ${escapeHtml(card.level)}</span>
           <span>${card.weeksInPeriod} weeks</span>
         </div>
+        ${card.prorated ? `<div class="perf-prorated" title="Joined mid-period — target prorated from hire date, not counted from the period start">&#9873; Prorated from ${escapeHtml((card.period || "").split("/")[0])}</div>` : ""}
         <div class="perf-hrs-row">
           <div class="perf-hrs-item">
             <span class="perf-hrs-label">Actual</span>
@@ -642,6 +643,7 @@ function renderTeamSection(teamCard) {
           <div class="perf-mini-name">${escapeHtml(r.employeeName)}</div>
           <div class="perf-mini-title">${escapeHtml(r.level || "")}</div>
           <div class="perf-mini-hrs">${r.actualHrs.toFixed(1)} / ${(r.targetHrsPeriod || 0).toFixed(1)} h</div>
+          ${r.prorated ? `<div class="perf-mini-prorated" title="Prorated from hire date">&#9873; prorated</div>` : ""}
         </div>
         <div class="perf-mini-gauge">
           ${pctDisplay}
