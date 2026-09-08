@@ -446,10 +446,6 @@ async function openTargetEditor(card) {
   const initContracted = (curStatus === "Part-time")
     ? ((card.contractedOverride && card.contractedOverride > 0) ? card.contractedOverride : "")
     : ((card.contractedHrsWeek && card.contractedHrsWeek > 0) ? card.contractedHrsWeek : (seed ? seed.contractedWeek : 38.5));
-  // Leave is a per-month figure. In month view the card's leaveHrs is that month's value
-  // (safe to pre-fill); in YTD view it's the whole-period sum and the edit targets the
-  // current month, so start blank there rather than pre-fill a mismatched total.
-  const initLeave = (currentPeriod === "month" && card.leaveHrs > 0) ? card.leaveHrs : "";
 
   host.innerHTML = `
     <div class="perf-edit">
@@ -458,7 +454,6 @@ async function openTargetEditor(card) {
         <label>Contracted h/week<input id="pe-cw" type="number" step="0.01" min="0"></label>
         <label>Contracted h/month<input id="pe-cm" type="number" step="0.01" min="0"></label>
         <label>Location<input id="pe-loc" type="text" value="${escapeHtml(card.location || "")}"></label>
-        <label>Leave h (this month)<input id="pe-leave" type="number" step="0.5" min="0" value="${initLeave}" placeholder="${currentPeriod === "ytd" ? "unchanged" : "0"}"></label>
       </div>
       <div class="perf-edit-target" id="pe-target"></div>
       <div class="perf-edit-effnote" id="pe-effnote"></div>
@@ -524,19 +519,12 @@ async function saveTarget(code) {
   const level = document.getElementById("pe-status")?.value;
   const cw = document.getElementById("pe-cw")?.value;
   const loc = document.getElementById("pe-loc")?.value;
-  const leave = document.getElementById("pe-leave")?.value;
   if (!level) { if (msg) msg.textContent = "Status is required"; return; }
   if (msg) msg.textContent = "Saving…";
   const eff = effectiveMonth();
-  // Leave is month-scoped. In month view the field holds the true value, so always send it
-  // (blank => intentional clear). In YTD view we can't know the month's value (the card shows
-  // the whole-period sum), so only send leave if HR actually typed one — a blank YTD save omits
-  // leaveHrs entirely and the backend leaves the stored month value untouched.
-  const payload = { level, contractedHrsWeek: cw, location: loc, year: eff.year, month: eff.month };
-  const leaveBlank = (leave === "" || leave == null);
-  if (!(currentPeriod === "ytd" && leaveBlank)) payload.leaveHrs = leave;
   try {
-    await apiPut(`/api/reports/performance/target/${encodeURIComponent(code)}`, payload);
+    await apiPut(`/api/reports/performance/target/${encodeURIComponent(code)}`,
+      { level, contractedHrsWeek: cw, location: loc, year: eff.year, month: eff.month });
     reloadCurrent();
   } catch (e) {
     if (msg) msg.textContent = e.message === "FORBIDDEN" ? "Not allowed" : ("Error: " + e.message);
@@ -602,7 +590,6 @@ function renderSelfCard(card) {
         <div class="perf-target-line">
           Target chargeability: <strong>${card.targetPct.toFixed(1)}%</strong>
         </div>
-        ${card.leaveHrs > 0 ? `<div class="perf-leave-note" title="HR-logged leave for this period; the target above is already reduced by the chargeable-equivalent of these hours">&#127796; Leave applied: ${card.leaveHrs.toFixed(1)} h — target reduced accordingly</div>` : ""}
         ${breakdownHtml}
         ${canEdit ? `
         <div class="perf-edit-wrap">
