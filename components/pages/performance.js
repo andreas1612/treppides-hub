@@ -546,6 +546,15 @@ function renderSelfCard(card) {
     return;
   }
 
+  if (card.badge === "NOT_STARTED") {
+    section.innerHTML = `
+      <div class="perf-exempt">
+        <strong>${escapeHtml(card.employeeName)}</strong> had not started yet in this period.
+        No chargeability data available.
+      </div>`;
+    return;
+  }
+
   const breakdownHtml = (card.companyBreakdown && card.companyBreakdown.length > 0)
     ? `<div class="perf-breakdown">
         <div class="perf-breakdown-title">Hours by Client</div>

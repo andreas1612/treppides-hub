@@ -6,7 +6,16 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git push:*)",
-      "Bash(git rm:*)"
+      "Bash(git rm:*)",
+      "Read(//home/tech-admin/taskmanager/**)",
+      "Bash(./mvnw compile:*)",
+      "Bash(./mvnw package:*)",
+      "Bash(sudo -S systemctl restart taskmanager)",
+      "Bash(sudo systemctl:*)",
+      "Bash(sudo -S systemctl status taskmanager --no-pager)",
+      "Bash(sudo -S journalctl -u taskmanager --since \"1 min ago\" --no-pager)",
+      "Bash(sudo -S journalctl -u taskmanager --since \"2 min ago\" --no-pager)",
+      "Read(//home/tech-admin/**)"
     ]
   }
 }
