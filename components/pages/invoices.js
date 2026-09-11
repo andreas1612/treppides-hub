@@ -69,6 +69,7 @@ export default async function init() {
           <select id="inv-manager-select" class="kpi-select">
             <option value="">Select manager...</option>
           </select>
+          ${canViewOverdueReport() ? `<button class="inv-overdue-btn" id="inv-overdue-btn" title="All invoices unpaid for 90+ days, grouped by company">90+ Days Overdue Report</button>` : ""}
         </div>
       </div>
       <div class="inv-filter-bar">
@@ -82,16 +83,13 @@ export default async function init() {
           <input type="checkbox" id="inv-unpaid-only" />
           Unpaid only
         </label>
-        <button class="inv-csv-btn" id="inv-csv-btn" title="Download the current list as CSV">
-          ${ICON_DOWNLOAD} Download CSV
-        </button>
       </div>
       <div id="inv-summary-section"></div>
       <div id="inv-table-section"></div>
     </div>`;
 
   document.getElementById("inv-back-btn")?.addEventListener("click", hidePage);
-  document.getElementById("inv-csv-btn")?.addEventListener("click", downloadCsv);
+  document.getElementById("inv-overdue-btn")?.addEventListener("click", openOverdueReport);
 
   document.getElementById("inv-year")?.addEventListener("change", (e) => {
     const yr = parseInt(e.target.value);
@@ -307,6 +305,143 @@ function renderTable() {
         <tbody>${rows}</tbody>
       </table>
     </div>`;
+}
+
+// ---- 90+ days overdue report (SUPER only) ----------------------
+
+let overdueGroups = null;
+
+/** Overdue-report access: SUPER tier OR the named allowlist (RoleService.canViewOverdueReport
+ *  server-side). Drives the report button; the endpoint enforces it too. */
+function canViewOverdueReport() {
+  return !!getCurrentUser()?.canViewOverdueReport;
+}
+
+/** Hide the normal filter bar + manager picker while the overdue report is shown (they
+ *  don't apply to it). Uses style.display, not the `hidden` attribute — the filter bar's
+ *  CSS `display:flex` overrides `[hidden]`, so `hidden` alone would leave it visible. */
+function setReportChrome(active) {
+  const filterBar = document.querySelector(".inv-filter-bar");
+  const managerSelect = document.getElementById("inv-manager-select");
+  if (filterBar) filterBar.style.display = active ? "none" : "";
+  if (managerSelect) managerSelect.style.display = active ? "none" : "";
+}
+
+async function openOverdueReport() {
+  if (!canViewOverdueReport()) return;
+  setReportChrome(true);
+  const summary = document.getElementById("inv-summary-section");
+  const table = document.getElementById("inv-table-section");
+  if (summary) summary.innerHTML = `<div class="perf-loading"><div class="spinner"></div>Building the 90+ day overdue report…</div>`;
+  if (table) table.innerHTML = "";
+  try {
+    const res = await fetch(`${TM_BASE}/api/reports/invoices/overdue-report?minAgeDays=90`, {
+      credentials: "include",
+      cache: "no-store",
+      headers: { "X-Requested-With": "XMLHttpRequest" }
+    });
+    if (res.status === 401) {
+      sessionStorage.setItem("hub_pre_login_url", window.location.href);
+      window.location.href = "/login.html";
+      return;
+    }
+    if (res.status === 403) {
+      if (summary) summary.innerHTML = `<div class="perf-error">This report is available to SUPER users only.</div>`;
+      return;
+    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    overdueGroups = await res.json();
+    renderOverdueReport(overdueGroups);
+  } catch (e) {
+    if (summary) summary.innerHTML = `<div class="perf-error">Could not build the overdue report.<br><small>${escapeHtml(e.message)}</small></div>`;
+  }
+}
+
+function renderOverdueReport(groups) {
+  const summary = document.getElementById("inv-summary-section");
+  const table = document.getElementById("inv-table-section");
+  if (!table) return;
+
+  const totalInvoices = groups.reduce((s, g) => s + g.invoiceCount, 0);
+  const totalOutstanding = groups.reduce((s, g) => s + g.totalOutstanding, 0);
+
+  if (summary) {
+    summary.innerHTML = `
+      <div class="inv-overdue-head">
+        <button class="inv-overdue-back" id="inv-overdue-back">&larr; Back to invoices</button>
+        <button class="inv-csv-btn" id="inv-overdue-csv">${ICON_DOWNLOAD} Download CSV</button>
+      </div>
+      <div class="kpi-stat-row">
+        <div class="kpi-stat"><span class="kpi-stat-label">Companies</span><span class="kpi-stat-value">${groups.length}</span></div>
+        <div class="kpi-stat"><span class="kpi-stat-label">Invoices 90+ days unpaid</span><span class="kpi-stat-value">${totalInvoices}</span></div>
+        <div class="kpi-stat"><span class="kpi-stat-label">Outstanding</span><span class="kpi-stat-value">&euro;${fmt(totalOutstanding)}</span></div>
+      </div>`;
+    document.getElementById("inv-overdue-back")?.addEventListener("click", closeOverdueReport);
+    document.getElementById("inv-overdue-csv")?.addEventListener("click", () => downloadOverdueCsv(groups));
+  }
+
+  if (!groups.length) {
+    table.innerHTML = `<p style="color:var(--text-secondary);font-size:12px;margin-top:16px">No invoices are unpaid for 90 days or more.</p>`;
+    return;
+  }
+
+  const blocks = groups.map(g => {
+    const rows = g.invoices.map(i => `
+      <tr>
+        <td>${escapeHtml(i.docno)}</td>
+        <td>${fmtDate(i.docDate)}</td>
+        <td class="kpi-cell-num">&euro;${fmt(i.amount)}</td>
+        <td class="kpi-cell-num">${i.ageDays}d</td>
+        <td>${escapeHtml(i.managerName || "—")}</td>
+        <td>${escapeHtml(i.managerExt || "—")}</td>
+      </tr>`).join("");
+    return `
+      <div class="inv-overdue-group">
+        <div class="inv-overdue-company">
+          <span class="inv-overdue-company-name">${escapeHtml(g.company)}</span>
+          <span class="inv-overdue-company-meta">${g.invoiceCount} invoice${g.invoiceCount !== 1 ? "s" : ""} &middot; &euro;${fmt(g.totalOutstanding)} outstanding</span>
+        </div>
+        <div class="kpi-table-wrap">
+          <table class="kpi-table">
+            <thead>
+              <tr><th>Invoice #</th><th>Date</th><th class="kpi-th-num">Amount</th><th class="kpi-th-num">Age</th><th>Manager</th><th>Ext.</th></tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      </div>`;
+  }).join("");
+
+  table.innerHTML = `
+    <div class="kpi-section-title" style="margin-top:16px">Unpaid 90+ days — grouped by company</div>
+    <p class="inv-overdue-disclaimer">Fully unpaid invoices only — partially-paid invoices are excluded.</p>
+    ${blocks}`;
+}
+
+function closeOverdueReport() {
+  overdueGroups = null;
+  setReportChrome(false);
+  if (viewMode === 'self' || selectedCode) loadAndRender();
+  else clearAll();
+}
+
+function downloadOverdueCsv(groups) {
+  const disclaimer = [["Fully unpaid invoices only — partially-paid invoices are excluded."]];
+  const header = ["Company", "Invoice #", "Date", "Amount", "Age (days)", "Manager", "Ext."];
+  const rows = [];
+  groups.forEach(g => g.invoices.forEach(i => rows.push([
+    g.company, i.docno, fmtDate(i.docDate), i.amount.toFixed(2), i.ageDays, i.managerName || "", i.managerExt || ""
+  ])));
+  const csv = [...disclaimer, header, ...rows].map(r => r.map(csvEscape).join(",")).join("\r\n");
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "invoices_overdue_90d.csv";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 // ---- State helpers ------------------------------------------

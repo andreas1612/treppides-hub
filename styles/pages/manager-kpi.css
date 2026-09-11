@@ -579,6 +579,70 @@
 
 .inv-csv-btn:hover { opacity: 0.85; }
 
+/* ---- 90+ days overdue report (SUPER only) ---------------- */
+.inv-overdue-btn {
+  padding: 7px 14px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+.inv-overdue-btn:hover { background: var(--accent); color: #fff; }
+
+.inv-overdue-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0 16px;
+}
+.inv-overdue-back {
+  padding: 7px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card-bg);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.inv-overdue-back:hover { background: var(--page-bg); }
+
+.inv-overdue-disclaimer {
+  margin: 4px 0 0;
+  font-size: 12px;
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
+.inv-overdue-group { margin-top: 22px; }
+
+.inv-overdue-company {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+  background: var(--page-bg);
+  border-left: 3px solid var(--accent);
+  border-radius: 4px 4px 0 0;
+}
+.inv-overdue-company-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.inv-overdue-company-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
 .kpi-table td.kpi-cell-center {
   text-align: center;
 }
