@@ -39,7 +39,7 @@ window.__hub_invoices = { show: showPage, hide: hidePage };
 
 let managers = [];
 let selectedCode = null;
-let currentYear = new Date().getFullYear();
+let currentYear = "";   // "" = all years (default); "2026" etc. filters to that year
 let flagAfterDays = 30;
 let unpaidOnly = false;
 let invoices = [];
@@ -74,7 +74,7 @@ export default async function init() {
       </div>
       <div class="inv-filter-bar">
         <label>Year
-          <input type="number" id="inv-year" value="${currentYear}" min="2020" max="2030" />
+          <select id="inv-year" class="kpi-select">${yearOptionsHtml()}</select>
         </label>
         <label>Flag unpaid after (days)
           <input type="number" id="inv-flag-days" value="${flagAfterDays}" min="0" />
@@ -92,8 +92,8 @@ export default async function init() {
   document.getElementById("inv-overdue-btn")?.addEventListener("click", openOverdueReport);
 
   document.getElementById("inv-year")?.addEventListener("change", (e) => {
-    const yr = parseInt(e.target.value);
-    if (!isNaN(yr)) { currentYear = yr; if (viewMode === 'self' || selectedCode) loadAndRender(); }
+    currentYear = e.target.value;   // "" = all years
+    if (viewMode === 'self' || selectedCode) loadAndRender();
   });
   document.getElementById("inv-flag-days")?.addEventListener("input", (e) => {
     const d = parseInt(e.target.value);
@@ -128,7 +128,7 @@ export default async function init() {
 
 async function loadManagers() {
   try {
-    const res = await fetch(`${TM_BASE}/api/reports/invoices/managers?year=${currentYear}`, {
+    const res = await fetch(`${TM_BASE}/api/reports/invoices/managers?year=${new Date().getFullYear()}`, {
       credentials: "include",
       headers: { "X-Requested-With": "XMLHttpRequest" }
     });
@@ -152,10 +152,10 @@ async function loadAndRender() {
   setLoading();
 
   const params = new URLSearchParams({
-    year: currentYear,
     flagAfterDays: flagAfterDays,
     unpaidOnly: unpaidOnly
   });
+  if (currentYear) params.set("year", currentYear);   // omit → all years
 
   const url = viewMode === 'self'
     ? `${TM_BASE}/api/reports/invoices/me?${params}`
@@ -257,7 +257,7 @@ function renderTable() {
   if (!section) return;
 
   if (invoices.length === 0) {
-    section.innerHTML = `<p style="color:var(--text-secondary);font-size:12px;margin-top:16px">No invoices for ${viewMode === 'self' ? 'you' : 'this manager'} / this year${unpaidOnly ? " (unpaid only)" : ""}.</p>`;
+    section.innerHTML = `<p style="color:var(--text-secondary);font-size:12px;margin-top:16px">No invoices for ${viewMode === 'self' ? 'you' : 'this manager'}${currentYear ? " / " + currentYear : " (all years)"}${unpaidOnly ? " (unpaid only)" : ""}.</p>`;
     return;
   }
 
@@ -508,6 +508,14 @@ function csvEscape(value) {
 
 function fmt(n) {
   return Number(n).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+/** Year dropdown options: "All years" (default) + current year down to 2020. */
+function yearOptionsHtml() {
+  const now = new Date().getFullYear();
+  let opts = `<option value="">All years</option>`;
+  for (let y = now; y >= 2020; y--) opts += `<option value="${y}">${y}</option>`;
+  return opts;
 }
 
 function fmtDate(d) {
