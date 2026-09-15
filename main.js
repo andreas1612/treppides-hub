@@ -6,7 +6,7 @@
 import CONFIG            from "./config.js?v=1";
 import { initAuth }      from "./js/auth.js";
 import { initRouter }    from "./js/router.js?v=3";
-import initSidebar       from "./components/shell/sidebar.js?v=4";
+import initSidebar       from "./components/shell/sidebar.js?v=5";
 import initSimulator     from "./components/shell/simulator.js";
 import initTopbar        from "./components/shell/topbar.js";
 import initAnnouncements from "./components/widgets/announcements.js";
@@ -31,7 +31,7 @@ import initTbratio        from "./components/pages/tbratio.js";
 import initForms          from "./components/pages/forms.js";
 import initFinancials     from "./components/pages/financials.js";
 import initTeamCalendar   from "./components/pages/team-calendar.js";
-import initInvoices       from "./components/pages/invoices.js?v=6";
+import initInvoices       from "./components/pages/invoices.js?v=7";
 import initInvoiceActions from "./components/pages/invoice-actions.js?v=1";
 
 async function boot() {

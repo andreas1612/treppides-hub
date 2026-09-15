@@ -69,6 +69,7 @@ export default async function init() {
           <select id="inv-manager-select" class="kpi-select">
             <option value="">Select manager...</option>
           </select>
+          <button class="inv-actions-btn" id="inv-actions-btn" title="Record a reason & action for your invoices unpaid 80+ days">Reason / Actions</button>
           ${canViewOverdueReport() ? `<button class="inv-overdue-btn" id="inv-overdue-btn" title="All invoices unpaid for 90+ days, grouped by company">90+ Days Overdue Report</button>` : ""}
         </div>
       </div>
@@ -90,6 +91,7 @@ export default async function init() {
 
   document.getElementById("inv-back-btn")?.addEventListener("click", hidePage);
   document.getElementById("inv-overdue-btn")?.addEventListener("click", openOverdueReport);
+  document.getElementById("inv-actions-btn")?.addEventListener("click", () => window.__hub_router?.navigate("/invoice-actions"));
 
   document.getElementById("inv-year")?.addEventListener("change", (e) => {
     currentYear = e.target.value;   // "" = all years

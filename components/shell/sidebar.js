@@ -224,9 +224,6 @@ export default async function init(config) {
       _has("financials")  ? `<button class="nav-item nav-btn" id="${p}-financials">${ICONS.ledger} Financials</button>` : "",
       // Invoices — self view for everyone; admin picker (view-anyone) for FULL/SUPER + allowlist.
       _has("invoices")    ? `<button class="nav-item nav-btn" id="${p}-invoices">${ICONS.receipt} Invoices</button>` : "",
-      // Invoice Actions — any invoice-holding manager records reasons/actions for their own
-      // 80+ day unpaid invoices (list is scoped to the caller server-side).
-      _has("invoices")    ? `<button class="nav-item nav-btn" id="${p}-invoiceactions">${ICONS.receipt} Invoice Actions</button>` : "",
       // WiseBOS-Next — FULL/SUPER only. External tool, plain redirect (own port,
       // gated by nginx via RoleService.isFull() — see /api/me/gate/full).
       _has("wisebos")     ? `<button class="nav-item nav-btn" id="${p}-wisebos">${ICONS.externalLink} WiseBOS</button>` : "",
@@ -295,7 +292,6 @@ export default async function init(config) {
     document.getElementById("sb-budgetkpi")?.addEventListener("click",   () => navigate("/budget-kpi"));
     document.getElementById("sb-financials")?.addEventListener("click",  () => navigate("/financials"));
     document.getElementById("sb-invoices")?.addEventListener("click",    () => navigate("/invoices"));
-    document.getElementById("sb-invoiceactions")?.addEventListener("click", () => navigate("/invoice-actions"));
     // WiseBOS-Next — plain redirect to an externally-hosted, nginx-gated tool
     // (own port, not part of the hub's SPA router).
     document.getElementById("sb-wisebos")?.addEventListener("click",     () => { window.location.href = CONFIG.WISEBOS_URL; });
@@ -359,7 +355,6 @@ export default async function init(config) {
     document.getElementById("mb-budgetkpi")?.addEventListener("click",   () => { closeNav(); navigate("/budget-kpi"); });
     document.getElementById("mb-financials")?.addEventListener("click",  () => { closeNav(); navigate("/financials"); });
     document.getElementById("mb-invoices")?.addEventListener("click",    () => { closeNav(); navigate("/invoices"); });
-    document.getElementById("mb-invoiceactions")?.addEventListener("click", () => { closeNav(); navigate("/invoice-actions"); });
     document.getElementById("mb-wisebos")?.addEventListener("click",     () => { closeNav(); window.location.href = CONFIG.WISEBOS_URL; });
 
     document.getElementById("mb-support")?.addEventListener("click", () => {
@@ -402,13 +397,12 @@ export default async function init(config) {
       budgetkpi:   ["sb-budgetkpi",   "mb-budgetkpi"],
       financials:  ["sb-financials",  "mb-financials"],
       invoices:    ["sb-invoices",    "mb-invoices"],
-      invoiceactions: ["sb-invoiceactions", "mb-invoiceactions"],
     };
     [
       "sb-home","sb-kb","sb-staff","sb-tools","sb-crm",
-      "sb-performance","sb-budgetkpi","sb-financials","sb-invoices","sb-invoiceactions",
+      "sb-performance","sb-budgetkpi","sb-financials","sb-invoices",
       "mb-home","mb-kb","mb-staff","mb-tools","mb-crm",
-      "mb-performance","mb-budgetkpi","mb-financials","mb-invoices","mb-invoiceactions",
+      "mb-performance","mb-budgetkpi","mb-financials","mb-invoices",
     ].forEach(id => {
       document.getElementById(id)?.classList.remove("active");
     });

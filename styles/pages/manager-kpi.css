@@ -594,6 +594,20 @@
 }
 .inv-overdue-btn:hover { background: var(--accent); color: #fff; }
 
+.inv-actions-btn {
+  padding: 7px 14px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+.inv-actions-btn:hover { background: var(--accent); color: #fff; }
+
 .inv-overdue-head {
   display: flex;
   align-items: center;
