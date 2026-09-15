@@ -28,6 +28,9 @@ const SECTION_FEATURE = {
   budgetkpi:   "budgetkpi",
   financials:  "financials",
   invoices:    "invoices",
+  // Action-needed page: reachable by anyone with the (base) "invoices" feature — i.e. any
+  // employee. The list is scoped to the caller server-side, so an empty page is harmless.
+  invoiceactions: "invoices",
 };
 
 /** True if the current user may reach this route's section. */
@@ -44,7 +47,7 @@ const ACTIVE_CLASSES = [
   "fees-active", "valuation-active", "companies-active", "crm-active",
   "crmlist-active", "tbratio-active", "performance-active",
   "budgetkpi-active", "financials-active", "forms-active",
-  "teamcalendar-active", "invoices-active", "accounts-active",
+  "teamcalendar-active", "invoices-active", "invoiceactions-active", "accounts-active",
 ];
 
 // Route table: path → { section, cssClass, showFn, hideFn }
@@ -72,6 +75,7 @@ const ROUTES = [
   { path: "/budget-kpi",       section: "budgetkpi",    cssClass: "budgetkpi-active",    hub: "budgetkpi" },
   { path: "/financials",       section: "financials",   cssClass: "financials-active",   hub: "financials" },
   { path: "/invoices",         section: "invoices",     cssClass: "invoices-active",     hub: "invoices" },
+  { path: "/invoice-actions",  section: "invoiceactions", cssClass: "invoiceactions-active", hub: "invoiceactions" },
 ];
 
 function findRoute(path) {

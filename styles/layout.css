@@ -433,6 +433,15 @@
 .main.invoices-active .reader-overlay     { display: none !important; }
 .main.invoices-active #section-invoices   { display: block !important; }
 
+#section-invoiceactions {
+  display: none;
+  padding: var(--page-gutter, 32px);
+}
+
+.main.invoiceactions-active .page-content         { display: none !important; }
+.main.invoiceactions-active .reader-overlay       { display: none !important; }
+.main.invoiceactions-active #section-invoiceactions { display: block !important; }
+
 /* ============================================================
    TEAM CALENDAR — dedicated full-page view
    ============================================================ */

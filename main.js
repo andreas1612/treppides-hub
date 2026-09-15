@@ -5,8 +5,8 @@
 
 import CONFIG            from "./config.js?v=1";
 import { initAuth }      from "./js/auth.js";
-import { initRouter }    from "./js/router.js?v=2";
-import initSidebar       from "./components/shell/sidebar.js?v=3";
+import { initRouter }    from "./js/router.js?v=3";
+import initSidebar       from "./components/shell/sidebar.js?v=4";
 import initSimulator     from "./components/shell/simulator.js";
 import initTopbar        from "./components/shell/topbar.js";
 import initAnnouncements from "./components/widgets/announcements.js";
@@ -31,7 +31,8 @@ import initTbratio        from "./components/pages/tbratio.js";
 import initForms          from "./components/pages/forms.js";
 import initFinancials     from "./components/pages/financials.js";
 import initTeamCalendar   from "./components/pages/team-calendar.js";
-import initInvoices       from "./components/pages/invoices.js?v=5";
+import initInvoices       from "./components/pages/invoices.js?v=6";
+import initInvoiceActions from "./components/pages/invoice-actions.js?v=1";
 
 async function boot() {
   // Auth gate — redirects to Microsoft login if no active session.
@@ -113,6 +114,9 @@ async function boot() {
 
   // Invoices — SUPER-only per-invoice paid/unpaid tracking.
   await initInvoices(CONFIG);
+
+  // Invoice Reason / Action — any manager's own 80+ day unpaid invoices to annotate.
+  await initInvoiceActions(CONFIG);
 
   // Content sections — initialise in visual page order.
   // Each runs independently; a failure in one does not block others.

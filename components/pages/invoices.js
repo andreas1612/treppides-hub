@@ -393,7 +393,9 @@ function renderOverdueReport(groups) {
         <td class="kpi-cell-num">&euro;${fmt(i.amount)}</td>
         <td class="kpi-cell-num">${i.ageDays}d</td>
         <td>${escapeHtml(i.managerName || "—")}</td>
+        <td>${i.nextResponsibleName ? escapeHtml(i.nextResponsibleName) : "—"}</td>
         <td>${escapeHtml(i.managerExt || "—")}</td>
+        <td class="inv-overdue-ra">${reasonActionHtml(i)}</td>
       </tr>`).join("");
     return `
       <div class="inv-overdue-group">
@@ -404,7 +406,7 @@ function renderOverdueReport(groups) {
         <div class="kpi-table-wrap">
           <table class="kpi-table">
             <thead>
-              <tr><th>Invoice #</th><th>Date</th><th class="kpi-th-num">Amount</th><th class="kpi-th-num">Age</th><th>Manager</th><th>Ext.</th></tr>
+              <tr><th>Invoice #</th><th>Date</th><th class="kpi-th-num">Amount</th><th class="kpi-th-num">Age</th><th>Manager</th><th>Next responsible</th><th>Ext.</th><th>Reason/Action</th></tr>
             </thead>
             <tbody>${rows}</tbody>
           </table>
@@ -414,8 +416,27 @@ function renderOverdueReport(groups) {
 
   table.innerHTML = `
     <div class="kpi-section-title" style="margin-top:16px">Unpaid 90+ days — grouped by company</div>
-    <p class="inv-overdue-disclaimer">Fully unpaid invoices only — partially-paid invoices are excluded.</p>
+    <p class="inv-overdue-disclaimer">Fully unpaid invoices only — partially-paid invoices are excluded. Group companies are excluded (Nomus Corporate, Nomus Capital, ZK, Finalogic, Service Now, Finanz, KT Corporate HK, Nomus Corporate HK, Treppides Advisers, Treppides UK).</p>
     ${blocks}`;
+}
+
+// Read-only Reason/Action cell for the 90+ report (managers edit it on the Action-needed page).
+function reasonActionText(i) {
+  const r = (i.reason || "").trim();
+  const a = (i.action || "").trim();
+  if (!r && !a) return "";
+  if (!r) return `Action: ${a}`;
+  if (!a) return `Reason: ${r}`;
+  return `Reason: ${r} | Action: ${a}`;
+}
+function reasonActionHtml(i) {
+  const r = (i.reason || "").trim();
+  const a = (i.action || "").trim();
+  if (!r && !a) return `<span class="inv-overdue-ra-empty">—</span>`;
+  const parts = [];
+  if (r) parts.push(`<span class="inv-overdue-ra-label">Reason:</span> ${escapeHtml(r)}`);
+  if (a) parts.push(`<span class="inv-overdue-ra-label">Action:</span> ${escapeHtml(a)}`);
+  return parts.join("<br>");
 }
 
 function closeOverdueReport() {
@@ -426,11 +447,11 @@ function closeOverdueReport() {
 }
 
 function downloadOverdueCsv(groups) {
-  const disclaimer = [["Fully unpaid invoices only — partially-paid invoices are excluded."]];
-  const header = ["Company", "Invoice #", "Date", "Amount", "Age (days)", "Manager", "Ext."];
+  const disclaimer = [["Fully unpaid invoices only — partially-paid invoices are excluded. Group companies are excluded (Nomus Corporate, Nomus Capital, ZK, Finalogic, Service Now, Finanz, KT Corporate HK, Nomus Corporate HK, Treppides Advisers, Treppides UK)."]];
+  const header = ["Company", "Invoice #", "Date", "Amount", "Age (days)", "Manager", "Next responsible", "Ext.", "Reason/Action"];
   const rows = [];
   groups.forEach(g => g.invoices.forEach(i => rows.push([
-    g.company, i.docno, fmtDate(i.docDate), i.amount.toFixed(2), i.ageDays, i.managerName || "", i.managerExt || ""
+    g.company, i.docno, fmtDate(i.docDate), i.amount.toFixed(2), i.ageDays, i.managerName || "", i.nextResponsibleName || "", i.managerExt || "", reasonActionText(i)
   ])));
   const csv = [...disclaimer, header, ...rows].map(r => r.map(csvEscape).join(",")).join("\r\n");
   const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });

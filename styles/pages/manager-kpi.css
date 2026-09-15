@@ -647,6 +647,51 @@
   text-align: center;
 }
 
+.inv-overdue-ra { max-width: 320px; font-size: 12px; white-space: normal; }
+.inv-overdue-ra-label { font-weight: 700; color: var(--text-secondary); }
+.inv-overdue-ra-empty { color: var(--text-secondary); }
+
+/* ---- Invoice Reason / Action page ---- */
+.ia-empty { color: var(--text-secondary); font-size: 13px; margin-top: 16px; }
+.ia-count { color: var(--text-secondary); font-size: 13px; margin: 12px 0 16px; }
+.ia-card {
+  border: 1px solid var(--border, #e3e6ea);
+  border-left: 4px solid var(--border, #e3e6ea);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  background: var(--surface, #fff);
+}
+.ia-card.ia-todo { border-left-color: #e0a800; }
+.ia-card.ia-done { border-left-color: #2e7d32; }
+.ia-card-head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: baseline; }
+.ia-docno { font-weight: 700; margin-right: 8px; }
+.ia-client { color: var(--text-secondary); font-size: 13px; }
+.ia-orig { display: block; font-size: 11px; font-style: italic; color: var(--text-secondary); margin-top: 2px; }
+.ia-meta { display: flex; gap: 10px; align-items: center; font-size: 12px; color: var(--text-secondary); flex-wrap: wrap; }
+.ia-amount { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--text-primary, #222); }
+.ia-badge { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
+.ia-badge-todo { background: #fff3cd; color: #8a6d00; }
+.ia-badge-done { background: #e6f4ea; color: #1e6b2a; }
+.ia-fields { display: flex; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
+.ia-fields label { flex: 1 1 240px; display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-secondary); }
+.ia-fields textarea {
+  width: 100%; box-sizing: border-box; resize: vertical; font: inherit; font-size: 13px;
+  padding: 8px; border: 1px solid var(--border, #d5d9de); border-radius: 6px;
+  background: var(--surface, #fff); color: var(--text-primary, #222);
+}
+.ia-card-foot { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-top: 10px; }
+.ia-status { font-size: 12px; color: var(--text-secondary); }
+.ia-status-ok { color: #1e6b2a; }
+.ia-status-err { color: #c62828; }
+.ia-save-btn {
+  min-width: 88px; cursor: pointer; font: inherit; font-size: 13px; font-weight: 600;
+  padding: 7px 16px; border: none; border-radius: 6px;
+  background: var(--accent, #1565c0); color: #fff;
+}
+.ia-save-btn:hover { filter: brightness(1.05); }
+.ia-save-btn:disabled { opacity: .6; cursor: default; }
+
 .kpi-badge-sm.FLAGGED { background: #ffebee; color: #c62828; font-weight: 800; }
 
 .inv-row-flagged {
