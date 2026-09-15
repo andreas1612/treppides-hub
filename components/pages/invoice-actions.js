@@ -45,7 +45,7 @@ export default async function init() {
     <div class="kpi-page">
       <div class="perf-header">
         <div class="perf-header-left">
-          <button class="kpi-back-btn" id="ia-back-btn" title="Back to home">
+          <button class="kpi-back-btn" id="ia-back-btn" title="Back to Invoices">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
           </button>
           <div>
@@ -58,8 +58,8 @@ export default async function init() {
     </div>`;
 
   document.getElementById("ia-back-btn")?.addEventListener("click", () => {
-    window.history.pushState({}, "", "/");
-    window.dispatchEvent(new PopStateEvent("popstate"));
+    if (window.__hub_router?.navigate) window.__hub_router.navigate("/invoices");
+    else { window.history.pushState({}, "", "/invoices"); window.dispatchEvent(new PopStateEvent("popstate")); }
   });
 }
 

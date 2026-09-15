@@ -32,7 +32,7 @@ import initForms          from "./components/pages/forms.js";
 import initFinancials     from "./components/pages/financials.js";
 import initTeamCalendar   from "./components/pages/team-calendar.js";
 import initInvoices       from "./components/pages/invoices.js?v=7";
-import initInvoiceActions from "./components/pages/invoice-actions.js?v=1";
+import initInvoiceActions from "./components/pages/invoice-actions.js?v=2";
 
 async function boot() {
   // Auth gate — redirects to Microsoft login if no active session.
